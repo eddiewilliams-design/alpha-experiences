@@ -6,40 +6,34 @@
 <title>Level Up Lounge — Alpha Anywhere</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@300;400;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@700;800;900&family=Nunito+Sans:wght@300;400;600;700&display=swap" rel="stylesheet">
 <style>
-@font-face {
-  font-family: 'AFSobremesa';
-  font-weight: 700;
-  font-style: normal;
-  src: local('Georgia Bold'), local('Georgia-Bold');
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+:root{
+  --aa-navy:#072256;--aa-white:#FAFAFA;--aa-blue:#006FF9;
+  --aa-yellow:#E59500;--aa-green:#2C8707;
+  --aa-light-blue:#E5F6FD;--aa-light-yellow:#FFF7E5;--aa-light-green:#EEFDE8;
+  --aa-dark-grey:#8291AA;--aa-med-grey:#DADFE7;--aa-light-grey:#EEF0F3;
+  --media-white:#FFFFFF;
+  --r-pill:999px;--r-lg:25px;--r-md:20px;--r-sm:10px;--r-xs:5px;
 }
-@font-face {
-  font-family: 'AFSobremesa';
-  font-weight: 500;
-  font-style: normal;
-  src: local('Georgia'), local('Georgia-Regular');
-}
-</style><style>
-*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-:root { --aa-navy:#072256;--aa-white:#FAFAFA;--aa-blue:#006FF9;--aa-yellow:#E59500;--aa-green:#2C8707;--aa-light-blue:#E5F6FD;--aa-light-yellow:#FFF7E5;--aa-light-green:#EEFDE8;--aa-dark-grey:#8291AA;--aa-med-grey:#DADFE7;--aa-light-grey:#EEF0F3;--media-white:#FFFFFF;--r-pill:999px;--r-lg:25px;--r-md:20px;--r-sm:10px;--r-xs:5px; }
-body{font-family:'Be Vietnam Pro',sans-serif;font-weight:400;background:var(--aa-white);min-height:100vh;color:var(--aa-navy);}
-.site-header{background:var(--aa-navy);padding:20px 32px;text-align:center;border-bottom:3px solid var(--aa-blue);}
+body{font-family:'Nunito Sans',sans-serif;font-weight:400;background:var(--aa-white);min-height:100vh;color:var(--aa-navy);}
+.site-header{background:var(--aa-navy);padding:18px 32px;text-align:center;border-bottom:3px solid var(--aa-blue);}
 .logo-lockup{display:inline-flex;align-items:center;gap:10px;}
-.logo-wordmark{font-family:'AFSobremesa',sans-serif;font-weight:700;font-size:18px;color:var(--aa-white);letter-spacing:0.02em;}
+.logo-wordmark{font-family:'Nunito',sans-serif;font-weight:800;font-size:18px;color:var(--aa-white);letter-spacing:0.02em;}
 .hero{background:var(--aa-navy);padding:32px 32px 0;text-align:center;}
-.hero-badge{display:inline-block;background:var(--aa-blue);color:var(--media-white);font-family:'Be Vietnam Pro',sans-serif;font-weight:600;font-size:11px;letter-spacing:0.07em;text-transform:uppercase;padding:5px 16px;border-radius:var(--r-pill);margin-bottom:18px;}
-.hero-title{font-family:'AFSobremesa',sans-serif;font-weight:700;font-size:clamp(24px,5vw,32px);color:var(--media-white);line-height:1.1;margin-bottom:12px;}
+.hero-badge{display:inline-block;background:var(--aa-blue);color:var(--media-white);font-family:'Nunito Sans',sans-serif;font-weight:600;font-size:11px;letter-spacing:0.07em;text-transform:uppercase;padding:5px 16px;border-radius:var(--r-pill);margin-bottom:18px;}
+.hero-title{font-family:'Nunito',sans-serif;font-weight:900;font-size:clamp(24px,5vw,32px);color:var(--media-white);line-height:1.1;margin-bottom:12px;}
 .hero-title span{color:var(--aa-yellow);}
 .hero-subtitle{font-size:15px;color:var(--aa-med-grey);line-height:1.65;max-width:440px;margin:0 auto;}
 .hero-scallop{background:var(--aa-white);height:30px;border-radius:30px 30px 0 0;margin:24px -32px 0;}
 .page-wrapper{max-width:640px;margin:0 auto;padding:2rem 1.25rem 4rem;}
 .counter-bar{display:flex;align-items:center;justify-content:center;gap:12px;padding:14px 20px;background:var(--aa-light-blue);border-radius:var(--r-md);margin:0 0 1.25rem;border:1.5px solid var(--aa-blue);}
-.counter-label{font-family:'Be Vietnam Pro',sans-serif;font-weight:600;font-size:13px;color:var(--aa-navy);}
+.counter-label{font-family:'Nunito Sans',sans-serif;font-weight:600;font-size:13px;color:var(--aa-navy);}
 .pips{display:flex;gap:7px;}
 .pip{width:12px;height:12px;border-radius:50%;background:var(--media-white);border:2px solid var(--aa-blue);transition:all 0.2s;}
 .pip.filled{background:var(--aa-blue);}
-.counter-num{font-family:'AFSobremesa',sans-serif;font-weight:700;font-size:15px;color:var(--aa-blue);min-width:36px;}
+.counter-num{font-family:'Nunito',sans-serif;font-weight:800;font-size:15px;color:var(--aa-blue);min-width:36px;}
 .sessions-grid{display:flex;flex-direction:column;gap:10px;margin-bottom:1.25rem;}
 .session-card{display:flex;align-items:center;gap:14px;padding:16px 18px;background:var(--media-white);border:1.5px solid var(--aa-med-grey);border-radius:var(--r-md);cursor:pointer;transition:border-color 0.18s,transform 0.12s,box-shadow 0.18s;user-select:none;}
 .session-card:hover:not(.disabled):not(.full-access-card){border-color:var(--aa-blue);box-shadow:0 3px 14px rgba(0,111,249,0.12);transform:translateY(-1px);}
@@ -51,52 +45,53 @@ body{font-family:'Be Vietnam Pro',sans-serif;font-weight:400;background:var(--aa
 .checkbox-ring.checked{background:var(--aa-blue);border-color:var(--aa-blue);}
 .session-emoji{font-size:22px;width:46px;height:46px;display:flex;align-items:center;justify-content:center;background:var(--aa-light-grey);border-radius:var(--r-sm);flex-shrink:0;}
 .session-info{flex:1;min-width:0;}
-.session-name{font-family:'AFSobremesa',sans-serif;font-weight:700;font-size:15px;color:var(--aa-navy);margin-bottom:3px;}
-.session-description{font-family:'Be Vietnam Pro',sans-serif;font-weight:400;font-size:12px;color:var(--aa-dark-grey);line-height:1.45;margin-bottom:5px;}
+.session-name{font-family:'Nunito',sans-serif;font-weight:800;font-size:15px;color:var(--aa-navy);margin-bottom:3px;}
+.session-description{font-family:'Nunito Sans',sans-serif;font-weight:400;font-size:12px;color:var(--aa-dark-grey);line-height:1.45;margin-bottom:5px;}
 .session-meta{display:flex;align-items:center;gap:6px;flex-wrap:wrap;}
-.day-chip{display:inline-block;background:var(--aa-navy);color:var(--aa-white);font-family:'Be Vietnam Pro',sans-serif;font-weight:600;font-size:10px;padding:2px 8px;border-radius:var(--r-xs);text-transform:uppercase;letter-spacing:0.05em;}
-.session-time{font-family:'Be Vietnam Pro',sans-serif;font-weight:400;font-size:12px;color:var(--aa-dark-grey);}
-.join-btn{flex-shrink:0;padding:9px 18px;background:var(--aa-blue);color:var(--media-white);border:none;border-radius:var(--r-pill);font-family:'Be Vietnam Pro',sans-serif;font-weight:600;font-size:13px;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;gap:5px;transition:opacity 0.15s,transform 0.1s;}
+.day-chip{display:inline-block;background:var(--aa-navy);color:var(--aa-white);font-family:'Nunito Sans',sans-serif;font-weight:700;font-size:10px;padding:2px 8px;border-radius:var(--r-xs);text-transform:uppercase;letter-spacing:0.05em;}
+.session-time{font-family:'Nunito Sans',sans-serif;font-weight:400;font-size:12px;color:var(--aa-dark-grey);}
+.join-btn{flex-shrink:0;padding:9px 18px;background:var(--aa-blue);color:var(--media-white);border:none;border-radius:var(--r-pill);font-family:'Nunito Sans',sans-serif;font-weight:600;font-size:13px;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;gap:5px;transition:opacity 0.15s,transform 0.1s;}
 .join-btn:hover{opacity:0.88;transform:scale(1.03);}
-.note-box{display:flex;align-items:flex-start;gap:10px;padding:12px 16px;background:var(--aa-light-yellow);border:1.5px solid var(--aa-yellow);border-radius:var(--r-sm);margin-bottom:1.25rem;font-family:'Be Vietnam Pro',sans-serif;font-size:13px;color:var(--aa-navy);line-height:1.55;}
-.cta-btn{width:100%;padding:16px;font-family:'Be Vietnam Pro',sans-serif;font-weight:600;font-size:15px;background:var(--aa-blue);color:var(--media-white);border:none;border-radius:var(--r-pill);cursor:pointer;transition:opacity 0.15s,transform 0.1s;margin-bottom:0.75rem;}
+.note-box{display:flex;align-items:flex-start;gap:10px;padding:12px 16px;background:var(--aa-light-yellow);border:1.5px solid var(--aa-yellow);border-radius:var(--r-sm);margin-bottom:1.25rem;font-family:'Nunito Sans',sans-serif;font-size:13px;color:var(--aa-navy);line-height:1.55;}
+.cta-btn{width:100%;padding:16px;font-family:'Nunito Sans',sans-serif;font-weight:700;font-size:15px;background:var(--aa-blue);color:var(--media-white);border:none;border-radius:var(--r-pill);cursor:pointer;transition:opacity 0.15s,transform 0.1s;margin-bottom:0.75rem;}
 .cta-btn:disabled{opacity:0.3;cursor:not-allowed;}
 .cta-btn:not(:disabled):hover{opacity:0.88;transform:translateY(-1px);}
 .confirmed-box{display:none;background:var(--aa-light-green);border:2px solid var(--aa-green);border-radius:var(--r-md);padding:1.5rem;text-align:center;}
 .confirmed-box.visible{display:block;}
 .confirmed-icon{font-size:36px;margin-bottom:0.5rem;}
-.confirmed-title{font-family:'AFSobremesa',sans-serif;font-weight:700;font-size:20px;color:var(--aa-navy);margin-bottom:6px;}
-.confirmed-sub{font-family:'Be Vietnam Pro',sans-serif;font-size:13px;color:var(--aa-dark-grey);margin-bottom:1.25rem;line-height:1.55;}
+.confirmed-title{font-family:'Nunito',sans-serif;font-weight:900;font-size:20px;color:var(--aa-navy);margin-bottom:6px;}
+.confirmed-sub{font-family:'Nunito Sans',sans-serif;font-size:13px;color:var(--aa-dark-grey);margin-bottom:1.25rem;line-height:1.55;}
 .confirmed-links{display:flex;flex-direction:column;gap:8px;text-align:left;}
-.confirmed-link{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;background:var(--media-white);border:1.5px solid var(--aa-green);border-radius:var(--r-sm);text-decoration:none;color:var(--aa-navy);font-family:'Be Vietnam Pro',sans-serif;font-weight:600;font-size:13px;transition:background 0.15s;}
+.confirmed-link{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;background:var(--media-white);border:1.5px solid var(--aa-green);border-radius:var(--r-sm);text-decoration:none;color:var(--aa-navy);font-family:'Nunito Sans',sans-serif;font-weight:600;font-size:13px;transition:background 0.15s;}
 .confirmed-link:hover{background:var(--aa-light-green);}
 .confirmed-link .arrow{font-size:14px;color:var(--aa-green);}
-.error-box{text-align:center;padding:3rem 2rem;}
-.error-title{font-family:'AFSobremesa',sans-serif;font-weight:700;font-size:24px;color:var(--aa-navy);margin-bottom:12px;}
-.error-sub{font-size:15px;color:var(--aa-dark-grey);line-height:1.65;}
-.loading-box{text-align:center;padding:3rem 2rem;}
+.loading-box{text-align:center;padding:4rem 2rem;}
 .spinner{width:36px;height:36px;border:3px solid var(--aa-light-blue);border-top-color:var(--aa-blue);border-radius:50%;animation:spin 0.8s linear infinite;margin:0 auto 1rem;}
 @keyframes spin{to{transform:rotate(360deg);}}
+.error-box{text-align:center;padding:3rem 2rem;}
+.error-title{font-family:'Nunito',sans-serif;font-weight:900;font-size:24px;color:var(--aa-navy);margin-bottom:12px;}
+.error-sub{font-size:15px;color:var(--aa-dark-grey);line-height:1.65;}
 .site-footer{background:var(--aa-navy);padding:18px 32px;text-align:center;border-top:3px solid var(--aa-blue);margin-top:3rem;}
-.footer-text{font-family:'Be Vietnam Pro',sans-serif;font-weight:300;font-size:11px;color:var(--aa-dark-grey);letter-spacing:0.05em;text-transform:uppercase;}
+.footer-text{font-family:'Nunito Sans',sans-serif;font-weight:300;font-size:11px;color:var(--aa-dark-grey);letter-spacing:0.05em;text-transform:uppercase;}
 </style>
 </head>
 <body>
- 
+
 <header class="site-header">
   <div class="logo-lockup">
-    <svg width="30" height="30" viewBox="0 0 30 30" fill="none" xmlns="http://www.w3.org/2000/svg"><rect width="30" height="30" rx="7" fill="#072256"/><path d="M7 23L15 7L23 23H19.5L15 14L10.5 23H7Z" fill="#FAFAFA"/></svg>
+    <svg width="30" height="30" viewBox="0 0 30 30" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <rect width="30" height="30" rx="7" fill="#0D3270"/>
+      <path d="M7 23L15 7L23 23H19.5L15 14L10.5 23H7Z" fill="#FAFAFA"/>
+    </svg>
     <span class="logo-wordmark">Alpha Anywhere</span>
   </div>
 </header>
- 
-<!-- LOADING STATE -->
+
 <div id="loading-box" class="loading-box">
   <div class="spinner"></div>
   <p style="font-size:15px;color:#8291AA;">Loading your pass…</p>
 </div>
- 
-<!-- ERROR STATE -->
+
 <div id="error-box" style="display:none;" class="page-wrapper">
   <div class="error-box">
     <div style="font-size:48px;margin-bottom:16px;">🔒</div>
@@ -104,8 +99,7 @@ body{font-family:'Be Vietnam Pro',sans-serif;font-weight:400;background:var(--aa
     <p class="error-sub" id="error-sub">Please check your email for the correct link.</p>
   </div>
 </div>
- 
-<!-- MAIN CONTENT -->
+
 <div id="main-content" style="display:none;">
   <div class="hero">
     <div class="hero-badge" id="hero-badge">Level Up Lounge</div>
@@ -113,23 +107,26 @@ body{font-family:'Be Vietnam Pro',sans-serif;font-weight:400;background:var(--aa
     <p class="hero-subtitle" id="hero-subtitle"></p>
     <div class="hero-scallop"></div>
   </div>
- 
+
   <div class="page-wrapper">
     <div class="counter-bar" id="counter-bar">
       <span class="counter-label">Sessions chosen:</span>
-      <div class="pips"><div class="pip" id="pip1"></div><div class="pip" id="pip2"></div></div>
+      <div class="pips">
+        <div class="pip" id="pip1"></div>
+        <div class="pip" id="pip2"></div>
+      </div>
       <span class="counter-num" id="counter-num">0 / 2</span>
     </div>
- 
+
     <div class="sessions-grid" id="sessions-grid"></div>
- 
+
     <div class="note-box">
       <span style="font-size:15px;flex-shrink:0;">⚠️</span>
       <span id="note-text">These links are <strong>one-time use only</strong>. Wait until you're ready to hop in!</span>
     </div>
- 
+
     <button class="cta-btn" id="cta-btn" disabled onclick="confirmSelections()">Unlock My Sessions 🔓</button>
- 
+
     <div class="confirmed-box" id="confirmed-box">
       <div class="confirmed-icon">🎉</div>
       <p class="confirmed-title">You’re all set!</p>
@@ -138,13 +135,13 @@ body{font-family:'Be Vietnam Pro',sans-serif;font-weight:400;background:var(--aa
     </div>
   </div>
 </div>
- 
+
 <footer class="site-footer">
   <p class="footer-text">Alpha Anywhere · Breakthrough Coaching · Level Up Lounge</p>
 </footer>
- 
+
 <script>
- 
+
 const SESSIONS = [
   { id: 'blooket', emoji: '🏆', name: 'Themed Blooket Bash', coach: 'Coach Meg', day: 'MON', time: '12:00 PM CT',
     description: 'Race to the top of the leaderboard in fast-paced, themed Blooket games!',
@@ -165,57 +162,48 @@ const SESSIONS = [
     description: 'Spin the Wheel of Wins, celebrate the week, and earn Alphas!',
     link: 'https://us05web.zoom.us/j/88655817646?pwd=e4wagFPBRqXRLzEcJ6W3scIi9y2Oep.1' }
 ];
- 
+
 var mode = 'two';
 var selected = new Set();
- 
+
 function getParam(name) {
-  var params = new URLSearchParams(window.location.search);
-  return params.get(name) || '';
+  return new URLSearchParams(window.location.search).get(name) || '';
 }
- 
+
 async function init() {
   var token = getParam('token');
- 
   if (!token) {
-    showError('No pass found', 'This link doesn’t include a valid pass token. Please check your email and try again, or contact your coach.');
+    showError('No pass found', 'This link does not include a valid pass. Please check your email and try again, or contact your coach.');
     return;
   }
- 
   try {
     var resp = await fetch('/api/validate-token?token=' + encodeURIComponent(token));
     var data = await resp.json();
- 
     if (!data.valid) {
       if (data.reason === 'inactive') {
-        showError('Pass not active yet', 'Your pass hasn’t been activated yet. Your coach will activate it shortly — check back soon or reach out to them directly.');
+        showError('Pass not active yet', 'Your pass has not been activated yet. Your coach will activate it shortly — check back soon!');
       } else {
-        showError('Pass not found', 'We couldn’t find a pass for this link. Please check your email for the correct link or contact your coach.');
+        showError('Pass not found', 'We could not find a pass for this link. Please check your email or contact your coach.');
       }
       return;
     }
- 
     mode = data.mode;
-    var firstName = data.name || 'there';
-    showPage(mode, firstName);
- 
+    showPage(data.mode, data.name || 'there');
   } catch(err) {
-    showError('Something went wrong', 'We had trouble loading your pass. Please try refreshing the page or contact your coach.');
+    showError('Something went wrong', 'We had trouble loading your pass. Please try refreshing the page.');
   }
 }
- 
+
 function showError(title, msg) {
   document.getElementById('loading-box').style.display = 'none';
-  var box = document.getElementById('error-box');
   document.getElementById('error-title').textContent = title;
   document.getElementById('error-sub').textContent = msg;
-  box.style.display = 'block';
+  document.getElementById('error-box').style.display = 'block';
 }
- 
+
 function showPage(m, firstName) {
   document.getElementById('loading-box').style.display = 'none';
   document.getElementById('main-content').style.display = 'block';
- 
   if (m === 'full') {
     document.getElementById('hero-badge').textContent = 'Level Up Lounge — Full Week Pass';
     document.getElementById('hero-title').innerHTML = 'Hey ' + firstName + '! Your Full Week <span>Pass is Here!</span> 🎉';
@@ -226,13 +214,12 @@ function showPage(m, firstName) {
     document.getElementById('cta-btn').disabled = false;
   } else {
     document.getElementById('hero-badge').textContent = 'Level Up Lounge — 2-Session Pass';
-    document.getElementById('hero-title').innerHTML = 'Hey ' + firstName + '! Choose Your <span>Sessions!</span> 🎭';
+    document.getElementById('hero-title').innerHTML = 'Hey ' + firstName + '! Choose Your <span>Sessions!</span>';
     document.getElementById('hero-subtitle').textContent = 'You’ve earned a 2-Session LUL Pass — pick your 2 favorites below!';
   }
- 
   renderSessions();
 }
- 
+
 function renderSessions() {
   var grid = document.getElementById('sessions-grid');
   grid.innerHTML = '';
@@ -262,7 +249,7 @@ function renderSessions() {
     grid.appendChild(card);
   });
 }
- 
+
 function toggleSession(id) {
   if (selected.has(id)) selected.delete(id);
   else if (selected.size < 2) selected.add(id);
@@ -270,14 +257,14 @@ function toggleSession(id) {
   document.getElementById('cta-btn').disabled = selected.size < 2;
   renderSessions();
 }
- 
+
 function updatePips() {
   var n = selected.size;
   document.getElementById('pip1').className = 'pip'+(n>=1?' filled':'');
   document.getElementById('pip2').className = 'pip'+(n>=2?' filled':'');
   document.getElementById('counter-num').textContent = n+' / 2';
 }
- 
+
 function confirmSelections() {
   var div = document.getElementById('confirmed-links');
   div.innerHTML = '';
@@ -292,9 +279,9 @@ function confirmSelections() {
   document.getElementById('confirmed-box').className = 'confirmed-box visible';
   document.getElementById('confirmed-box').scrollIntoView({behavior:'smooth',block:'nearest'});
 }
- 
+
 init();
- 
+
 </script>
 </body>
 </html>
