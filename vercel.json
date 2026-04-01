@@ -1,0 +1,7 @@
+{
+  "version": 2,
+  "routes": [
+    { "src": "/lul", "dest": "/lul.html" },
+    { "src": "/api/(.*)", "dest": "/api/$1" }
+  ]
+}

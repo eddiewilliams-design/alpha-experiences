@@ -1,0 +1,8 @@
+{
+  "name": "alpha-experiences",
+  "version": "1.0.0",
+  "description": "Alpha Anywhere Level Up Lounge Experience Passes",
+  "engines": {
+    "node": "18.x"
+  }
+}
