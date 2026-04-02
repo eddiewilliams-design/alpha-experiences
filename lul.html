@@ -18,7 +18,7 @@
   --r-pill:999px;--r-lg:25px;--r-md:20px;--r-sm:10px;--r-xs:5px;
 }
 body{font-family:'Nunito Sans',sans-serif;font-weight:400;background:var(--aa-white);min-height:100vh;color:var(--aa-navy);}
-.site-header{background:var(--aa-navy);padding:18px 32px;text-align:center;border-bottom:3px solid var(--aa-blue);}
+.site-header{background:var(--aa-navy);padding:18px 32px;text-align:center;}
 .hero{background:var(--aa-navy);padding:32px 32px 0;text-align:center;}
 .hero-badge{display:inline-block;background:var(--aa-blue);color:var(--media-white);font-family:'Nunito Sans',sans-serif;font-weight:600;font-size:11px;letter-spacing:0.07em;text-transform:uppercase;padding:5px 16px;border-radius:var(--r-pill);margin-bottom:18px;}
 .hero-title{font-family:'Nunito',sans-serif;font-weight:900;font-size:clamp(24px,5vw,32px);color:var(--media-white);line-height:1.1;margin-bottom:12px;}
@@ -156,20 +156,21 @@ body{font-family:'Nunito Sans',sans-serif;font-weight:400;background:var(--aa-wh
 var SESSIONS = [];
 var mode = 'two';
 var selected = new Set();
+var currentToken = '';
 
 function getParam(name) {
   return new URLSearchParams(window.location.search).get(name) || '';
 }
 
 async function init() {
-  var token = getParam('token');
-  if (!token) {
+  currentToken = getParam('token');
+  if (!currentToken) {
     showError('No pass found', 'This link does not include a valid pass. Please check your email and try again, or contact your coach.');
     return;
   }
   try {
     var results = await Promise.all([
-      fetch('/api/validate-token?token=' + encodeURIComponent(token)).then(r => r.json()),
+      fetch('/api/validate-token?token=' + encodeURIComponent(currentToken)).then(r => r.json()),
       fetch('/api/get-sessions').then(r => r.json())
     ]);
     var tokenData = results[0];
@@ -186,7 +187,16 @@ async function init() {
 
     SESSIONS = sessionsData.sessions || [];
     mode = tokenData.mode;
-    showPage(tokenData.mode, tokenData.name || 'there');
+
+    // If already locked, skip straight to confirmed state
+    if (tokenData.locked && tokenData.savedSelections) {
+      selected = new Set(tokenData.savedSelections);
+      showPage(mode, tokenData.name || 'there');
+      showConfirmed();
+      return;
+    }
+
+    showPage(mode, tokenData.name || 'there');
   } catch(err) {
     showError('Something went wrong', 'We had trouble loading your pass. Please try refreshing the page.');
   }
@@ -216,6 +226,24 @@ function showPage(m, firstName) {
     document.getElementById('hero-subtitle').textContent = 'You\'ve earned a 2-Session LUL Pass — pick your 2 favorites below!';
   }
   renderSessions();
+}
+
+function showConfirmed() {
+  document.getElementById('loading-box').style.display = 'none';
+  document.getElementById('main-content').style.display = 'block';
+  renderSessions();
+  document.getElementById('cta-btn').style.display = 'none';
+  document.getElementById('counter-bar').style.display = 'none';
+  var div = document.getElementById('confirmed-links');
+  div.innerHTML = '';
+  var show = mode === 'full' ? SESSIONS : SESSIONS.filter(function(s){ return selected.has(s.id); });
+  show.forEach(function(s) {
+    var a = document.createElement('a');
+    a.href = s.link; a.target = '_blank'; a.className = 'confirmed-link';
+    a.innerHTML = '<span>'+s.emoji+' <strong>'+s.name+'</strong> — '+s.day+' '+s.time+'</span><span class="arrow">→</span>';
+    div.appendChild(a);
+  });
+  document.getElementById('confirmed-box').className = 'confirmed-box visible';
 }
 
 function renderSessions() {
@@ -263,19 +291,23 @@ function updatePips() {
   document.getElementById('counter-num').textContent = n+' / 2';
 }
 
-function confirmSelections() {
-  var div = document.getElementById('confirmed-links');
-  div.innerHTML = '';
-  var show = mode==='full' ? SESSIONS : SESSIONS.filter(function(s){ return selected.has(s.id); });
-  show.forEach(function(s) {
-    var a = document.createElement('a');
-    a.href = s.link; a.target = '_blank'; a.className = 'confirmed-link';
-    a.innerHTML = '<span>'+s.emoji+' <strong>'+s.name+'</strong> — '+s.day+' '+s.time+'</span><span class="arrow">→</span>';
-    div.appendChild(a);
-  });
-  document.getElementById('cta-btn').style.display = 'none';
-  document.getElementById('confirmed-box').className = 'confirmed-box visible';
-  document.getElementById('confirmed-box').scrollIntoView({behavior:'smooth',block:'nearest'});
+async function confirmSelections() {
+  document.getElementById('cta-btn').disabled = true;
+  document.getElementById('cta-btn').textContent = 'Saving your sessions…';
+
+  // Save selections to sheet first
+  try {
+    await fetch('/api/save-selections', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token: currentToken, selections: Array.from(selected) })
+    });
+  } catch(e) {
+    // If save fails, still show confirmed — just won't be locked server-side
+    console.log('Save failed:', e);
+  }
+
+  showConfirmed();
 }
 
 init();
