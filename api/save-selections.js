@@ -138,14 +138,17 @@ module.exports = async (req, res) => {
       return res.status(404).json({ error: 'Token not found' });
     }
 
-    // Write selections to columns J and K (indices 9 and 10)
-    // J = selections locked (YES), K = selected session IDs (comma separated)
-    const updateRange = `Sheet1!J${rowIndex}:K${rowIndex}`;
+    // Write to columns J, K, and L:
+    // J = Locked (YES)
+    // K = Selected session IDs (comma separated)
+    // L = Date/time they locked in
+    const lockedAt = new Date().toLocaleString('en-US', { timeZone: 'America/Chicago' });
+    const updateRange = `Sheet1!J${rowIndex}:L${rowIndex}`;
     const updateUrl = `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/${encodeURIComponent(updateRange)}?valueInputOption=RAW`;
     await putSheet(updateUrl, {
       range: updateRange,
       majorDimension: 'ROWS',
-      values: [['YES', selections.join(',')]]
+      values: [['YES', selections.join(','), lockedAt]]
     }, accessToken);
 
     return res.status(200).json({ saved: true });
