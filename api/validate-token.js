@@ -98,10 +98,17 @@ module.exports = async (req, res) => {
         if (active !== 'TRUE') {
           return res.status(403).json({ valid: false, reason: 'inactive' });
         }
-        const isFullWeek = expType.indexOf('2 Sessions') === -1;
+        let passMode;
+        if (expType.indexOf('2 Sessions') !== -1) {
+          passMode = 'two';
+        } else if (expType.indexOf('Friday Coaching Celebration') !== -1) {
+          passMode = 'celebration';
+        } else {
+          passMode = 'full';
+        }
         const response = {
           valid: true,
-          mode: isFullWeek ? 'full' : 'two',
+          mode: passMode,
           name: (row[1] || '').split(' ')[0]
         };
         // If selections are locked, return them
