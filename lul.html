@@ -220,6 +220,14 @@ function showPage(m, firstName) {
     document.getElementById('note-text').innerHTML = 'Each link is <strong>one-time use only</strong>. Click when you\'re ready to join — not before!';
     document.getElementById('cta-btn').textContent = 'View All My Session Links 🎉';
     document.getElementById('cta-btn').disabled = false;
+  } else if (m === 'celebration') {
+    document.getElementById('hero-badge').textContent = 'Level Up Lounge — Friday Coaching Celebration';
+    document.getElementById('hero-title').innerHTML = 'Hey ' + firstName + '! Your <span>Celebration Pass</span> is Here! 🎊';
+    document.getElementById('hero-subtitle').textContent = 'You\'ve earned a spot at the Friday Coaching Celebration — lock it in below!';
+    document.getElementById('counter-bar').style.display = 'none';
+    document.getElementById('note-text').innerHTML = 'This link is <strong>one-time use only</strong>. Click the button when you\'re ready to lock in your spot!';
+    document.getElementById('cta-btn').textContent = 'Lock In My Spot 🎊';
+    document.getElementById('cta-btn').disabled = false;
   } else {
     document.getElementById('hero-badge').textContent = 'Level Up Lounge — 2-Session Pass';
     document.getElementById('hero-title').innerHTML = 'Hey ' + firstName + '! Choose Your <span>Sessions!</span>';
@@ -249,6 +257,28 @@ function showConfirmed() {
 function renderSessions() {
   var grid = document.getElementById('sessions-grid');
   grid.innerHTML = '';
+
+  // For celebration mode, only show the celebration session (pre-selected, non-interactive)
+  if (mode === 'celebration') {
+    var celebList = SESSIONS.filter(function(s) {
+      return s.name.toLowerCase().indexOf('celebration') !== -1 || s.name.toLowerCase().indexOf('friday coaching') !== -1;
+    });
+    if (!celebList.length) celebList = SESSIONS; // fallback: show all if name not matched yet
+    celebList.forEach(function(s) {
+      var card = document.createElement('div');
+      card.className = 'session-card selected';
+      card.style.cursor = 'default';
+      card.innerHTML = '<div class="checkbox-ring checked">✓</div>'
+        +'<div class="session-emoji">'+s.emoji+'</div>'
+        +'<div class="session-info"><div class="session-name">'+s.name+'</div>'
+        +'<div class="session-description">'+s.description+'</div>'
+        +'<div class="session-meta"><span class="day-chip">'+s.day+'</span>'
+        +'<span class="session-time">'+s.time+' · '+s.coach+'</span></div></div>';
+      grid.appendChild(card);
+    });
+    return;
+  }
+
   SESSIONS.forEach(function(s) {
     var isSel = selected.has(s.id);
     var atMax = selected.size >= 2 && !isSel;
@@ -293,7 +323,15 @@ function updatePips() {
 
 async function confirmSelections() {
   document.getElementById('cta-btn').disabled = true;
-  document.getElementById('cta-btn').textContent = 'Saving your sessions…';
+  document.getElementById('cta-btn').textContent = 'Saving your spot…';
+
+  // For celebration mode, auto-select the celebration session
+  if (mode === 'celebration') {
+    var celebSession = SESSIONS.find(function(s) {
+      return s.name.toLowerCase().indexOf('celebration') !== -1 || s.name.toLowerCase().indexOf('friday coaching') !== -1;
+    });
+    if (celebSession) selected.add(celebSession.id);
+  }
 
   // Save selections to sheet first
   try {
