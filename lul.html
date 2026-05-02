@@ -269,7 +269,7 @@ function showConfirmed() {
     a.href         = trackUrl(s.link);
     a.target       = '_blank';
     a.className    = 'confirmed-link';
-    a.innerHTML    = '<span>' + esc(s.emoji) + ' <strong>' + esc(s.name) + '</strong> — ' + esc(s.day) + ' ' + esc(s.time) + '</span><span class="arrow">→</span>';
+    a.innerHTML    = '<span>' + s.emoji + ' <strong>' + esc(s.name) + '</strong> — ' + esc(s.day) + ' ' + esc(s.time) + '</span><span class="arrow">→</span>';
     div.appendChild(a);
   });
 
@@ -292,7 +292,7 @@ function renderSessions() {
       card.style.cursor = 'default';
       card.innerHTML =
         '<div class="checkbox-ring checked">✓</div>' +
-        '<div class="session-emoji">' + esc(s.emoji) + '</div>' +
+        '<div class="session-emoji">' + s.emoji + '</div>' +
         '<div class="session-info"><div class="session-name">' + esc(s.name) + '</div>' +
         '<div class="session-description">' + esc(s.description) + '</div>' +
         '<div class="session-meta"><span class="day-chip">' + esc(s.day) + '</span>' +
@@ -311,7 +311,7 @@ function renderSessions() {
     if (mode === 'full') {
       card.className = 'session-card full-access-card';
       card.innerHTML =
-        '<div class="session-emoji">' + esc(s.emoji) + '</div>' +
+        '<div class="session-emoji">' + s.emoji + '</div>' +
         '<div class="session-info"><div class="session-name">' + esc(s.name) + '</div>' +
         '<div class="session-description">' + esc(s.description) + '</div>' +
         '<div class="session-meta"><span class="day-chip">' + esc(s.day) + '</span>' +
@@ -321,7 +321,7 @@ function renderSessions() {
       card.className = 'session-card' + (isSel ? ' selected' : '') + (isDis ? ' disabled' : '');
       card.innerHTML =
         '<div class="checkbox-ring' + (isSel ? ' checked' : '') + '">' + (isSel ? '✓' : '') + '</div>' +
-        '<div class="session-emoji">' + esc(s.emoji) + '</div>' +
+        '<div class="session-emoji">' + s.emoji + '</div>' +
         '<div class="session-info"><div class="session-name">' + esc(s.name) + '</div>' +
         '<div class="session-description">' + esc(s.description) + '</div>' +
         '<div class="session-meta"><span class="day-chip">' + esc(s.day) + '</span>' +

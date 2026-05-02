@@ -9,11 +9,11 @@
 //
 // Sessions tab column layout (A–K):
 //   A (0)  Name
-//   B (1)  Description
+//   B (1)  Emoji
 //   C (2)  Coach
 //   D (3)  Day
 //   E (4)  Time
-//   F (5)  Emoji
+//   F (5)  Description
 //   G (6)  Link
 //   H (7)  Session ID  ← stable unique slug, e.g. "blooket"
 //   I (8)  Active      ← YES / NO
@@ -142,11 +142,11 @@ module.exports = async (req, res) => {
       if (!row || !row[0]) continue; // skip blank rows
 
       const name        = (row[0] || '').trim();
-      const description = (row[1] || '').trim();
+      const emoji       = (row[1] || '🎮').trim();
       const coach       = (row[2] || '').trim();
       const day         = (row[3] || '').trim();
       const time        = (row[4] || '').trim();
-      const emoji       = (row[5] || '🎮').trim();
+      const description = (row[5] || '').trim();
       const link        = (row[6] || '').trim();
       const sessionId   = (row[7] || '').trim();
       const active      = (row[8] || 'YES').trim().toUpperCase(); // default YES for old rows
