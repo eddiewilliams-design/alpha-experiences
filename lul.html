@@ -230,7 +230,7 @@ function showPage(m, firstName) {
   if (m === 'full') {
     document.getElementById('hero-badge').textContent    = 'Level Up Lounge — Full Week Pass';
     document.getElementById('hero-title').innerHTML      = 'Hey ' + firstName + '! Your Full Week <span>Pass is Here!</span> 🎉';
-    document.getElementById('hero-subtitle').textContent = 'You just unlocked ALL 6 Level Up Lounge sessions this week. Consider yourself officially VIP.';
+    document.getElementById('hero-subtitle').textContent = 'You just unlocked ALL ' + SESSIONS.length + ' Level Up Lounge sessions this week. Consider yourself officially VIP.';
     document.getElementById('counter-bar').style.display = 'none';
     document.getElementById('note-text').innerHTML       = 'Each link is <strong>one-time use only</strong> and expires after 30 days. Click when you\'re ready to join — not before! All sessions subject to coach availability.';
     document.getElementById('cta-btn').textContent       = 'View All My Session Links 🎉';
