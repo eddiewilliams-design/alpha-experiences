@@ -71,6 +71,7 @@
     .error-sub{font-size:15px;color:var(--aa-dark-grey);line-height:1.65;}
     .site-footer{background:var(--aa-navy);padding:18px 32px;text-align:center;border-top:3px solid var(--aa-blue);margin-top:3rem;}
     .footer-text{font-family:'Nunito Sans',sans-serif;font-weight:300;font-size:11px;color:var(--aa-dark-grey);letter-spacing:0.05em;text-transform:uppercase;}
+    .fine-print{font-family:'Nunito Sans',sans-serif;font-size:11px;color:var(--aa-dark-grey);line-height:1.6;text-align:center;padding:0 1rem 0.5rem;}
   </style>
 </head>
 <body>
@@ -128,15 +129,16 @@
     <div class="sessions-grid" id="sessions-grid"></div>
     <div class="note-box">
       <span style="font-size:15px;flex-shrink:0;">⚠️</span>
-      <span id="note-text">These links are <strong>one-time use only</strong>. Wait until you're ready to hop in!</span>
+      <span id="note-text">These links are <strong>one-time use only</strong> and expire after 30 days. Wait until you're ready to hop in!</span>
     </div>
     <button class="cta-btn" id="cta-btn" disabled onclick="confirmSelections()">Unlock My Sessions 🔓</button>
     <div class="confirmed-box" id="confirmed-box">
       <div class="confirmed-icon">🎉</div>
       <p class="confirmed-title">You're all set!</p>
-      <p class="confirmed-sub">Your one-time links are ready. See you in the Lounge!</p>
+      <p class="confirmed-sub">Your one-time links are ready — click only when you're in the room. See you in the Lounge!</p>
       <div class="confirmed-links" id="confirmed-links"></div>
     </div>
+    <p class="fine-print">All sessions are subject to coach availability. One-time use links expire 30 days from the date of issue. By accessing this pass you agree to these terms.</p>
   </div>
 </div>
 
@@ -157,7 +159,6 @@ function getParam(name) {
   return new URLSearchParams(window.location.search).get(name) || '';
 }
 
-// Build a track-join URL so every Zoom click is logged
 function trackUrl(zoomLink) {
   return '/api/track-join?token=' + encodeURIComponent(currentToken) +
          '&dest=' + encodeURIComponent(zoomLink);
@@ -170,12 +171,7 @@ async function init() {
     return;
   }
   try {
-    var results = await Promise.all([
-      fetch('/api/validate-token?token=' + encodeURIComponent(currentToken)).then(r => r.json()),
-      fetch('/api/get-sessions').then(r => r.json())
-    ]);
-    var tokenData    = results[0];
-    var sessionsData = results[1];
+    var tokenData = await fetch('/api/validate-token?token=' + encodeURIComponent(currentToken)).then(r => r.json());
 
     if (!tokenData.valid) {
       if (tokenData.reason === 'inactive') {
@@ -186,10 +182,16 @@ async function init() {
       return;
     }
 
+    var sessionsUrl = '/api/get-sessions';
+    if (tokenData.locked && tokenData.savedSelections && tokenData.savedSelections.length) {
+      sessionsUrl += '?include=' + encodeURIComponent(tokenData.savedSelections.join(','));
+    }
+
+    var sessionsData = await fetch(sessionsUrl).then(r => r.json());
+
     SESSIONS = sessionsData.sessions || [];
     mode     = tokenData.mode;
 
-    // If already locked, skip straight to confirmed state
     if (tokenData.locked && tokenData.savedSelections) {
       selected = new Set(tokenData.savedSelections);
       showPage(mode, tokenData.name || 'there');
@@ -219,7 +221,7 @@ function showPage(m, firstName) {
     document.getElementById('hero-title').innerHTML      = 'Hey ' + firstName + '! Your Full Week <span>Pass is Here!</span> 🎉';
     document.getElementById('hero-subtitle').textContent = 'You just unlocked ALL 6 Level Up Lounge sessions this week. Consider yourself officially VIP.';
     document.getElementById('counter-bar').style.display = 'none';
-    document.getElementById('note-text').innerHTML       = 'Each link is <strong>one-time use only</strong>. Click when you\'re ready to join — not before!';
+    document.getElementById('note-text').innerHTML       = 'Each link is <strong>one-time use only</strong> and expires after 30 days. Click when you\'re ready to join — not before! All sessions subject to coach availability.';
     document.getElementById('cta-btn').textContent       = 'View All My Session Links 🎉';
     document.getElementById('cta-btn').disabled          = false;
   } else if (m === 'celebration') {
@@ -227,7 +229,7 @@ function showPage(m, firstName) {
     document.getElementById('hero-title').innerHTML      = 'Hey ' + firstName + '! Your <span>Celebration Pass</span> is Here! 🎊';
     document.getElementById('hero-subtitle').textContent = 'You\'ve earned a spot at the Friday Coaching Celebration — lock it in below!';
     document.getElementById('counter-bar').style.display = 'none';
-    document.getElementById('note-text').innerHTML       = 'This link is <strong>one-time use only</strong>. Click the button when you\'re ready to lock in your spot!';
+    document.getElementById('note-text').innerHTML       = 'This link is <strong>one-time use only</strong> and expires after 30 days. Click when you\'re ready to lock in your spot! All sessions subject to coach availability.';
     document.getElementById('cta-btn').textContent       = 'Lock In My Spot 🎊';
     document.getElementById('cta-btn').disabled          = false;
   } else {
@@ -253,7 +255,6 @@ function showConfirmed() {
 
   show.forEach(function(s) {
     var a          = document.createElement('a');
-    // Route through track-join so every click is logged in col M
     a.href         = trackUrl(s.link);
     a.target       = '_blank';
     a.className    = 'confirmed-link';
@@ -268,7 +269,6 @@ function renderSessions() {
   var grid = document.getElementById('sessions-grid');
   grid.innerHTML = '';
 
-  // Celebration mode: single pre-selected card, non-interactive
   if (mode === 'celebration') {
     var celebList = SESSIONS.filter(function(s) {
       return s.name.toLowerCase().indexOf('celebration') !== -1 ||
@@ -305,7 +305,6 @@ function renderSessions() {
         '<div class="session-description">' + s.description + '</div>' +
         '<div class="session-meta"><span class="day-chip">' + s.day + '</span>' +
         '<span class="session-time">' + s.time + ' · ' + s.coach + '</span></div></div>' +
-        // Join buttons route through track-join
         '<a href="' + trackUrl(s.link) + '" class="join-btn" target="_blank">Join →</a>';
     } else {
       card.className = 'session-card' + (isSel ? ' selected' : '') + (isDis ? ' disabled' : '');
@@ -343,12 +342,10 @@ async function confirmSelections() {
   document.getElementById('cta-btn').disabled    = true;
   document.getElementById('cta-btn').textContent = 'Saving your spot…';
 
-  // Full week: select all sessions so save-selections gets a non-empty array
   if (mode === 'full') {
     selected = new Set(SESSIONS.map(function(s) { return s.id; }));
   }
 
-  // Celebration: auto-select the celebration session
   if (mode === 'celebration') {
     var celebSession = SESSIONS.find(function(s) {
       return s.name.toLowerCase().indexOf('celebration') !== -1 ||
@@ -357,7 +354,6 @@ async function confirmSelections() {
     if (celebSession) selected.add(celebSession.id);
   }
 
-  // Save to sheet (writes J=YES, K=session IDs, L=timestamp)
   try {
     await fetch('/api/save-selections', {
       method: 'POST',
@@ -365,7 +361,6 @@ async function confirmSelections() {
       body: JSON.stringify({ token: currentToken, selections: Array.from(selected) })
     });
   } catch(e) {
-    // Non-blocking — still show confirmed even if save fails
     console.log('Save failed:', e);
   }
 
