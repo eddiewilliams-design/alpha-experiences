@@ -44,7 +44,7 @@
     .session-emoji{font-size:22px;width:46px;height:46px;display:flex;align-items:center;justify-content:center;background:var(--aa-light-grey);border-radius:var(--r-sm);flex-shrink:0;}
     .session-info{flex:1;min-width:0;overflow:hidden;}
     .session-name{font-family:'Nunito',sans-serif;font-weight:800;font-size:15px;color:var(--aa-navy);margin-bottom:3px;}
-    .session-description{font-family:'Nunito Sans',sans-serif;font-weight:400;font-size:12px;color:var(--aa-dark-grey);line-height:1.45;margin-bottom:5px;}
+    .session-description{font-family:'Nunito Sans',sans-serif;font-weight:400;font-size:12px;color:var(--aa-dark-grey);line-height:1.45;margin-bottom:5px;word-break:break-word;overflow-wrap:break-word;}
     .session-meta{display:flex;align-items:center;gap:6px;flex-wrap:wrap;}
     .day-chip{display:inline-block;background:var(--aa-navy);color:var(--aa-white);font-family:'Nunito Sans',sans-serif;font-weight:700;font-size:10px;padding:2px 8px;border-radius:var(--r-xs);text-transform:uppercase;letter-spacing:0.05em;}
     .session-time{font-family:'Nunito Sans',sans-serif;font-weight:400;font-size:12px;color:var(--aa-dark-grey);}
@@ -159,6 +159,17 @@ function getParam(name) {
   return new URLSearchParams(window.location.search).get(name) || '';
 }
 
+// Escape text from the sheet before injecting into innerHTML
+// Prevents any stray < > & " characters from breaking card HTML structure
+function esc(str) {
+  return (str || '').toString()
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+// Build a track-join URL so every Zoom click is logged
 function trackUrl(zoomLink) {
   return '/api/track-join?token=' + encodeURIComponent(currentToken) +
          '&dest=' + encodeURIComponent(zoomLink);
@@ -258,7 +269,7 @@ function showConfirmed() {
     a.href         = trackUrl(s.link);
     a.target       = '_blank';
     a.className    = 'confirmed-link';
-    a.innerHTML    = '<span>' + s.emoji + ' <strong>' + s.name + '</strong> — ' + s.day + ' ' + s.time + '</span><span class="arrow">→</span>';
+    a.innerHTML    = '<span>' + esc(s.emoji) + ' <strong>' + esc(s.name) + '</strong> — ' + esc(s.day) + ' ' + esc(s.time) + '</span><span class="arrow">→</span>';
     div.appendChild(a);
   });
 
@@ -281,11 +292,11 @@ function renderSessions() {
       card.style.cursor = 'default';
       card.innerHTML =
         '<div class="checkbox-ring checked">✓</div>' +
-        '<div class="session-emoji">' + s.emoji + '</div>' +
-        '<div class="session-info"><div class="session-name">' + s.name + '</div>' +
-        '<div class="session-description">' + s.description + '</div>' +
-        '<div class="session-meta"><span class="day-chip">' + s.day + '</span>' +
-        '<span class="session-time">' + s.time + ' · ' + s.coach + '</span></div></div>';
+        '<div class="session-emoji">' + esc(s.emoji) + '</div>' +
+        '<div class="session-info"><div class="session-name">' + esc(s.name) + '</div>' +
+        '<div class="session-description">' + esc(s.description) + '</div>' +
+        '<div class="session-meta"><span class="day-chip">' + esc(s.day) + '</span>' +
+        '<span class="session-time">' + esc(s.time) + ' · ' + esc(s.coach) + '</span></div></div>';
       grid.appendChild(card);
     });
     return;
@@ -300,21 +311,21 @@ function renderSessions() {
     if (mode === 'full') {
       card.className = 'session-card full-access-card';
       card.innerHTML =
-        '<div class="session-emoji">' + s.emoji + '</div>' +
-        '<div class="session-info"><div class="session-name">' + s.name + '</div>' +
-        '<div class="session-description">' + s.description + '</div>' +
-        '<div class="session-meta"><span class="day-chip">' + s.day + '</span>' +
-        '<span class="session-time">' + s.time + ' · ' + s.coach + '</span></div></div>' +
+        '<div class="session-emoji">' + esc(s.emoji) + '</div>' +
+        '<div class="session-info"><div class="session-name">' + esc(s.name) + '</div>' +
+        '<div class="session-description">' + esc(s.description) + '</div>' +
+        '<div class="session-meta"><span class="day-chip">' + esc(s.day) + '</span>' +
+        '<span class="session-time">' + esc(s.time) + ' · ' + esc(s.coach) + '</span></div></div>' +
         '<a href="' + trackUrl(s.link) + '" class="join-btn" target="_blank">Join →</a>';
     } else {
       card.className = 'session-card' + (isSel ? ' selected' : '') + (isDis ? ' disabled' : '');
       card.innerHTML =
         '<div class="checkbox-ring' + (isSel ? ' checked' : '') + '">' + (isSel ? '✓' : '') + '</div>' +
-        '<div class="session-emoji">' + s.emoji + '</div>' +
-        '<div class="session-info"><div class="session-name">' + s.name + '</div>' +
-        '<div class="session-description">' + s.description + '</div>' +
-        '<div class="session-meta"><span class="day-chip">' + s.day + '</span>' +
-        '<span class="session-time">' + s.time + ' · ' + s.coach + '</span></div></div>';
+        '<div class="session-emoji">' + esc(s.emoji) + '</div>' +
+        '<div class="session-info"><div class="session-name">' + esc(s.name) + '</div>' +
+        '<div class="session-description">' + esc(s.description) + '</div>' +
+        '<div class="session-meta"><span class="day-chip">' + esc(s.day) + '</span>' +
+        '<span class="session-time">' + esc(s.time) + ' · ' + esc(s.coach) + '</span></div></div>';
       if (!isDis) {
         (function(id){ card.addEventListener('click', function(){ toggleSession(id); }); })(s.id);
       }
