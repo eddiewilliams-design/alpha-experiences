@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Alpha Experiences — My Experiences</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@700;800;900&family=Nunito+Sans:wght@300;400;600;700&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+:root{
+  --aa-navy:#072256;--aa-blue:#006FF9;--aa-yellow:#E59500;
+  --aa-white:#FAFAFA;--aa-light-blue:#E5F6FD;--aa-light-yellow:#FFF7E5;
+  --aa-med-grey:#DADFE7;--aa-dark-grey:#8291AA;--aa-light-grey:#EEF0F3;
+  --aa-green:#2C8707;--aa-light-green:#EEFDE8;
+}
+body{font-family:'Nunito Sans',sans-serif;background:var(--aa-white);min-height:100vh;color:var(--aa-navy);}
+
+.site-header{background:var(--aa-navy);padding:16px 32px;display:flex;align-items:center;justify-content:space-between;}
+.header-logo{display:flex;align-items:center;gap:12px;}
+.logo-divider{width:1px;height:28px;background:rgba(255,255,255,0.2);}
+.logo-text-top{font-family:'Nunito',sans-serif;font-weight:900;font-size:14px;color:#fff;line-height:1.1;}
+.logo-text-sub{font-size:10px;color:rgba(255,255,255,0.5);font-weight:600;letter-spacing:0.05em;text-transform:uppercase;}
+
+/* User chip + dropdown */
+.user-wrap{position:relative;}
+.user-chip{display:flex;align-items:center;gap:8px;background:rgba(255,255,255,0.12);border:none;border-radius:999px;padding:6px 14px 6px 7px;cursor:pointer;font-family:inherit;}
+.user-chip:hover{background:rgba(255,255,255,0.18);}
+.avatar{width:26px;height:26px;border-radius:50%;background:var(--aa-blue);display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:#fff;}
+.user-name{font-size:13px;color:rgba(255,255,255,0.85);font-weight:600;}
+.user-menu{position:absolute;top:calc(100% + 8px);right:0;background:#fff;border:1px solid var(--aa-med-grey);border-radius:12px;box-shadow:0 8px 24px rgba(7,34,86,0.15);padding:6px;min-width:180px;display:none;z-index:50;}
+.user-menu.open{display:block;}
+.user-menu-email{font-size:11px;color:var(--aa-dark-grey);padding:8px 12px 10px;border-bottom:1px solid var(--aa-light-grey);margin-bottom:6px;word-break:break-all;}
+.user-menu a{display:block;padding:9px 12px;font-size:13px;font-weight:600;color:var(--aa-navy);text-decoration:none;border-radius:8px;}
+.user-menu a:hover{background:var(--aa-light-grey);}
+
+.hero{background:var(--aa-navy);padding:32px 32px 0;text-align:center;}
+.hero-badge{display:inline-block;background:var(--aa-blue);color:#fff;font-size:11px;font-weight:700;letter-spacing:0.07em;text-transform:uppercase;padding:5px 16px;border-radius:999px;margin-bottom:14px;}
+.hero-title{font-family:'Nunito',sans-serif;font-weight:900;font-size:clamp(22px,4vw,30px);color:#fff;line-height:1.15;margin-bottom:10px;}
+.hero-title span{color:var(--aa-yellow);}
+.hero-sub{font-size:14px;color:var(--aa-dark-grey);line-height:1.65;max-width:460px;margin:0 auto;}
+.hero-scallop{background:var(--aa-light-grey);height:28px;border-radius:28px 28px 0 0;margin:24px -32px 0;}
+
+.exp-tabs{background:#fff;border-bottom:1.5px solid var(--aa-med-grey);padding:0 24px;display:flex;gap:4px;}
+.exp-tab-inner{max-width:720px;margin:0 auto;display:flex;gap:4px;width:100%;}
+.exp-tab{font-size:13px;font-weight:600;color:var(--aa-dark-grey);padding:14px 16px;border-bottom:2.5px solid transparent;cursor:pointer;white-space:nowrap;background:none;border-top:none;border-left:none;border-right:none;font-family:inherit;}
+.exp-tab.active{color:var(--aa-blue);border-bottom-color:var(--aa-blue);}
+
+.page-body{background:var(--aa-light-grey);padding:28px 24px 48px;min-height:50vh;}
+.page-inner{max-width:720px;margin:0 auto;}
+
+.section-label{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;}
+.section-heading{font-family:'Nunito',sans-serif;font-weight:800;font-size:16px;color:var(--aa-navy);}
+.section-count{font-size:12px;color:var(--aa-dark-grey);background:#fff;border:1px solid var(--aa-med-grey);border-radius:999px;padding:2px 10px;}
+
+.trips-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px;margin-bottom:32px;}
+
+.trip-card{background:#fff;border-radius:20px;overflow:hidden;border:1.5px solid var(--aa-med-grey);transition:border-color 0.15s,transform 0.1s,box-shadow 0.15s;cursor:pointer;text-decoration:none;display:block;color:inherit;}
+.trip-card:hover{border-color:var(--aa-blue);transform:translateY(-2px);box-shadow:0 6px 24px rgba(0,111,249,0.12);}
+.trip-thumb{height:120px;display:flex;align-items:center;justify-content:center;position:relative;}
+.trip-thumb-emoji{font-size:44px;}
+.trip-status-badge{position:absolute;top:10px;right:10px;font-size:10px;font-weight:700;padding:3px 10px;border-radius:999px;}
+.status-registered{background:var(--aa-light-green);color:#1a5205;}
+.status-completed{background:var(--aa-light-grey);color:var(--aa-dark-grey);border:1px solid var(--aa-med-grey);}
+.trip-card-body{padding:16px 18px;}
+.trip-card-title{font-family:'Nunito',sans-serif;font-weight:800;font-size:16px;color:var(--aa-navy);margin-bottom:5px;}
+.trip-card-date{font-size:12px;color:var(--aa-dark-grey);margin-bottom:2px;}
+.trip-card-session{font-size:12px;font-weight:700;color:var(--aa-blue);margin-bottom:14px;}
+.trip-card-cta{display:block;text-align:center;background:var(--aa-blue);color:#fff;font-size:13px;font-weight:700;padding:10px;border-radius:999px;}
+
+/* Empty state */
+.empty-state{background:#fff;border:1.5px solid var(--aa-med-grey);border-radius:20px;padding:40px 28px;text-align:center;margin-bottom:32px;}
+.empty-icon{font-size:38px;margin-bottom:10px;}
+.empty-title{font-family:'Nunito',sans-serif;font-weight:800;font-size:16px;color:var(--aa-navy);margin-bottom:6px;}
+.empty-sub{font-size:13px;color:var(--aa-dark-grey);line-height:1.55;max-width:340px;margin:0 auto;}
+
+.future-section{background:#fff;border-radius:16px;padding:20px 24px;border:2px dashed var(--aa-med-grey);margin-bottom:20px;}
+.future-header{display:flex;align-items:center;gap:10px;margin-bottom:8px;}
+.future-icon{width:36px;height:36px;background:var(--aa-light-grey);border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:16px;}
+.future-title{font-family:'Nunito',sans-serif;font-weight:800;font-size:15px;color:var(--aa-dark-grey);}
+.future-sub{font-size:13px;color:var(--aa-dark-grey);line-height:1.55;}
+.future-badge{display:inline-block;background:var(--aa-light-yellow);color:#6b3a00;font-size:10px;font-weight:700;padding:2px 10px;border-radius:999px;margin-top:8px;}
+
+.gallery-cta{background:var(--aa-navy);border-radius:16px;padding:20px 24px;display:flex;align-items:center;justify-content:space-between;gap:16px;}
+.gallery-cta-text .title{font-family:'Nunito',sans-serif;font-weight:800;font-size:15px;color:#fff;margin-bottom:3px;}
+.gallery-cta-text .sub{font-size:12px;color:rgba(255,255,255,0.55);}
+.gallery-cta-btn{background:var(--aa-yellow);color:#3a2000;font-size:13px;font-weight:700;padding:10px 20px;border-radius:999px;white-space:nowrap;text-decoration:none;display:inline-block;}
+
+.site-footer{background:var(--aa-navy);padding:20px 32px;text-align:center;border-top:3px solid var(--aa-blue);}
+.footer-text{font-size:11px;color:var(--aa-dark-grey);letter-spacing:0.05em;text-transform:uppercase;}
+
+/* Loading state */
+.page-loading{display:flex;align-items:center;justify-content:center;padding:80px 24px;background:var(--aa-light-grey);min-height:60vh;}
+.spinner{width:32px;height:32px;border:3px solid var(--aa-med-grey);border-top-color:var(--aa-blue);border-radius:50%;animation:spin 0.7s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg);}}
+</style>
+</head>
+<body>
+
+<header class="site-header">
+  <div class="header-logo">
+    <svg width="32" height="32" viewBox="0 0 67 55" fill="none"><path d="M66.3126 50.8822L48.3919 1.76245C48.0093 0.703285 46.9977 0 45.867 0H20.6096C19.479 0 18.4673 0.703285 18.0848 1.76245L0.164039 50.8822C-0.473557 52.6277 0.82714 54.4749 2.68892 54.4749H25.9059C27.0366 54.4749 28.0483 53.7716 28.4308 52.7125L33.2426 39.5365L38.0543 52.7125C38.4368 53.7716 39.4485 54.4749 40.5792 54.4749H63.7962C65.658 54.4749 66.9587 52.6277 66.3211 50.8822H66.3126ZM40.9532 51.255L34.9598 34.8253L45.9945 4.58406L63.0226 51.2635H40.9532V51.255Z" fill="white"/></svg>
+    <div class="logo-divider"></div>
+    <div>
+      <div class="logo-text-top">Alpha Experiences</div>
+      <div class="logo-text-sub">Student Portal</div>
+    </div>
+  </div>
+  <div class="user-wrap">
+    <button class="user-chip" id="user-chip" aria-haspopup="true" aria-expanded="false">
+      <div class="avatar" id="user-avatar">··</div>
+      <span class="user-name" id="user-handle">…</span>
+    </button>
+    <div class="user-menu" id="user-menu" role="menu">
+      <div class="user-menu-email" id="user-menu-email"></div>
+      <a href="/auth/logout" role="menuitem">Sign out</a>
+    </div>
+  </div>
+</header>
+
+<div class="hero">
+  <div class="hero-badge">Alpha Experiences</div>
+  <h1 class="hero-title" id="hero-title">Your <span>Experiences</span> Are Here 🚀</h1>
+  <p class="hero-sub">Everything you've unlocked — field trips, lounge passes, and more — all in one place.</p>
+  <div class="hero-scallop"></div>
+</div>
+
+<div class="exp-tabs">
+  <div class="exp-tab-inner">
+    <button class="exp-tab active">Virtual Field Trips</button>
+    <button class="exp-tab" title="Coming soon">Level Up Lounge</button>
+    <button class="exp-tab" title="Coming soon">All Experiences</button>
+  </div>
+</div>
+
+<div id="page-loading" class="page-loading">
+  <div class="spinner"></div>
+</div>
+
+<div id="page-body" class="page-body" style="display:none;">
+  <div class="page-inner">
+
+    <div class="section-label">
+      <p class="section-heading">Virtual Field Trips</p>
+      <span class="section-count" id="trip-count">0 registered</span>
+    </div>
+
+    <div id="trips-grid" class="trips-grid"></div>
+    <div id="empty-state" class="empty-state" style="display:none;">
+      <div class="empty-icon">🎒</div>
+      <p class="empty-title">No trips yet</p>
+      <p class="empty-sub">Ask your coach about upcoming experiences — we'll list your registered trips here as soon as you're signed up.</p>
+    </div>
+
+    <div class="section-label" style="margin-top:8px;">
+      <p class="section-heading" style="color:var(--aa-dark-grey);">Level Up Lounge</p>
+    </div>
+    <div class="future-section">
+      <div class="future-header">
+        <div class="future-icon">🎮</div>
+        <p class="future-title">Level Up Lounge</p>
+      </div>
+      <p class="future-sub">Your LUL passes will appear here in a future update. For now, check your email for your session links.</p>
+      <span class="future-badge">Coming to this portal soon</span>
+    </div>
+
+    <div class="gallery-cta">
+      <div class="gallery-cta-text">
+        <p class="title">See student project submissions</p>
+        <p class="sub">Browse photos and videos from past field trips</p>
+      </div>
+      <a href="/gallery" class="gallery-cta-btn">View Gallery →</a>
+    </div>
+
+  </div>
+</div>
+
+<footer class="site-footer">
+  <svg width="24" height="20" viewBox="0 0 67 55" fill="none"><path d="M66.3126 50.8822L48.3919 1.76245C48.0093 0.703285 46.9977 0 45.867 0H20.6096C19.479 0 18.4673 0.703285 18.0848 1.76245L0.164039 50.8822C-0.473557 52.6277 0.82714 54.4749 2.68892 54.4749H25.9059C27.0366 54.4749 28.0483 53.7716 28.4308 52.7125L33.2426 39.5365L38.0543 52.7125C38.4368 53.7716 39.4485 54.4749 40.5792 54.4749H63.7962C65.658 54.4749 66.9587 52.6277 66.3211 50.8822H66.3126ZM40.9532 51.255L34.9598 34.8253L45.9945 4.58406L63.0226 51.2635H40.9532V51.255Z" fill="#FAFAFA" opacity="0.4"/></svg>
+  <p class="footer-text" style="margin-top:8px;">Alpha Experiences · Alpha Anywhere</p>
+</footer>
+
+<script>
+// ── Helpers ─────────────────────────────────────────────────
+function emailHandle(email) {
+  if (!email) return '';
+  var i = email.indexOf('@');
+  return i < 0 ? email : email.slice(0, i);
+}
+
+function initialsFor(name, email) {
+  var s = (name || emailHandle(email) || '').trim();
+  if (!s) return '··';
+  var parts = s.split(/[\s.]+/).filter(Boolean);
+  if (parts.length === 1) return (parts[0][0] || '·').toUpperCase();
+  return ((parts[0][0] || '·') + (parts[parts.length - 1][0] || '')).toUpperCase();
+}
+
+function firstName(name) {
+  if (!name) return 'there';
+  var p = name.trim().split(/\s+/)[0];
+  return p || 'there';
+}
+
+function formatTripDate(iso) {
+  if (!iso) return '';
+  // Force midnight to avoid timezone-shift causing the wrong day
+  var d = new Date(iso + 'T00:00:00');
+  if (isNaN(d.getTime())) return iso;
+  return d.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+}
+
+function formatSessionRange(start, end) {
+  if (!start && !end) return '';
+  if (start && end)   return start + ' – ' + end;
+  return start || end;
+}
+
+// Hash trip_id → palette index, so each trip gets a stable color.
+var THUMB_PALETTES = [
+  'linear-gradient(135deg,#0a1628,#1a3a6e)',
+  'linear-gradient(135deg,#003a3a,#006a6a)',
+  'linear-gradient(135deg,#7a2c00,#e06030)',
+  'linear-gradient(135deg,#0a3d1a,#1a7a38)',
+  'linear-gradient(135deg,#1a0a3d,#5b2d8e)',
+  'linear-gradient(135deg,#3a2800,#8a6000)'
+];
+function colorForTrip(id) {
+  var h = 0, s = id || '';
+  for (var i = 0; i < s.length; i++) h = ((h << 5) - h + s.charCodeAt(i)) | 0;
+  return THUMB_PALETTES[Math.abs(h) % THUMB_PALETTES.length];
+}
+
+// ── Render ──────────────────────────────────────────────────
+function renderHeader(user) {
+  document.getElementById('user-avatar').textContent     = initialsFor(user.name, user.email);
+  document.getElementById('user-handle').textContent     = emailHandle(user.email);
+  document.getElementById('user-menu-email').textContent = user.email;
+  document.getElementById('hero-title').innerHTML =
+    'Hey ' + escapeHtml(firstName(user.name)) + '! Your <span>Experiences</span> Are Here 🚀';
+}
+
+function escapeHtml(s) {
+  return String(s || '').replace(/[&<>"']/g, function(c) {
+    return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+  });
+}
+
+function renderTrips(trips) {
+  var grid  = document.getElementById('trips-grid');
+  var empty = document.getElementById('empty-state');
+  var count = document.getElementById('trip-count');
+
+  grid.innerHTML = '';
+
+  if (!trips.length) {
+    empty.style.display = 'block';
+    grid.style.display  = 'none';
+    count.textContent   = '0 registered';
+    return;
+  }
+
+  empty.style.display = 'none';
+  grid.style.display  = '';
+  count.textContent   = trips.length + ' registered';
+
+  trips.forEach(function(t) {
+    var card = document.createElement('a');
+    card.href      = '/trips/' + encodeURIComponent(t.trip_id);
+    card.className = 'trip-card';
+
+    var thumb = document.createElement('div');
+    thumb.className           = 'trip-thumb';
+    thumb.style.background    = colorForTrip(t.trip_id);
+
+    var emoji = document.createElement('span');
+    emoji.className   = 'trip-thumb-emoji';
+    emoji.textContent = t.emoji || '✨';
+    thumb.appendChild(emoji);
+
+    var badge = document.createElement('span');
+    badge.className =
+      'trip-status-badge ' + (t.status === 'completed' ? 'status-completed' : 'status-registered');
+    badge.textContent = t.status === 'completed' ? 'Completed' : 'Registered';
+    thumb.appendChild(badge);
+
+    var body = document.createElement('div');
+    body.className = 'trip-card-body';
+
+    var title = document.createElement('p');
+    title.className   = 'trip-card-title';
+    title.textContent = t.title || 'Untitled trip';
+    body.appendChild(title);
+
+    var date = document.createElement('p');
+    date.className   = 'trip-card-date';
+    date.textContent = formatTripDate(t.trip_date);
+    body.appendChild(date);
+
+    var sessRange = formatSessionRange(t.session_start, t.session_end);
+    if (sessRange) {
+      var sess = document.createElement('p');
+      sess.className   = 'trip-card-session';
+      sess.textContent = 'Your session: ' + sessRange;
+      body.appendChild(sess);
+    }
+
+    var cta = document.createElement('span');
+    cta.className   = 'trip-card-cta';
+    cta.textContent = 'View Trip →';
+    body.appendChild(cta);
+
+    card.appendChild(thumb);
+    card.appendChild(body);
+    grid.appendChild(card);
+  });
+}
+
+// ── User menu ───────────────────────────────────────────────
+function setupUserMenu() {
+  var btn  = document.getElementById('user-chip');
+  var menu = document.getElementById('user-menu');
+  btn.addEventListener('click', function(e) {
+    e.stopPropagation();
+    var open = menu.classList.toggle('open');
+    btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+  });
+  document.addEventListener('click', function(e) {
+    if (!menu.contains(e.target) && e.target !== btn) {
+      menu.classList.remove('open');
+      btn.setAttribute('aria-expanded', 'false');
+    }
+  });
+}
+
+// ── Init ────────────────────────────────────────────────────
+async function init() {
+  // 1. Auth check
+  var meRes;
+  try { meRes = await fetch('/auth/me', { credentials: 'same-origin' }); }
+  catch (e) {
+    window.location.href = '/auth/login';
+    return;
+  }
+  if (meRes.status !== 200) {
+    window.location.href = '/auth/login';
+    return;
+  }
+  var user = await meRes.json();
+
+  renderHeader(user);
+  setupUserMenu();
+
+  // 2. Trips
+  var trips = [];
+  try {
+    var r = await fetch('/api/trips/my', { credentials: 'same-origin' });
+    if (r.status === 200) {
+      var data = await r.json();
+      trips = (data && data.trips) || [];
+    }
+  } catch (e) { /* fall through to empty */ }
+
+  renderTrips(trips);
+
+  document.getElementById('page-loading').style.display = 'none';
+  document.getElementById('page-body').style.display    = '';
+}
+
+init();
+</script>
+
+</body>
+</html>

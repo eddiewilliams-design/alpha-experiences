@@ -2,6 +2,7 @@
   "rewrites": [
     { "source": "/lul", "destination": "/lul.html" },
     { "source": "/auth/login", "destination": "/auth/login.html" },
+    { "source": "/trips", "destination": "/trips.html" },
     { "source": "/auth/google", "destination": "/api/auth/google" },
     { "source": "/auth/callback", "destination": "/api/auth/callback" },
     { "source": "/auth/me", "destination": "/api/auth/me" },
