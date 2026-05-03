@@ -1,0 +1,522 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Trip Detail — Alpha Experiences</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@700;800;900&family=Nunito+Sans:wght@300;400;600;700&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+:root{
+  --aa-navy:#072256;--aa-blue:#006FF9;--aa-yellow:#E59500;
+  --aa-white:#FAFAFA;--aa-light-blue:#E5F6FD;--aa-light-yellow:#FFF7E5;
+  --aa-med-grey:#DADFE7;--aa-dark-grey:#8291AA;--aa-light-grey:#EEF0F3;
+  --aa-green:#2C8707;--aa-light-green:#EEFDE8;
+}
+body{font-family:'Nunito Sans',sans-serif;background:var(--aa-white);min-height:100vh;color:var(--aa-navy);}
+
+/* ── Header ── */
+.site-header{background:var(--aa-navy);padding:16px 32px;display:flex;align-items:center;justify-content:space-between;}
+.header-logo{display:flex;align-items:center;gap:12px;}
+.logo-divider{width:1px;height:28px;background:rgba(255,255,255,0.2);}
+.logo-text-top{font-family:'Nunito',sans-serif;font-weight:900;font-size:14px;color:#fff;line-height:1.1;}
+.logo-text-sub{font-size:10px;color:rgba(255,255,255,0.5);font-weight:600;letter-spacing:0.05em;text-transform:uppercase;}
+.user-wrap{position:relative;}
+.user-chip{display:flex;align-items:center;gap:8px;background:rgba(255,255,255,0.12);border:none;border-radius:999px;padding:6px 14px 6px 7px;cursor:pointer;font-family:inherit;}
+.user-chip:hover{background:rgba(255,255,255,0.18);}
+.avatar{width:26px;height:26px;border-radius:50%;background:var(--aa-blue);display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:#fff;}
+.user-name{font-size:13px;color:rgba(255,255,255,0.85);font-weight:600;}
+.user-menu{position:absolute;top:calc(100% + 8px);right:0;background:#fff;border:1px solid var(--aa-med-grey);border-radius:12px;box-shadow:0 8px 24px rgba(7,34,86,0.15);padding:6px;min-width:180px;display:none;z-index:50;}
+.user-menu.open{display:block;}
+.user-menu-email{font-size:11px;color:var(--aa-dark-grey);padding:8px 12px 10px;border-bottom:1px solid var(--aa-light-grey);margin-bottom:6px;word-break:break-all;}
+.user-menu a{display:block;padding:9px 12px;font-size:13px;font-weight:600;color:var(--aa-navy);text-decoration:none;border-radius:8px;}
+.user-menu a:hover{background:var(--aa-light-grey);}
+
+/* ── Back link ── */
+.back-bar{background:var(--aa-white);padding:12px 32px;}
+.back-link{font-size:13px;font-weight:700;color:var(--aa-blue);text-decoration:none;}
+.back-link:hover{text-decoration:underline;}
+
+/* ── Hero ── */
+.hero{background:var(--aa-navy);padding:36px 32px 0;text-align:center;}
+.hero-badge{display:inline-block;background:rgba(255,255,255,0.12);color:rgba(255,255,255,0.85);font-size:11px;font-weight:700;letter-spacing:0.07em;padding:5px 16px;border-radius:999px;margin-bottom:14px;}
+.hero-title{font-family:'Nunito',sans-serif;font-weight:900;font-size:clamp(24px,4vw,34px);color:#fff;line-height:1.12;margin-bottom:10px;}
+.hero-sub{font-size:13px;color:rgba(255,255,255,0.5);line-height:1.6;margin-bottom:0;}
+.hero-scallop{background:var(--aa-light-grey);height:28px;border-radius:28px 28px 0 0;margin:24px -32px 0;}
+
+/* ── Body ── */
+.page-body{background:var(--aa-light-grey);padding:24px 24px 56px;}
+.page-inner{max-width:640px;margin:0 auto;display:flex;flex-direction:column;gap:16px;}
+
+/* ── Cards ── */
+.card{background:#fff;border-radius:20px;padding:24px 28px;border:1.5px solid var(--aa-med-grey);}
+.card-title{font-family:'Nunito',sans-serif;font-weight:800;font-size:15px;color:var(--aa-navy);margin-bottom:18px;}
+
+/* ── Trip Details ── */
+.detail-row{display:flex;gap:12px;padding:10px 0;border-bottom:1px solid var(--aa-light-grey);}
+.detail-row:last-child{border-bottom:none;padding-bottom:0;}
+.detail-label{font-size:12px;font-weight:700;color:var(--aa-dark-grey);text-transform:uppercase;letter-spacing:0.04em;width:130px;flex-shrink:0;padding-top:2px;}
+.detail-value{font-size:14px;color:var(--aa-navy);font-weight:600;}
+.detail-value.session-time{color:var(--aa-blue);font-weight:800;}
+
+/* ── Prep Items ── */
+.prep-item{display:flex;align-items:center;gap:14px;background:var(--aa-light-blue);border-radius:14px;padding:14px 16px;margin-bottom:10px;}
+.prep-item:last-of-type{margin-bottom:0;}
+.prep-icon{width:40px;height:40px;border-radius:10px;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:18px;}
+.prep-icon-blue{background:var(--aa-blue);}
+.prep-icon-yellow{background:var(--aa-yellow);}
+.prep-icon-green{background:var(--aa-green);}
+.prep-info{flex:1;min-width:0;}
+.prep-name{font-size:14px;font-weight:700;color:var(--aa-navy);margin-bottom:2px;}
+.prep-meta{font-size:11px;color:var(--aa-dark-grey);font-weight:600;}
+.prep-btn{background:#fff;border:1.5px solid var(--aa-blue);color:var(--aa-blue);font-size:12px;font-weight:700;padding:7px 16px;border-radius:999px;white-space:nowrap;cursor:pointer;text-decoration:none;display:inline-block;}
+.prep-empty{text-align:center;color:var(--aa-dark-grey);font-size:13px;padding:8px 0;}
+
+/* ── Session Links ── */
+.session-row{display:flex;align-items:center;gap:14px;border-radius:14px;padding:14px 16px;margin-bottom:10px;border:1.5px solid transparent;transition:all 0.15s;flex-wrap:wrap;}
+.session-row.yours{background:var(--aa-light-blue);border-color:var(--aa-blue);}
+.session-row.other{opacity:0.55;background:var(--aa-light-grey);}
+.session-time-block{background:var(--aa-navy);color:#fff;border-radius:10px;padding:8px 14px;text-align:center;min-width:72px;flex-shrink:0;}
+.session-time-block.yours{background:var(--aa-blue);}
+.session-time-text{font-family:'Nunito',sans-serif;font-weight:800;font-size:14px;line-height:1;}
+.session-time-ampm{font-size:10px;font-weight:600;opacity:0.7;margin-top:2px;}
+.session-info{flex:1;min-width:0;}
+.session-label{font-size:13px;font-weight:700;color:var(--aa-navy);margin-bottom:3px;}
+.session-badge{display:inline-block;font-size:10px;font-weight:700;padding:2px 10px;border-radius:999px;}
+.session-badge-yellow{background:var(--aa-light-yellow);color:#6b3a00;}
+.session-badge-grey{background:var(--aa-light-grey);color:var(--aa-dark-grey);border:1px solid var(--aa-med-grey);}
+.session-lock{background:var(--aa-light-yellow);border:1px solid #f0c060;border-radius:10px;padding:10px 14px;margin-top:4px;font-size:12px;color:#6b3a00;font-weight:600;line-height:1.5;}
+.session-links{display:flex;gap:8px;flex-wrap:wrap;width:100%;margin-top:4px;}
+.session-link-btn{background:var(--aa-blue);color:#fff;font-size:12px;font-weight:700;padding:9px 16px;border-radius:999px;text-decoration:none;display:inline-flex;align-items:center;gap:6px;}
+.session-link-btn:hover{opacity:0.9;}
+.session-link-btn.nearpod{background:var(--aa-yellow);color:#3a2000;}
+.session-link-btn.disabled{background:var(--aa-med-grey);color:var(--aa-dark-grey);cursor:not-allowed;pointer-events:none;}
+
+/* ── Submit CTA ── */
+.submit-card{background:var(--aa-navy);border-radius:20px;padding:22px 28px;display:flex;align-items:center;gap:18px;}
+.submit-icon{width:48px;height:48px;background:rgba(255,255,255,0.1);border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0;}
+.submit-info{flex:1;}
+.submit-title{font-family:'Nunito',sans-serif;font-weight:800;font-size:15px;color:#fff;margin-bottom:3px;}
+.submit-sub{font-size:12px;color:rgba(255,255,255,0.5);}
+.submit-btn{background:var(--aa-yellow);color:#3a2000;font-size:13px;font-weight:700;padding:11px 22px;border-radius:999px;white-space:nowrap;cursor:pointer;text-decoration:none;display:inline-block;border:none;}
+
+/* ── Footer ── */
+.site-footer{background:var(--aa-navy);padding:20px 32px;text-align:center;border-top:3px solid var(--aa-blue);}
+.footer-text{font-size:11px;color:var(--aa-dark-grey);letter-spacing:0.05em;text-transform:uppercase;margin-top:8px;}
+
+/* ── Loading + Error ── */
+.page-loading,.page-error{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:80px 24px;background:var(--aa-light-grey);min-height:60vh;text-align:center;}
+.spinner{width:32px;height:32px;border:3px solid var(--aa-med-grey);border-top-color:var(--aa-blue);border-radius:50%;animation:spin 0.7s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg);}}
+.error-icon{font-size:48px;margin-bottom:12px;}
+.error-title{font-family:'Nunito',sans-serif;font-weight:900;font-size:22px;color:var(--aa-navy);margin-bottom:8px;}
+.error-sub{font-size:14px;color:var(--aa-dark-grey);max-width:360px;line-height:1.55;margin-bottom:20px;}
+.error-btn{background:var(--aa-blue);color:#fff;font-size:13px;font-weight:700;padding:10px 22px;border-radius:999px;text-decoration:none;}
+</style>
+</head>
+<body>
+
+<header class="site-header">
+  <div class="header-logo">
+    <svg width="32" height="32" viewBox="0 0 67 55" fill="none"><path d="M66.3126 50.8822L48.3919 1.76245C48.0093 0.703285 46.9977 0 45.867 0H20.6096C19.479 0 18.4673 0.703285 18.0848 1.76245L0.164039 50.8822C-0.473557 52.6277 0.82714 54.4749 2.68892 54.4749H25.9059C27.0366 54.4749 28.0483 53.7716 28.4308 52.7125L33.2426 39.5365L38.0543 52.7125C38.4368 53.7716 39.4485 54.4749 40.5792 54.4749H63.7962C65.658 54.4749 66.9587 52.6277 66.3211 50.8822H66.3126ZM40.9532 51.255L34.9598 34.8253L45.9945 4.58406L63.0226 51.2635H40.9532V51.255Z" fill="white"/></svg>
+    <div class="logo-divider"></div>
+    <div>
+      <div class="logo-text-top">Alpha Experiences</div>
+      <div class="logo-text-sub">Student Portal</div>
+    </div>
+  </div>
+  <div class="user-wrap">
+    <button class="user-chip" id="user-chip" aria-haspopup="true" aria-expanded="false">
+      <div class="avatar" id="user-avatar">··</div>
+      <span class="user-name" id="user-handle">…</span>
+    </button>
+    <div class="user-menu" id="user-menu" role="menu">
+      <div class="user-menu-email" id="user-menu-email"></div>
+      <a href="/auth/logout" role="menuitem">Sign out</a>
+    </div>
+  </div>
+</header>
+
+<div id="page-loading" class="page-loading">
+  <div class="spinner"></div>
+</div>
+
+<div id="page-error" class="page-error" style="display:none;">
+  <div class="error-icon" id="error-icon">🔒</div>
+  <p class="error-title" id="error-title">Trip not found</p>
+  <p class="error-sub" id="error-sub">We couldn't find this trip in your registered experiences.</p>
+  <a href="/trips" class="error-btn">← Back to my trips</a>
+</div>
+
+<div id="page-content" style="display:none;">
+  <div class="back-bar">
+    <a class="back-link" href="/trips">← Back to my trips</a>
+  </div>
+
+  <div class="hero">
+    <div class="hero-badge" id="hero-badge">Virtual Field Trip</div>
+    <h1 class="hero-title" id="hero-title">…</h1>
+    <p class="hero-sub" id="hero-sub">…</p>
+    <div class="hero-scallop"></div>
+  </div>
+
+  <div class="page-body">
+    <div class="page-inner">
+
+      <div class="card">
+        <p class="card-title">Trip details</p>
+        <div class="detail-row">
+          <span class="detail-label">Date</span>
+          <span class="detail-value" id="dv-date">—</span>
+        </div>
+        <div class="detail-row">
+          <span class="detail-label">Your session</span>
+          <span class="detail-value session-time" id="dv-session">—</span>
+        </div>
+        <div class="detail-row">
+          <span class="detail-label">Format</span>
+          <span class="detail-value" id="dv-format">—</span>
+        </div>
+        <div class="detail-row">
+          <span class="detail-label">What to bring</span>
+          <span class="detail-value" id="dv-bring">—</span>
+        </div>
+      </div>
+
+      <div class="card" id="prep-card">
+        <p class="card-title">Prep before your trip</p>
+        <div id="prep-list"></div>
+      </div>
+
+      <div class="card">
+        <p class="card-title">Session links</p>
+        <div id="sessions-list"></div>
+        <div id="session-lock" class="session-lock" style="display:none;">
+          🔒 Zoom and Nearpod links will appear here 15 minutes before your session starts.
+        </div>
+      </div>
+
+      <a class="submit-card" id="submit-card" href="#" style="text-decoration:none;color:inherit;">
+        <div class="submit-icon">📸</div>
+        <div class="submit-info">
+          <p class="submit-title">Submit your final project</p>
+          <p class="submit-sub">Upload a photo or short video of your work after the trip</p>
+        </div>
+        <span class="submit-btn">Submit →</span>
+      </a>
+
+    </div>
+  </div>
+</div>
+
+<footer class="site-footer">
+  <svg width="24" height="20" viewBox="0 0 67 55" fill="none"><path d="M66.3126 50.8822L48.3919 1.76245C48.0093 0.703285 46.9977 0 45.867 0H20.6096C19.479 0 18.4673 0.703285 18.0848 1.76245L0.164039 50.8822C-0.473557 52.6277 0.82714 54.4749 2.68892 54.4749H25.9059C27.0366 54.4749 28.0483 53.7716 28.4308 52.7125L33.2426 39.5365L38.0543 52.7125C38.4368 53.7716 39.4485 54.4749 40.5792 54.4749H63.7962C65.658 54.4749 66.9587 52.6277 66.3211 50.8822H66.3126ZM40.9532 51.255L34.9598 34.8253L45.9945 4.58406L63.0226 51.2635H40.9532V51.255Z" fill="#FAFAFA" opacity="0.4"/></svg>
+  <p class="footer-text">Alpha Experiences · Alpha Anywhere</p>
+</footer>
+
+<script>
+// ── Helpers ─────────────────────────────────────────────────
+function tripIdFromPath() {
+  var m = window.location.pathname.match(/^\/trips\/([^\/]+)\/?$/);
+  return m ? decodeURIComponent(m[1]) : '';
+}
+function emailHandle(e){ if(!e) return ''; var i=e.indexOf('@'); return i<0?e:e.slice(0,i); }
+function initialsFor(name, email){
+  var s = (name || emailHandle(email) || '').trim();
+  if (!s) return '··';
+  var parts = s.split(/[\s.]+/).filter(Boolean);
+  if (parts.length === 1) return (parts[0][0] || '·').toUpperCase();
+  return ((parts[0][0] || '·') + (parts[parts.length-1][0] || '')).toUpperCase();
+}
+function escapeHtml(s){
+  return String(s||'').replace(/[&<>"']/g, function(c){
+    return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];
+  });
+}
+function formatTripDate(iso){
+  if (!iso) return '';
+  var d = new Date(iso + 'T00:00:00');
+  if (isNaN(d.getTime())) return iso;
+  return d.toLocaleDateString('en-US', { year:'numeric', month:'long', day:'numeric' });
+}
+function splitTime(s){
+  // "2:00 PM" → { num: "2:00", ampm: "PM" }
+  if (!s) return { num:'', ampm:'' };
+  var m = String(s).trim().match(/^(\d{1,2}:\d{2})\s*(AM|PM)?$/i);
+  if (!m) return { num:String(s), ampm:'' };
+  return { num:m[1], ampm:(m[2]||'').toUpperCase() };
+}
+function safeUrl(url){
+  // Allow only http(s) and mailto links to render as <a>
+  if (!url) return '';
+  var s = String(url).trim();
+  if (/^(https?:|mailto:)/i.test(s)) return s;
+  if (/^[\w.-]+\.[a-z]{2,}/i.test(s)) return 'https://' + s; // bare domains
+  return '';
+}
+
+// ── User menu ───────────────────────────────────────────────
+function setupUserMenu(user){
+  document.getElementById('user-avatar').textContent     = initialsFor(user.name, user.email);
+  document.getElementById('user-handle').textContent     = emailHandle(user.email);
+  document.getElementById('user-menu-email').textContent = user.email;
+  var btn  = document.getElementById('user-chip');
+  var menu = document.getElementById('user-menu');
+  btn.addEventListener('click', function(e){
+    e.stopPropagation();
+    var open = menu.classList.toggle('open');
+    btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+  });
+  document.addEventListener('click', function(e){
+    if (!menu.contains(e.target) && e.target !== btn) {
+      menu.classList.remove('open');
+      btn.setAttribute('aria-expanded', 'false');
+    }
+  });
+}
+
+// ── Render ──────────────────────────────────────────────────
+function renderHero(trip, mySession){
+  document.getElementById('hero-badge').textContent =
+    (trip.emoji ? trip.emoji + '  ' : '') + 'Virtual Field Trip';
+  document.getElementById('hero-title').textContent = trip.title || 'Trip';
+  var subBits = [];
+  if (trip.format)    subBits.push(trip.format);
+  if (trip.trip_date) subBits.push(formatTripDate(trip.trip_date));
+  if (mySession && (mySession.start_time || mySession.end_time)) {
+    subBits.push([mySession.start_time, mySession.end_time].filter(Boolean).join(' – '));
+  }
+  document.getElementById('hero-sub').textContent = subBits.join('  ·  ');
+}
+
+function renderDetails(trip, mySession){
+  document.getElementById('dv-date').textContent    = formatTripDate(trip.trip_date) || '—';
+  document.getElementById('dv-format').textContent  = trip.format || 'Zoom + Nearpod';
+  document.getElementById('dv-bring').textContent   = trip.what_to_bring || 'Notebook, pencil, curiosity';
+  var sessTxt = mySession ? [mySession.start_time, mySession.end_time].filter(Boolean).join(' – ') : '—';
+  document.getElementById('dv-session').textContent = sessTxt || '—';
+}
+
+function renderPrep(prep){
+  var list = document.getElementById('prep-list');
+  list.innerHTML = '';
+  if (!prep || !prep.length) {
+    var p = document.createElement('p');
+    p.className   = 'prep-empty';
+    p.textContent = 'Nothing to prep ahead of time — show up curious!';
+    list.appendChild(p);
+    return;
+  }
+  prep.forEach(function(item){
+    var row = document.createElement('div');
+    row.className = 'prep-item';
+
+    var icon = document.createElement('div');
+    var type = (item.type || '').toLowerCase();
+    var iconClass = 'prep-icon ';
+    var iconLabel;
+    if (type === 'video')         { iconClass += 'prep-icon-blue';   iconLabel = '▶'; }
+    else if (type === 'reading')  { iconClass += 'prep-icon-yellow'; iconLabel = '📖'; }
+    else if (type === 'activity') { iconClass += 'prep-icon-green';  iconLabel = '✦'; }
+    else                          { iconClass += 'prep-icon-blue';   iconLabel = '•'; }
+    icon.className   = iconClass;
+    icon.textContent = iconLabel;
+    icon.style.color = '#fff';
+    row.appendChild(icon);
+
+    var info = document.createElement('div');
+    info.className = 'prep-info';
+    var name = document.createElement('p');
+    name.className   = 'prep-name';
+    name.textContent = item.title || 'Untitled';
+    info.appendChild(name);
+    var meta = document.createElement('p');
+    meta.className   = 'prep-meta';
+    var metaBits = [];
+    if (item.duration) metaBits.push(item.duration);
+    if (item.type)     metaBits.push(item.type.charAt(0).toUpperCase() + item.type.slice(1));
+    meta.textContent = metaBits.join('  ·  ');
+    info.appendChild(meta);
+    row.appendChild(info);
+
+    var url = safeUrl(item.url);
+    if (url) {
+      var btn = document.createElement('a');
+      btn.className = 'prep-btn';
+      btn.href      = url;
+      btn.target    = '_blank';
+      btn.rel       = 'noopener noreferrer';
+      btn.textContent = (type === 'video' ? 'Watch' : (type === 'reading' ? 'Read' : 'Open')) + ' →';
+      row.appendChild(btn);
+    }
+
+    list.appendChild(row);
+  });
+}
+
+function renderSessions(sessions){
+  var list = document.getElementById('sessions-list');
+  var lock = document.getElementById('session-lock');
+  list.innerHTML = '';
+
+  var anyMineUnlockedNoLinks = false;
+  var hasMineLocked = false;
+
+  sessions.forEach(function(s){
+    var row = document.createElement('div');
+    row.className = 'session-row ' + (s.is_yours ? 'yours' : 'other');
+
+    var time = splitTime(s.start_time);
+    var block = document.createElement('div');
+    block.className = 'session-time-block' + (s.is_yours ? ' yours' : '');
+    var num = document.createElement('div');
+    num.className   = 'session-time-text';
+    num.textContent = time.num;
+    block.appendChild(num);
+    if (time.ampm) {
+      var ap = document.createElement('div');
+      ap.className   = 'session-time-ampm';
+      ap.textContent = time.ampm;
+      block.appendChild(ap);
+    }
+    row.appendChild(block);
+
+    var info = document.createElement('div');
+    info.className = 'session-info';
+    var label = document.createElement('p');
+    label.className   = 'session-label';
+    label.textContent = s.is_yours ? 'Your session' :
+                        ([s.start_time, s.end_time].filter(Boolean).join(' – ') || 'Session');
+    info.appendChild(label);
+    var badge = document.createElement('span');
+    badge.className = 'session-badge ' + (s.is_yours ? 'session-badge-yellow' : 'session-badge-grey');
+    badge.textContent = s.is_yours ? 'Your session' : 'Not your session';
+    info.appendChild(badge);
+    row.appendChild(info);
+
+    // Links (only ever rendered for student's own session, only when API sent them)
+    if (s.is_yours && s.is_unlocked) {
+      var linkWrap = document.createElement('div');
+      linkWrap.className = 'session-links';
+      var hasAny = false;
+      if (s.zoom_link) {
+        var z = document.createElement('a');
+        z.className   = 'session-link-btn';
+        z.href        = safeUrl(s.zoom_link) || '#';
+        z.target      = '_blank'; z.rel = 'noopener noreferrer';
+        z.textContent = '🎥 Join Zoom';
+        linkWrap.appendChild(z);
+        hasAny = true;
+      }
+      if (s.nearpod_link) {
+        var n = document.createElement('a');
+        n.className   = 'session-link-btn nearpod';
+        n.href        = safeUrl(s.nearpod_link) || '#';
+        n.target      = '_blank'; n.rel = 'noopener noreferrer';
+        n.textContent = '📚 Open Nearpod';
+        linkWrap.appendChild(n);
+        hasAny = true;
+      }
+      if (hasAny) {
+        row.appendChild(linkWrap);
+      } else {
+        anyMineUnlockedNoLinks = true;
+      }
+    } else if (s.is_yours && !s.is_unlocked) {
+      hasMineLocked = true;
+    }
+
+    list.appendChild(row);
+  });
+
+  if (hasMineLocked) {
+    lock.innerHTML = '🔒 Zoom and Nearpod links will appear here 15 minutes before your session starts.';
+    lock.style.display = '';
+  } else if (anyMineUnlockedNoLinks) {
+    lock.innerHTML = '⏳ Your session is starting soon — links will be added by an admin shortly.';
+    lock.style.display = '';
+  } else {
+    lock.style.display = 'none';
+  }
+}
+
+// ── Init ────────────────────────────────────────────────────
+var POLL_MS = 30000;
+
+async function loadAndRender(tripId){
+  var r;
+  try { r = await fetch('/api/trips/' + encodeURIComponent(tripId), { credentials: 'same-origin' }); }
+  catch (e) { return showError('Connection error', 'We had trouble loading this trip. Please refresh the page.'); }
+
+  if (r.status === 401) {
+    window.location.href = '/auth/login';
+    return;
+  }
+  if (r.status === 404) {
+    return showError('Trip not found', 'We couldn\'t find this trip in your registered experiences. If you think this is a mistake, ask your coach.');
+  }
+  if (r.status !== 200) {
+    return showError('Something went wrong', 'We had trouble loading this trip. Please refresh the page.');
+  }
+
+  var data = await r.json();
+  var trip = data.trip;
+  var sessions = data.sessions || [];
+  var prep = data.prep || [];
+  var mySession = sessions.find(function(s){ return s.is_yours; }) || null;
+
+  renderHero(trip, mySession);
+  renderDetails(trip, mySession);
+  renderPrep(prep);
+  renderSessions(sessions);
+
+  document.getElementById('submit-card').href = '/trips/' + encodeURIComponent(trip.trip_id) + '/submit';
+
+  document.getElementById('page-loading').style.display = 'none';
+  document.getElementById('page-content').style.display = '';
+}
+
+function showError(title, msg){
+  document.getElementById('page-loading').style.display = 'none';
+  document.getElementById('page-content').style.display = 'none';
+  document.getElementById('error-title').textContent = title;
+  document.getElementById('error-sub').textContent   = msg;
+  document.getElementById('page-error').style.display = 'flex';
+}
+
+async function init(){
+  // Auth gate
+  var meRes;
+  try { meRes = await fetch('/auth/me', { credentials: 'same-origin' }); }
+  catch (e) { window.location.href = '/auth/login'; return; }
+  if (meRes.status !== 200) { window.location.href = '/auth/login'; return; }
+  var user = await meRes.json();
+  setupUserMenu(user);
+
+  var tripId = tripIdFromPath();
+  if (!tripId) {
+    showError('Trip not found', 'No trip ID in the URL.');
+    return;
+  }
+
+  await loadAndRender(tripId);
+
+  // Poll so the lock auto-opens (and links appear) without a page refresh.
+  // Only re-renders the sessions card on each tick.
+  setInterval(async function(){
+    try {
+      var r = await fetch('/api/trips/' + encodeURIComponent(tripId), { credentials: 'same-origin' });
+      if (r.status !== 200) return;
+      var data = await r.json();
+      renderSessions(data.sessions || []);
+    } catch (e) { /* ignore — try again next tick */ }
+  }, POLL_MS);
+}
+
+init();
+</script>
+
+</body>
+</html>
