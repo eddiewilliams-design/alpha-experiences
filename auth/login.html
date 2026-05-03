@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sign In — Alpha Experiences Virtual Field Trips</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@700;800;900&family=Nunito+Sans:wght@300;400;600;700&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+:root{
+  --aa-navy:#072256;--aa-blue:#006FF9;--aa-yellow:#E59500;
+  --aa-white:#FAFAFA;--aa-light-blue:#E5F6FD;--aa-med-grey:#DADFE7;
+  --aa-dark-grey:#8291AA;--aa-light-grey:#EEF0F3;
+}
+body{font-family:'Nunito Sans',sans-serif;background:var(--aa-navy);min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px;}
+
+.card{background:var(--aa-white);border-radius:24px;padding:48px 40px;max-width:440px;width:100%;text-align:center;box-shadow:0 24px 64px rgba(7,34,86,0.18);}
+
+.logo-wrap{display:flex;align-items:center;justify-content:center;gap:14px;margin-bottom:32px;}
+.logo-divider{width:1px;height:36px;background:var(--aa-med-grey);}
+.logo-text{text-align:left;}
+.logo-text-top{font-family:'Nunito',sans-serif;font-weight:900;font-size:16px;color:var(--aa-navy);line-height:1.1;}
+.logo-text-sub{font-size:11px;color:var(--aa-dark-grey);font-weight:600;letter-spacing:0.05em;text-transform:uppercase;}
+
+.badge{display:inline-block;background:var(--aa-light-blue);color:var(--aa-blue);font-size:11px;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;padding:5px 16px;border-radius:999px;margin-bottom:20px;}
+
+h1{font-family:'Nunito',sans-serif;font-weight:900;font-size:28px;color:var(--aa-navy);line-height:1.15;margin-bottom:10px;}
+h1 span{color:var(--aa-blue);}
+.subtitle{font-size:14px;color:var(--aa-dark-grey);line-height:1.65;max-width:320px;margin:0 auto 32px;}
+
+.error-banner{display:none;background:#fde8e8;border:1px solid #f5b5b5;color:#8b1a1a;font-size:13px;font-weight:600;padding:10px 14px;border-radius:10px;margin-bottom:20px;line-height:1.5;text-align:left;}
+.error-banner.visible{display:block;}
+
+.google-btn{display:flex;align-items:center;justify-content:center;gap:12px;width:100%;padding:14px 24px;background:#fff;border:1.5px solid var(--aa-med-grey);border-radius:999px;font-family:'Nunito Sans',sans-serif;font-size:15px;font-weight:700;color:var(--aa-navy);cursor:pointer;transition:border-color 0.15s,box-shadow 0.15s;text-decoration:none;}
+.google-btn:hover{border-color:var(--aa-blue);box-shadow:0 4px 16px rgba(0,111,249,0.12);}
+.google-icon{width:20px;height:20px;flex-shrink:0;}
+
+.note{margin-top:20px;font-size:12px;color:var(--aa-dark-grey);}
+.note span{font-weight:700;color:var(--aa-navy);}
+
+.footer-text{margin-top:32px;font-size:11px;color:rgba(255,255,255,0.3);letter-spacing:0.04em;}
+</style>
+</head>
+<body>
+
+<div class="card">
+  <div class="logo-wrap">
+    <svg width="38" height="38" viewBox="0 0 67 55" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M66.3126 50.8822L48.3919 1.76245C48.0093 0.703285 46.9977 0 45.867 0H20.6096C19.479 0 18.4673 0.703285 18.0848 1.76245L0.164039 50.8822C-0.473557 52.6277 0.82714 54.4749 2.68892 54.4749H25.9059C27.0366 54.4749 28.0483 53.7716 28.4308 52.7125L33.2426 39.5365L38.0543 52.7125C38.4368 53.7716 39.4485 54.4749 40.5792 54.4749H63.7962C65.658 54.4749 66.9587 52.6277 66.3211 50.8822H66.3126ZM40.9532 51.255L34.9598 34.8253L45.9945 4.58406L63.0226 51.2635H40.9532V51.255Z" fill="#072256"/>
+    </svg>
+    <div class="logo-divider"></div>
+    <div class="logo-text">
+      <div class="logo-text-top">Alpha Experiences</div>
+      <div class="logo-text-sub">Virtual Field Trips</div>
+    </div>
+  </div>
+
+  <div class="badge">Student & Staff Portal</div>
+  <h1>Welcome <span>back.</span></h1>
+  <p class="subtitle">Sign in with your Alpha Anywhere Google account to access your field trips and experiences.</p>
+
+  <div id="error-banner" class="error-banner"></div>
+
+  <a href="/auth/google" class="google-btn">
+    <svg class="google-icon" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+      <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
+      <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
+      <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z" fill="#FBBC05"/>
+      <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
+    </svg>
+    Sign in with Google
+  </a>
+
+  <p class="note">Only <span>Alpha Anywhere</span> accounts are permitted.</p>
+</div>
+
+<p class="footer-text">Alpha Anywhere · Breakthrough Coaching</p>
+
+<script>
+(function(){
+  var params = new URLSearchParams(window.location.search);
+  var err = params.get('error');
+  if (!err) return;
+  var messages = {
+    domain: 'This portal is for Alpha Anywhere team members only. Sign in with your @2hourlearning.com or @alpha.school account.',
+    unverified: 'Your Google account email is not verified. Verify it in your Google account settings, then try again.',
+    state: 'Your sign-in session expired. Please try signing in again.',
+    oauth: 'We couldn’t complete sign-in with Google. Please try again.',
+    server: 'Something went wrong on our end. Please try again in a moment.'
+  };
+  var el = document.getElementById('error-banner');
+  el.textContent = messages[err] || messages.server;
+  el.className = 'error-banner visible';
+})();
+</script>
+
+</body>
+</html>

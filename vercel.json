@@ -1,5 +1,9 @@
 {
   "rewrites": [
-    { "source": "/lul", "destination": "/lul.html" }
+    { "source": "/lul", "destination": "/lul.html" },
+    { "source": "/auth/google", "destination": "/api/auth/google" },
+    { "source": "/auth/callback", "destination": "/api/auth/callback" },
+    { "source": "/auth/me", "destination": "/api/auth/me" },
+    { "source": "/auth/logout", "destination": "/api/auth/logout" }
   ]
 }
