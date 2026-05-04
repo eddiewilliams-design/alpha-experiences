@@ -457,6 +457,103 @@ async function handleTripSave(req, res) {
   return res.status(200).json({ ok: true, trip_id: tripId });
 }
 
+// ── handleTripDelete: remove trip + its sessions + its prep ─
+// Leaves FT_Purchases and FT_Submissions intact so we don't
+// silently destroy records of past registrations / submissions.
+// If the trip has active registrations and the caller didn't pass
+// { force: true }, we 409 with the count so the UI can re-confirm.
+async function handleTripDelete(req, res) {
+  if (req.method !== 'POST' && req.method !== 'DELETE') {
+    return res.status(405).json({ error: 'method_not_allowed' });
+  }
+
+  let body;
+  try { body = await readJsonBody(req); }
+  catch (e) { return res.status(400).json({ error: 'bad_json' }); }
+
+  const tripId = (body.trip_id || '').toString().trim();
+  const force  = body.force === true;
+  if (!tripId) return res.status(400).json({ error: 'bad_request', detail: 'trip_id required' });
+
+  let token;
+  try { token = await getAccessToken('https://www.googleapis.com/auth/spreadsheets'); }
+  catch (err) {
+    console.error('trip-delete token error:', err.message);
+    return res.status(500).json({ error: 'server_error' });
+  }
+
+  let catalogRows, sessionRows, prepRows, purchaseRows;
+  try {
+    const sheet = await batchGet(token, [
+      'FT_Catalog!A:K', 'FT_Sessions!A:F', 'FT_Prep!A:F', 'FT_Purchases!A:I'
+    ]);
+    const ranges = (sheet && sheet.valueRanges) || [];
+    catalogRows  = (ranges[0] && ranges[0].values) || [];
+    sessionRows  = (ranges[1] && ranges[1].values) || [];
+    prepRows     = (ranges[2] && ranges[2].values) || [];
+    purchaseRows = (ranges[3] && ranges[3].values) || [];
+  } catch (err) {
+    console.error('trip-delete read error:', err.message);
+    return res.status(500).json({ error: 'server_error' });
+  }
+
+  // Verify the trip exists
+  let exists = false;
+  for (let i = 1; i < catalogRows.length; i++) {
+    if ((catalogRows[i][0] || '').toString().trim() === tripId) { exists = true; break; }
+  }
+  if (!exists) return res.status(404).json({ error: 'not_found' });
+
+  // Count active registrations
+  let regCount = 0;
+  for (let i = 1; i < purchaseRows.length; i++) {
+    const r = purchaseRows[i];
+    if ((r[4] || '').toString().trim() !== tripId) continue;
+    const status = (r[6] || '').toString().toLowerCase().trim();
+    if (!status || status === 'active') regCount += 1;
+  }
+
+  if (regCount > 0 && !force) {
+    return res.status(409).json({ error: 'has_registrations', registration_count: regCount });
+  }
+
+  // Catalog: keep header + every row except this trip's
+  const catalogHeader = catalogRows[0] || [
+    'trip_id','title','description','emoji','trip_date','status',
+    'max_seats_per_session','reflection_prompt','thumbnail_url','what_to_bring','format'
+  ];
+  const remainingCatalog = catalogRows.slice(1).filter(r => (r[0] || '').toString().trim() !== tripId);
+  const newCatalog = [catalogHeader].concat(remainingCatalog);
+
+  // Sessions: keep header + every row whose trip_id !== this
+  const sessionsHeader = sessionRows[0] || ['session_id','trip_id','start_time','end_time','zoom_link','nearpod_link'];
+  const remainingSessions = sessionRows.slice(1).filter(r => (r[1] || '').toString().trim() !== tripId);
+  const newSessions = [sessionsHeader].concat(remainingSessions);
+
+  // Prep: same idea
+  const prepHeader = prepRows[0] || ['prep_id','trip_id','title','type','url','duration'];
+  const remainingPrep = prepRows.slice(1).filter(r => (r[1] || '').toString().trim() !== tripId);
+  const newPrep = [prepHeader].concat(remainingPrep);
+
+  try {
+    await sheetsClear(token,  'FT_Catalog!A:K');
+    await sheetsUpdate(token, 'FT_Catalog!A1', newCatalog);
+    await sheetsClear(token,  'FT_Sessions!A:F');
+    await sheetsUpdate(token, 'FT_Sessions!A1', newSessions);
+    await sheetsClear(token,  'FT_Prep!A:F');
+    await sheetsUpdate(token, 'FT_Prep!A1', newPrep);
+  } catch (err) {
+    console.error('trip-delete write error:', err.message);
+    return res.status(500).json({ error: 'server_error' });
+  }
+
+  return res.status(200).json({
+    ok: true,
+    trip_id: tripId,
+    orphaned_registrations: regCount  // FT_Purchases rows we left alone for record
+  });
+}
+
 // ── Dispatch ────────────────────────────────────────────────
 module.exports = async (req, res) => {
   res.setHeader('Cache-Control', 'no-store');
@@ -469,9 +566,10 @@ module.exports = async (req, res) => {
   const action = (req.query.action || '').toString();
 
   switch (action) {
-    case 'trips-list': return handleTripsList(req, res);
-    case 'trip-get':   return handleTripGet(req, res);
-    case 'trip-save':  return handleTripSave(req, res);
-    default:           return res.status(404).json({ error: 'not_found', detail: action });
+    case 'trips-list':  return handleTripsList(req, res);
+    case 'trip-get':    return handleTripGet(req, res);
+    case 'trip-save':   return handleTripSave(req, res);
+    case 'trip-delete': return handleTripDelete(req, res);
+    default:            return res.status(404).json({ error: 'not_found', detail: action });
   }
 };

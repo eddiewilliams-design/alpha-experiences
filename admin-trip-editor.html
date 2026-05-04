@@ -82,7 +82,14 @@ input::placeholder,textarea::placeholder{color:var(--aa-dark-grey);}
 .btn-save:hover{border-color:var(--aa-blue);color:var(--aa-blue);}
 .btn-publish{background:var(--aa-blue);color:#fff;font-size:14px;font-weight:700;padding:11px 28px;border-radius:999px;border:none;cursor:pointer;font-family:inherit;}
 .btn-publish:hover{opacity:0.9;}
-.btn-save:disabled,.btn-publish:disabled{opacity:0.5;cursor:not-allowed;}
+.btn-save:disabled,.btn-publish:disabled,.btn-danger:disabled{opacity:0.5;cursor:not-allowed;}
+
+/* ── Danger zone ── */
+.danger-card{background:#fff;border-radius:20px;border:1.5px solid #f5b5b5;padding:24px 28px;}
+.danger-title{font-family:'Nunito',sans-serif;font-weight:800;font-size:14px;color:#8b1a1a;margin-bottom:6px;text-transform:uppercase;letter-spacing:0.05em;}
+.danger-sub{font-size:13px;color:var(--aa-dark-grey);line-height:1.55;margin-bottom:14px;}
+.btn-danger{background:#fff;color:#8b1a1a;font-size:13px;font-weight:700;padding:10px 22px;border-radius:999px;border:1.5px solid #f5b5b5;cursor:pointer;font-family:inherit;}
+.btn-danger:hover{background:#fde8e8;border-color:#c0392b;color:#c0392b;}
 
 /* ── Banners ── */
 .error-banner{background:#fde8e8;border:1px solid #f5b5b5;color:#8b1a1a;font-size:13px;font-weight:600;padding:10px 14px;border-radius:10px;line-height:1.5;display:none;}
@@ -237,6 +244,12 @@ input::placeholder,textarea::placeholder{color:var(--aa-dark-grey);}
           <button type="button" class="btn-save" id="save-draft-btn">Save as draft</button>
           <button type="button" class="btn-publish" id="publish-btn">Publish trip</button>
         </div>
+      </div>
+
+      <div class="danger-card" id="danger-zone" style="display:none;">
+        <p class="danger-title">Danger zone</p>
+        <p class="danger-sub">Deleting a trip removes it from the catalog along with its sessions and prep items. Past registrations and student submissions stay in the sheet for the record.</p>
+        <button type="button" class="btn-danger" id="delete-btn">Delete trip</button>
       </div>
 
     </div>
@@ -515,6 +528,67 @@ function readForm(){
 function setBusy(busy){
   document.getElementById('save-draft-btn').disabled = busy;
   document.getElementById('publish-btn').disabled    = busy;
+  var del = document.getElementById('delete-btn');
+  if (del) del.disabled = busy;
+}
+
+// Toggle the "Save as draft" button label based on current status.
+// If the trip is currently 'open', clicking "Save as draft" really
+// means unpublish — so make that explicit.
+function refreshSaveDraftLabel(){
+  var btn = document.getElementById('save-draft-btn');
+  var status = document.getElementById('f-status').value;
+  // Only relabel when editing (not on /new). On /new, "Save as draft" is correct.
+  if (TRIP_ID && status === 'open') {
+    btn.textContent = 'Unpublish';
+    btn.title = 'Save as draft (hides this trip from students)';
+  } else {
+    btn.textContent = 'Save as draft';
+    btn.removeAttribute('title');
+  }
+}
+
+async function deleteTrip(){
+  if (!TRIP_ID) return;
+  var title = document.getElementById('f-title').value.trim() || TRIP_ID;
+  if (!confirm('Delete trip "' + title + '"?\n\nThis removes it from the catalog along with its sessions and prep items. Past registrations and submissions stay in the sheet for the record.\n\nThis can\'t be undone.')) {
+    return;
+  }
+  clearBanners();
+  setBusy(true);
+  try {
+    var r = await fetch('/api/admin/trip-delete', {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ trip_id: TRIP_ID })
+    });
+    var data = await r.json().catch(function(){ return {}; });
+
+    if (r.status === 409 && data.error === 'has_registrations') {
+      var n = data.registration_count || 0;
+      var ok = confirm('This trip has ' + n + ' active registration' + (n === 1 ? '' : 's') + '.\n\nDelete anyway? Those students will lose access to the trip page, and their FT_Purchases rows will be left in the sheet for the record.');
+      if (!ok) { setBusy(false); return; }
+      r = await fetch('/api/admin/trip-delete', {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ trip_id: TRIP_ID, force: true })
+      });
+      data = await r.json().catch(function(){ return {}; });
+    }
+
+    if (r.status !== 200) {
+      throw new Error(data.error || ('delete failed: ' + r.status));
+    }
+
+    SAVED = true;  // suppress beforeunload prompt
+    window.location.href = '/admin?deleted=' + encodeURIComponent(TRIP_ID);
+  } catch (err) {
+    console.error(err);
+    showError('Couldn\'t delete: ' + (err.message || err));
+    setBusy(false);
+  }
 }
 
 async function save(forceStatus){
@@ -577,6 +651,7 @@ async function init(){
     document.getElementById('card-title').textContent = 'Edit trip';
     document.getElementById('trip-id-pill').style.display = '';
     document.getElementById('trip-id-value').textContent = TRIP_ID;
+    document.getElementById('danger-zone').style.display = '';
 
     try {
       var r = await fetch('/api/admin/trip-get?trip_id=' + encodeURIComponent(TRIP_ID), { credentials:'same-origin' });
@@ -609,6 +684,10 @@ async function init(){
   document.getElementById('add-prep-btn').addEventListener('click',    function(){ addPrepRow({}); });
   document.getElementById('save-draft-btn').addEventListener('click',  function(){ save('draft'); });
   document.getElementById('publish-btn').addEventListener('click',     function(){ save('open'); });
+  document.getElementById('delete-btn').addEventListener('click',      deleteTrip);
+
+  document.getElementById('f-status').addEventListener('change', refreshSaveDraftLabel);
+  refreshSaveDraftLabel();
 
   // Warn before navigating away with unsaved input (but not after a successful save)
   window.addEventListener('beforeunload', function(e){

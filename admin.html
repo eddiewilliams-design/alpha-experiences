@@ -150,6 +150,8 @@ body{font-family:'Nunito Sans',sans-serif;background:var(--aa-white);min-height:
 <div id="page-body" class="page-body" style="display:none;">
   <div class="page-inner">
 
+    <div id="flash-banner" style="display:none;background:var(--aa-light-green);border:1px solid #a3d291;color:#1a5205;font-size:13px;font-weight:600;padding:10px 14px;border-radius:10px;margin-bottom:16px;line-height:1.5;"></div>
+
     <div class="toolbar">
       <span class="toolbar-title">All field trips</span>
       <a class="btn-blue" href="/admin/trips/new">+ New trip</a>
@@ -365,6 +367,18 @@ async function init(){
   }
 
   setupUserMenu(user);
+
+  // Flash message after redirect (e.g. ?deleted=trip-id)
+  var qp = new URLSearchParams(window.location.search);
+  var deleted = qp.get('deleted');
+  if (deleted) {
+    var flash = document.getElementById('flash-banner');
+    flash.textContent = 'Trip "' + deleted + '" was deleted.';
+    flash.style.display = '';
+    // Tidy the URL so a refresh doesn't show the message again
+    window.history.replaceState({}, '', '/admin');
+    setTimeout(function(){ flash.style.display = 'none'; }, 6000);
+  }
 
   // Load trips
   var trips = [], stats = {};
