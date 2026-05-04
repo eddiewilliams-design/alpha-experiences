@@ -25,7 +25,11 @@ const crypto = require('crypto');
 const SHEET_ID  = '1aQYysCOOR-mYG8Myrl1BSU2PF8wMl-si8pgNG89sRto';
 const TZ        = 'America/Chicago';
 const RANGES    = ['FT_Catalog!A:K', 'FT_Sessions!A:F', 'FT_Prep!A:F', 'FT_Purchases!A:I'];
-const UNLOCK_MS = 15 * 60 * 1000; // 15 minutes before session start
+// Unlock window: [start − UNLOCK_BEFORE_MS, end + GRACE_AFTER_MS].
+// If end_time is missing or unparseable we assume FALLBACK_LEN_MS after start.
+const UNLOCK_BEFORE_MS = 15 * 60 * 1000;       // open 15 min before start
+const GRACE_AFTER_MS   = 60 * 60 * 1000;       // re-lock 1 hour after end_time
+const FALLBACK_LEN_MS  = 90 * 60 * 1000;       // assume 90-min session if no end_time
 
 // ── Sheets access ───────────────────────────────────────────
 function b64url(str) {
@@ -205,7 +209,23 @@ module.exports = async (req, res) => {
 
     const isYours    = (sid === mySessionId);
     const startUtc   = sessionStartUtcMs(trip.trip_date, start);
-    const isUnlocked = startUtc !== null && nowMs >= (startUtc - UNLOCK_MS);
+    let   endUtc     = sessionStartUtcMs(trip.trip_date, end);
+    // Handle sessions that wrap past midnight (e.g. 11:30 PM → 12:30 AM)
+    if (endUtc !== null && startUtc !== null && endUtc <= startUtc) {
+      endUtc += 24 * 60 * 60 * 1000;
+    }
+    if (endUtc === null && startUtc !== null) {
+      endUtc = startUtc + FALLBACK_LEN_MS;
+    }
+    const isUnlocked =
+      startUtc !== null &&
+      nowMs >= (startUtc - UNLOCK_BEFORE_MS) &&
+      nowMs <= (endUtc   + GRACE_AFTER_MS);
+
+    const isPast =
+      startUtc !== null &&
+      endUtc   !== null &&
+      nowMs > (endUtc + GRACE_AFTER_MS);
 
     const session_obj = {
       session_id:  sid,
@@ -213,6 +233,7 @@ module.exports = async (req, res) => {
       end_time:    end,
       is_yours:    isYours,
       is_unlocked: isUnlocked,
+      is_past:     isPast,
       zoom_link:   null,
       nearpod_link: null
     };

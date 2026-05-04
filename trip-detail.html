@@ -363,6 +363,7 @@ function renderSessions(sessions){
 
   var anyMineUnlockedNoLinks = false;
   var hasMineLocked = false;
+  var hasMinePast   = false;
 
   sessions.forEach(function(s){
     var row = document.createElement('div');
@@ -425,13 +426,17 @@ function renderSessions(sessions){
         anyMineUnlockedNoLinks = true;
       }
     } else if (s.is_yours && !s.is_unlocked) {
-      hasMineLocked = true;
+      if (s.is_past) hasMinePast = true;
+      else           hasMineLocked = true;
     }
 
     list.appendChild(row);
   });
 
-  if (hasMineLocked) {
+  if (hasMinePast) {
+    lock.innerHTML = '✅ This session has ended. Visit the gallery to see what other students made — or submit your own project.';
+    lock.style.display = '';
+  } else if (hasMineLocked) {
     lock.innerHTML = '🔒 Zoom and Nearpod links will appear here 15 minutes before your session starts.';
     lock.style.display = '';
   } else if (anyMineUnlockedNoLinks) {
