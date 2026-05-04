@@ -11,6 +11,7 @@
     { "source": "/admin/trips/:tripId/edit", "destination": "/admin-trip-editor.html" },
     { "source": "/admin/registrations", "destination": "/admin-registrations.html" },
     { "source": "/admin/submissions", "destination": "/admin-submissions.html" },
+    { "source": "/admin/access", "destination": "/admin-access.html" },
     { "source": "/auth/google", "destination": "/api/auth/google" },
     { "source": "/auth/callback", "destination": "/api/auth/callback" },
     { "source": "/auth/me", "destination": "/api/auth/me" },

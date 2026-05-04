@@ -1129,6 +1129,123 @@ async function handleSubDelete(req, res) {
   return res.status(200).json({ ok: true });
 }
 
+// ── Admin access list / add / remove ───────────────────────
+const ALLOWED_ADMIN_DOMAINS = ['2hourlearning.com', 'alpha.school'];
+function isAllowedDomainEmail(email) {
+  const m = String(email || '').toLowerCase().match(/^[^@\s]+@([^@\s]+\.[^@\s]+)$/);
+  if (!m) return false;
+  return ALLOWED_ADMIN_DOMAINS.indexOf(m[1]) !== -1;
+}
+
+async function handleAdminsList(req, res) {
+  let admins = [];
+  try {
+    const token = await getAccessToken();
+    const sheet = await batchGet(token, ['FT_Admins!A:A']);
+    const rows = (sheet && sheet.valueRanges && sheet.valueRanges[0] && sheet.valueRanges[0].values) || [];
+    for (let i = 1; i < rows.length; i++) {
+      const e = (rows[i][0] || '').toString().toLowerCase().trim();
+      if (e) admins.push(e);
+    }
+    // Dedupe + sort
+    admins = Array.from(new Set(admins)).sort();
+  } catch (err) {
+    console.error('admins-list error:', err.message);
+    admins = [];
+  }
+  return res.status(200).json({ admins });
+}
+
+async function handleAdminAdd(req, res) {
+  if (req.method !== 'POST') return res.status(405).json({ error: 'method_not_allowed' });
+
+  let body;
+  try { body = await readJsonBody(req); }
+  catch (e) { return res.status(400).json({ error: 'bad_json' }); }
+
+  const email = (body.email || '').toString().toLowerCase().trim();
+  if (!email) return res.status(400).json({ error: 'bad_request', detail: 'email required' });
+  if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) {
+    return res.status(400).json({ error: 'bad_email' });
+  }
+  if (!isAllowedDomainEmail(email)) {
+    return res.status(400).json({ error: 'bad_domain', detail: 'email must be @2hourlearning.com or @alpha.school' });
+  }
+
+  let token;
+  try { token = await getAccessToken('https://www.googleapis.com/auth/spreadsheets'); }
+  catch (err) {
+    console.error('admin-add token error:', err.message);
+    return res.status(500).json({ error: 'server_error' });
+  }
+
+  // Check for duplicate
+  try {
+    const sheet = await batchGet(token, ['FT_Admins!A:A']);
+    const rows = (sheet && sheet.valueRanges && sheet.valueRanges[0] && sheet.valueRanges[0].values) || [];
+    for (let i = 1; i < rows.length; i++) {
+      if ((rows[i][0] || '').toString().toLowerCase().trim() === email) {
+        return res.status(409).json({ error: 'already_admin' });
+      }
+    }
+  } catch (err) {
+    console.error('admin-add read error:', err.message);
+    return res.status(500).json({ error: 'server_error' });
+  }
+
+  try {
+    await sheetsAppend(token, 'FT_Admins!A:A', [[email]]);
+  } catch (err) {
+    console.error('admin-add write error:', err.message);
+    return res.status(500).json({ error: 'server_error' });
+  }
+  return res.status(200).json({ ok: true });
+}
+
+async function handleAdminRemove(req, res) {
+  if (req.method !== 'POST' && req.method !== 'DELETE') {
+    return res.status(405).json({ error: 'method_not_allowed' });
+  }
+
+  let body;
+  try { body = await readJsonBody(req); }
+  catch (e) { return res.status(400).json({ error: 'bad_json' }); }
+
+  const email = (body.email || '').toString().toLowerCase().trim();
+  if (!email) return res.status(400).json({ error: 'bad_request', detail: 'email required' });
+
+  let token;
+  try { token = await getAccessToken('https://www.googleapis.com/auth/spreadsheets'); }
+  catch (err) {
+    console.error('admin-remove token error:', err.message);
+    return res.status(500).json({ error: 'server_error' });
+  }
+
+  let rows;
+  try {
+    const sheet = await batchGet(token, ['FT_Admins!A:A']);
+    rows = (sheet && sheet.valueRanges && sheet.valueRanges[0] && sheet.valueRanges[0].values) || [];
+  } catch (err) {
+    console.error('admin-remove read error:', err.message);
+    return res.status(500).json({ error: 'server_error' });
+  }
+
+  const header = rows[0] || ['email'];
+  const remaining = rows.slice(1).filter(r => (r[0] || '').toString().toLowerCase().trim() !== email);
+  if (remaining.length === rows.length - 1) {
+    return res.status(404).json({ error: 'not_found' });
+  }
+
+  try {
+    await sheetsClear(token,  'FT_Admins!A:A');
+    await sheetsUpdate(token, 'FT_Admins!A1', [header].concat(remaining));
+  } catch (err) {
+    console.error('admin-remove write error:', err.message);
+    return res.status(500).json({ error: 'server_error' });
+  }
+  return res.status(200).json({ ok: true });
+}
+
 // ── Dispatch ────────────────────────────────────────────────
 module.exports = async (req, res) => {
   res.setHeader('Cache-Control', 'no-store');
@@ -1152,6 +1269,9 @@ module.exports = async (req, res) => {
     case 'reg-attendance': return handleRegAttendance(req, res);
     case 'subs-list':      return handleSubsList(req, res);
     case 'sub-delete':     return handleSubDelete(req, res);
+    case 'admins-list':    return handleAdminsList(req, res);
+    case 'admin-add':      return handleAdminAdd(req, res);
+    case 'admin-remove':   return handleAdminRemove(req, res);
     default:               return res.status(404).json({ error: 'not_found', detail: action });
   }
 };

@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Admin — Access</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@700;800;900&family=Nunito+Sans:wght@300;400;600;700&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+:root{
+  --aa-navy:#072256;--aa-blue:#006FF9;--aa-yellow:#E59500;
+  --aa-white:#FAFAFA;--aa-light-blue:#E5F6FD;--aa-light-yellow:#FFF7E5;
+  --aa-med-grey:#DADFE7;--aa-dark-grey:#8291AA;--aa-light-grey:#EEF0F3;
+  --aa-green:#2C8707;--aa-light-green:#EEFDE8;
+}
+body{font-family:'Nunito Sans',sans-serif;background:var(--aa-white);min-height:100vh;color:var(--aa-navy);}
+
+/* ── Admin shell ── */
+.site-header{background:var(--aa-navy);padding:16px 32px;display:flex;align-items:center;justify-content:space-between;}
+.header-logo{display:flex;align-items:center;gap:12px;}
+.logo-divider{width:1px;height:28px;background:rgba(255,255,255,0.2);}
+.logo-text-top{font-family:'Nunito',sans-serif;font-weight:900;font-size:14px;color:#fff;line-height:1.1;}
+.logo-text-sub{font-size:10px;color:rgba(255,255,255,0.5);font-weight:600;letter-spacing:0.05em;text-transform:uppercase;}
+.header-right{display:flex;align-items:center;gap:10px;}
+.admin-badge{background:var(--aa-yellow);color:#3a2000;font-size:10px;font-weight:800;padding:4px 12px;border-radius:999px;letter-spacing:0.04em;text-transform:uppercase;}
+.user-wrap{position:relative;}
+.user-chip{display:flex;align-items:center;gap:8px;background:rgba(255,255,255,0.12);border:none;border-radius:999px;padding:6px 14px 6px 7px;cursor:pointer;font-family:inherit;}
+.user-chip:hover{background:rgba(255,255,255,0.18);}
+.avatar{width:26px;height:26px;border-radius:50%;background:var(--aa-blue);display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:#fff;}
+.user-name{font-size:13px;color:rgba(255,255,255,0.85);font-weight:600;}
+.user-menu{position:absolute;top:calc(100% + 8px);right:0;background:#fff;border:1px solid var(--aa-med-grey);border-radius:12px;box-shadow:0 8px 24px rgba(7,34,86,0.15);padding:6px;min-width:180px;display:none;z-index:50;}
+.user-menu.open{display:block;}
+.user-menu-email{font-size:11px;color:var(--aa-dark-grey);padding:8px 12px 10px;border-bottom:1px solid var(--aa-light-grey);margin-bottom:6px;word-break:break-all;}
+.user-menu a{display:block;padding:9px 12px;font-size:13px;font-weight:600;color:var(--aa-navy);text-decoration:none;border-radius:8px;}
+.user-menu a:hover{background:var(--aa-light-grey);}
+
+.admin-nav{background:#fff;border-bottom:1.5px solid var(--aa-med-grey);padding:0 32px;display:flex;gap:4px;overflow-x:auto;}
+.admin-tab{font-size:13px;font-weight:600;color:var(--aa-dark-grey);padding:14px 16px;border-bottom:2.5px solid transparent;cursor:pointer;white-space:nowrap;text-decoration:none;}
+.admin-tab.active{color:var(--aa-blue);border-bottom-color:var(--aa-blue);}
+.admin-tab:hover:not(.active){color:var(--aa-navy);}
+
+.page-body{background:var(--aa-light-grey);padding:28px 24px 56px;min-height:60vh;}
+.page-inner{max-width:680px;margin:0 auto;display:flex;flex-direction:column;gap:16px;}
+
+.card{background:#fff;border-radius:20px;padding:24px 28px;border:1.5px solid var(--aa-med-grey);}
+.card-title{font-family:'Nunito',sans-serif;font-weight:800;font-size:16px;color:var(--aa-navy);margin-bottom:6px;}
+.card-sub{font-size:13px;color:var(--aa-dark-grey);line-height:1.55;margin-bottom:18px;}
+
+/* ── Banners ── */
+.banner{font-size:13px;font-weight:600;padding:10px 14px;border-radius:10px;line-height:1.5;display:none;}
+.banner.visible{display:block;}
+.banner.error{background:#fde8e8;border:1px solid #f5b5b5;color:#8b1a1a;}
+.banner.success{background:var(--aa-light-green);border:1px solid #a3d291;color:#1a5205;}
+
+/* ── Add form ── */
+.add-row{display:flex;gap:8px;align-items:stretch;}
+.add-row input{flex:1;padding:12px 16px;border:1.5px solid var(--aa-med-grey);border-radius:999px;font-family:'Nunito Sans',sans-serif;font-size:14px;color:var(--aa-navy);background:#fff;outline:none;}
+.add-row input:focus{border-color:var(--aa-blue);}
+.add-row input::placeholder{color:var(--aa-dark-grey);}
+.btn-add{background:var(--aa-blue);color:#fff;font-size:14px;font-weight:700;padding:12px 24px;border-radius:999px;border:none;cursor:pointer;font-family:inherit;white-space:nowrap;}
+.btn-add:disabled{opacity:0.5;cursor:not-allowed;}
+.add-help{font-size:11px;color:var(--aa-dark-grey);margin-top:8px;}
+.add-help span{font-weight:700;color:var(--aa-navy);}
+
+/* ── Admin list ── */
+.list-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;}
+.list-count{font-size:12px;color:var(--aa-dark-grey);background:var(--aa-light-grey);border:1px solid var(--aa-med-grey);border-radius:999px;padding:3px 12px;}
+.admin-row{display:flex;align-items:center;gap:14px;padding:12px 4px;border-bottom:1px solid var(--aa-light-grey);}
+.admin-row:last-child{border-bottom:none;}
+.admin-row .row-avatar{width:34px;height:34px;border-radius:50%;background:var(--aa-blue);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:#fff;flex-shrink:0;}
+.admin-row .row-info{flex:1;min-width:0;}
+.admin-row .row-email{font-size:14px;font-weight:700;color:var(--aa-navy);word-break:break-all;}
+.admin-row .row-tag{font-size:10px;font-weight:700;color:var(--aa-blue);text-transform:uppercase;letter-spacing:0.05em;margin-left:8px;}
+.btn-remove{background:#fff;color:#8b1a1a;font-size:12px;font-weight:700;padding:7px 14px;border-radius:999px;border:1.5px solid #f5b5b5;cursor:pointer;font-family:inherit;}
+.btn-remove:hover{background:#fde8e8;border-color:#c0392b;color:#c0392b;}
+.btn-remove:disabled{opacity:0.5;cursor:not-allowed;}
+.btn-remove.you{border-style:dashed;}
+
+.empty-state{text-align:center;color:var(--aa-dark-grey);font-size:13px;padding:24px 0;}
+
+/* ── Loading + denied ── */
+.page-loading,.page-denied{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:80px 24px;background:var(--aa-light-grey);min-height:60vh;text-align:center;}
+.spinner{width:32px;height:32px;border:3px solid var(--aa-med-grey);border-top-color:var(--aa-blue);border-radius:50%;animation:spin 0.7s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg);}}
+.denied-icon{font-size:48px;margin-bottom:12px;}
+.denied-title{font-family:'Nunito',sans-serif;font-weight:900;font-size:22px;color:var(--aa-navy);margin-bottom:8px;}
+.denied-sub{font-size:14px;color:var(--aa-dark-grey);max-width:360px;line-height:1.55;margin-bottom:20px;}
+.btn-blue{background:var(--aa-blue);color:#fff;font-size:13px;font-weight:700;padding:10px 22px;border-radius:999px;text-decoration:none;display:inline-block;border:none;cursor:pointer;font-family:inherit;}
+
+.site-footer{background:var(--aa-navy);padding:20px 32px;text-align:center;border-top:3px solid var(--aa-blue);}
+.footer-text{font-size:11px;color:var(--aa-dark-grey);letter-spacing:0.05em;text-transform:uppercase;margin-top:8px;}
+</style>
+</head>
+<body>
+
+<header class="site-header">
+  <div class="header-logo">
+    <svg width="32" height="32" viewBox="0 0 67 55" fill="none"><path d="M66.3126 50.8822L48.3919 1.76245C48.0093 0.703285 46.9977 0 45.867 0H20.6096C19.479 0 18.4673 0.703285 18.0848 1.76245L0.164039 50.8822C-0.473557 52.6277 0.82714 54.4749 2.68892 54.4749H25.9059C27.0366 54.4749 28.0483 53.7716 28.4308 52.7125L33.2426 39.5365L38.0543 52.7125C38.4368 53.7716 39.4485 54.4749 40.5792 54.4749H63.7962C65.658 54.4749 66.9587 52.6277 66.3211 50.8822H66.3126ZM40.9532 51.255L34.9598 34.8253L45.9945 4.58406L63.0226 51.2635H40.9532V51.255Z" fill="white"/></svg>
+    <div class="logo-divider"></div>
+    <div>
+      <div class="logo-text-top">Alpha Experiences</div>
+      <div class="logo-text-sub">Admin Dashboard</div>
+    </div>
+  </div>
+  <div class="header-right">
+    <span class="admin-badge">Admin</span>
+    <div class="user-wrap">
+      <button class="user-chip" id="user-chip" aria-haspopup="true" aria-expanded="false">
+        <div class="avatar" id="user-avatar">··</div>
+        <span class="user-name" id="user-handle">…</span>
+      </button>
+      <div class="user-menu" id="user-menu" role="menu">
+        <div class="user-menu-email" id="user-menu-email"></div>
+        <a href="/admin" role="menuitem">Admin dashboard</a>
+        <a href="/trips" role="menuitem">Student view</a>
+        <a href="/auth/logout" role="menuitem">Sign out</a>
+      </div>
+    </div>
+  </div>
+</header>
+
+<nav class="admin-nav">
+  <a class="admin-tab" href="/admin">Field Trips</a>
+  <a class="admin-tab" href="/admin/registrations">Registrations</a>
+  <a class="admin-tab" href="/admin/submissions">Submissions</a>
+  <a class="admin-tab active" href="/admin/access">Admin Access</a>
+</nav>
+
+<div id="page-loading" class="page-loading">
+  <div class="spinner"></div>
+</div>
+
+<div id="page-denied" class="page-denied" style="display:none;">
+  <div class="denied-icon">🔒</div>
+  <p class="denied-title">Admins only</p>
+  <p class="denied-sub">This area is for Alpha Anywhere staff.</p>
+  <a href="/trips" class="btn-blue">← Back to my trips</a>
+</div>
+
+<div id="page-content" class="page-body" style="display:none;">
+  <div class="page-inner">
+
+    <div id="banner-error"   class="banner error"></div>
+    <div id="banner-success" class="banner success"></div>
+
+    <div class="card">
+      <p class="card-title">Add an admin</p>
+      <p class="card-sub">Admins can create and edit trips, manage registrations, view submissions, and add or remove other admins.</p>
+      <div class="add-row">
+        <input id="add-email" type="email" placeholder="someone@2hourlearning.com" autocomplete="off" maxlength="120">
+        <button type="button" class="btn-add" id="add-btn">Add admin</button>
+      </div>
+      <p class="add-help">Must end in <span>@2hourlearning.com</span> or <span>@alpha.school</span>.</p>
+    </div>
+
+    <div class="card">
+      <div class="list-header">
+        <p class="card-title" style="margin-bottom:0;">Current admins</p>
+        <span class="list-count" id="admin-count">0</span>
+      </div>
+      <div id="admin-list"></div>
+      <div id="admin-empty" class="empty-state" style="display:none;">No admins listed yet — add the first one above.</div>
+    </div>
+
+  </div>
+</div>
+
+<footer class="site-footer">
+  <svg width="24" height="20" viewBox="0 0 67 55" fill="none"><path d="M66.3126 50.8822L48.3919 1.76245C48.0093 0.703285 46.9977 0 45.867 0H20.6096C19.479 0 18.4673 0.703285 18.0848 1.76245L0.164039 50.8822C-0.473557 52.6277 0.82714 54.4749 2.68892 54.4749H25.9059C27.0366 54.4749 28.0483 53.7716 28.4308 52.7125L33.2426 39.5365L38.0543 52.7125C38.4368 53.7716 39.4485 54.4749 40.5792 54.4749H63.7962C65.658 54.4749 66.9587 52.6277 66.3211 50.8822H66.3126ZM40.9532 51.255L34.9598 34.8253L45.9945 4.58406L63.0226 51.2635H40.9532V51.255Z" fill="#FAFAFA" opacity="0.4"/></svg>
+  <p class="footer-text">Alpha Experiences · Admin</p>
+</footer>
+
+<script>
+var ADMINS  = [];
+var ME_EMAIL = '';
+
+function emailHandle(e){ if(!e) return ''; var i=e.indexOf('@'); return i<0?e:e.slice(0,i); }
+function initialsFor(email){
+  var s = emailHandle(email);
+  if (!s) return '··';
+  var parts = s.split(/[.\s_-]+/).filter(Boolean);
+  if (parts.length === 1) return (parts[0][0] || '·').toUpperCase();
+  return ((parts[0][0] || '·') + (parts[parts.length-1][0] || '')).toUpperCase();
+}
+function userInitials(name, email){
+  var s = (name || emailHandle(email) || '').trim();
+  if (!s) return '··';
+  var parts = s.split(/[\s.]+/).filter(Boolean);
+  if (parts.length === 1) return (parts[0][0] || '·').toUpperCase();
+  return ((parts[0][0] || '·') + (parts[parts.length-1][0] || '')).toUpperCase();
+}
+
+function showError(msg){
+  var e = document.getElementById('banner-error');
+  e.textContent = msg; e.classList.add('visible');
+  document.getElementById('banner-success').classList.remove('visible');
+}
+function showSuccess(msg){
+  var s = document.getElementById('banner-success');
+  s.textContent = msg; s.classList.add('visible');
+  document.getElementById('banner-error').classList.remove('visible');
+  setTimeout(function(){ s.classList.remove('visible'); }, 4500);
+}
+function clearBanners(){
+  document.getElementById('banner-error').classList.remove('visible');
+  document.getElementById('banner-success').classList.remove('visible');
+}
+
+function setupUserMenu(user){
+  document.getElementById('user-avatar').textContent     = userInitials(user.name, user.email);
+  document.getElementById('user-handle').textContent     = emailHandle(user.email);
+  document.getElementById('user-menu-email').textContent = user.email;
+  var btn  = document.getElementById('user-chip');
+  var menu = document.getElementById('user-menu');
+  btn.addEventListener('click', function(e){
+    e.stopPropagation();
+    var open = menu.classList.toggle('open');
+    btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+  });
+  document.addEventListener('click', function(e){
+    if (!menu.contains(e.target) && e.target !== btn) {
+      menu.classList.remove('open');
+      btn.setAttribute('aria-expanded', 'false');
+    }
+  });
+}
+
+function renderList(){
+  var list  = document.getElementById('admin-list');
+  var empty = document.getElementById('admin-empty');
+  list.innerHTML = '';
+  document.getElementById('admin-count').textContent = ADMINS.length;
+
+  if (!ADMINS.length) {
+    list.style.display = 'none';
+    empty.style.display = '';
+    return;
+  }
+  empty.style.display = 'none';
+  list.style.display = '';
+
+  ADMINS.forEach(function(email){
+    var row = document.createElement('div');
+    row.className = 'admin-row';
+
+    var av = document.createElement('div');
+    av.className   = 'row-avatar';
+    av.textContent = initialsFor(email);
+    row.appendChild(av);
+
+    var info = document.createElement('div');
+    info.className = 'row-info';
+    var em = document.createElement('p');
+    em.className = 'row-email';
+    em.appendChild(document.createTextNode(email));
+    if (email === ME_EMAIL) {
+      var tag = document.createElement('span');
+      tag.className   = 'row-tag';
+      tag.textContent = '(you)';
+      em.appendChild(tag);
+    }
+    info.appendChild(em);
+    row.appendChild(info);
+
+    var rm = document.createElement('button');
+    rm.type = 'button';
+    rm.className   = 'btn-remove' + (email === ME_EMAIL ? ' you' : '');
+    rm.textContent = 'Remove';
+    rm.addEventListener('click', function(){ removeAdmin(email, rm); });
+    row.appendChild(rm);
+
+    list.appendChild(row);
+  });
+}
+
+async function reload(){
+  var r = await fetch('/api/admin/admins-list', { credentials:'same-origin' });
+  if (r.status !== 200) throw new Error('admins-list failed: ' + r.status);
+  var data = await r.json();
+  ADMINS = (data && data.admins) || [];
+  renderList();
+}
+
+async function addAdmin(){
+  clearBanners();
+  var input = document.getElementById('add-email');
+  var btn   = document.getElementById('add-btn');
+  var email = input.value.trim().toLowerCase();
+  if (!email) { showError('Enter an email address.'); input.focus(); return; }
+
+  btn.disabled = true;
+  try {
+    var r = await fetch('/api/admin/admin-add', {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: email })
+    });
+    var data = await r.json().catch(function(){ return {}; });
+    if (r.status === 409 && data.error === 'already_admin') throw new Error(email + ' is already an admin.');
+    if (r.status === 400 && data.error === 'bad_domain')    throw new Error('Email must end in @2hourlearning.com or @alpha.school.');
+    if (r.status === 400 && data.error === 'bad_email')     throw new Error('That doesn\'t look like a valid email.');
+    if (r.status !== 200) throw new Error(data.error || ('add failed: ' + r.status));
+
+    showSuccess('Added ' + email + '.');
+    input.value = '';
+    await reload();
+  } catch (err) {
+    console.error(err);
+    showError('Couldn\'t add: ' + (err.message || err));
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+async function removeAdmin(email, btn){
+  clearBanners();
+  var isMe = (email === ME_EMAIL);
+  var msg = isMe
+    ? 'Remove yourself as admin?\n\nYou\'ll keep admin access until your next page load, then you\'ll be redirected to the student view. You can be re-added by another admin.'
+    : 'Remove ' + email + ' from admins?\n\nThey\'ll lose admin access on their next page load.';
+  if (!confirm(msg)) return;
+
+  btn.disabled = true;
+  try {
+    var r = await fetch('/api/admin/admin-remove', {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: email })
+    });
+    var data = await r.json().catch(function(){ return {}; });
+    if (r.status !== 200) throw new Error(data.error || ('remove failed: ' + r.status));
+
+    showSuccess('Removed ' + email + '.');
+    await reload();
+  } catch (err) {
+    console.error(err);
+    showError('Couldn\'t remove: ' + (err.message || err));
+    btn.disabled = false;
+  }
+}
+
+async function init(){
+  var meRes;
+  try { meRes = await fetch('/auth/me', { credentials:'same-origin' }); }
+  catch (e) { window.location.href = '/auth/login'; return; }
+  if (meRes.status !== 200) { window.location.href = '/auth/login'; return; }
+  var user = await meRes.json();
+  if (!user.isAdmin) {
+    document.getElementById('page-loading').style.display = 'none';
+    document.getElementById('page-denied').style.display  = 'flex';
+    return;
+  }
+  ME_EMAIL = (user.email || '').toLowerCase();
+  setupUserMenu(user);
+
+  try { await reload(); }
+  catch (err) { showError('Couldn\'t load admins: ' + (err.message || err)); }
+
+  document.getElementById('add-btn').addEventListener('click', addAdmin);
+  document.getElementById('add-email').addEventListener('keydown', function(e){
+    if (e.key === 'Enter') { e.preventDefault(); addAdmin(); }
+  });
+
+  document.getElementById('page-loading').style.display = 'none';
+  document.getElementById('page-content').style.display = '';
+}
+
+init();
+</script>
+
+</body>
+</html>
