@@ -283,6 +283,8 @@ function renderTrips(trips){
       img.src     = thumbUrl;
       img.alt     = t.title || 'Trip';
       img.loading = 'lazy';
+      var focus = (t.thumbnail_focus || '').trim();
+      if (focus) img.style.objectPosition = focus;
       img.addEventListener('error', function(){
         img.remove();
         thumb.style.background = colorForTrip(t.trip_id);

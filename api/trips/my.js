@@ -27,7 +27,7 @@ const https  = require('https');
 const crypto = require('crypto');
 
 const SHEET_ID = '1aQYysCOOR-mYG8Myrl1BSU2PF8wMl-si8pgNG89sRto';
-const RANGES   = ['FT_Purchases!A:I', 'FT_Catalog!A:I', 'FT_Sessions!A:F'];
+const RANGES   = ['FT_Purchases!A:I', 'FT_Catalog!A:N', 'FT_Sessions!A:F'];
 
 // ── Sheets access (same JWT pattern as validate-token.js) ───
 function b64url(str) {
@@ -121,13 +121,14 @@ module.exports = async (req, res) => {
       const id = (r[0] || '').toString().trim();
       if (!id) continue;
       tripsById[id] = {
-        trip_id:       id,
-        title:         (r[1] || '').toString(),
-        description:   (r[2] || '').toString(),
-        emoji:         (r[3] || '').toString(),
-        trip_date:     (r[4] || '').toString(),
-        status:        (r[5] || '').toString().toLowerCase(),
-        thumbnail_url: (r[8] || '').toString().trim()
+        trip_id:         id,
+        title:           (r[1]  || '').toString(),
+        description:     (r[2]  || '').toString(),
+        emoji:           (r[3]  || '').toString(),
+        trip_date:       (r[4]  || '').toString(),
+        status:          (r[5]  || '').toString().toLowerCase(),
+        thumbnail_url:   (r[8]  || '').toString().trim(),
+        thumbnail_focus: (r[13] || '').toString().trim()
       };
     }
 
@@ -159,15 +160,16 @@ module.exports = async (req, res) => {
       if (!trip) continue;
 
       trips.push({
-        trip_id:       trip.trip_id,
-        title:         trip.title,
-        emoji:         trip.emoji,
-        trip_date:     trip.trip_date,
-        status:        trip.status === 'completed' ? 'completed' : 'registered',
-        thumbnail_url: trip.thumbnail_url || '',
-        session_id:    sessionId,
-        session_start: sessRow ? sessRow.start_time : '',
-        session_end:   sessRow ? sessRow.end_time   : ''
+        trip_id:         trip.trip_id,
+        title:           trip.title,
+        emoji:           trip.emoji,
+        trip_date:       trip.trip_date,
+        status:          trip.status === 'completed' ? 'completed' : 'registered',
+        thumbnail_url:   trip.thumbnail_url || '',
+        thumbnail_focus: trip.thumbnail_focus || '',
+        session_id:      sessionId,
+        session_start:   sessRow ? sessRow.start_time : '',
+        session_end:     sessRow ? sessRow.end_time   : ''
       });
     }
 

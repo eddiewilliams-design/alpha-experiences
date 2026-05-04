@@ -284,6 +284,10 @@ function renderTrips(trips) {
       img.src     = thumbUrl;
       img.alt     = t.title || 'Trip';
       img.loading = 'lazy';
+      // Admin can set a focus point so the cropped portion of the image
+      // keeps the subject in view (e.g. "top" if the rocket is in the upper half).
+      var focus = (t.thumbnail_focus || '').trim();
+      if (focus) img.style.objectPosition = focus;
       // If the image fails to load, fall back to the gradient + emoji.
       img.addEventListener('error', function(){
         img.remove();

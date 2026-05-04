@@ -41,15 +41,65 @@ body{font-family:'Nunito Sans',sans-serif;background:var(--aa-white);min-height:
 
 /* ── Hero ── */
 .hero{background:var(--aa-navy);padding:36px 32px 0;text-align:center;position:relative;overflow:hidden;}
-.hero.has-image{background-color:var(--aa-navy);background-size:cover;background-position:center;background-repeat:no-repeat;}
+
+/* ── Themed page background (when trip has hero_image_url) ── */
+/* Image lives on <body> so it spans the full page (header → footer),
+   not just the small hero band. Linear-gradient sits on top of the
+   image as a darkening overlay so cards/text stay readable. */
+body.has-bg-image{
+  background-color:var(--aa-navy);
+  background-image:
+    linear-gradient(rgba(7,34,86,0.55), rgba(7,34,86,0.70)),
+    var(--bg-image, none);
+  background-size:cover;
+  background-position:center;
+  background-repeat:no-repeat;
+  background-attachment:fixed;
+}
+/* iOS Safari handles `fixed` poorly — fall back to scroll on small screens */
+@media (max-width: 768px){
+  body.has-bg-image{background-attachment:scroll;background-size:cover;}
+}
+/* When the body carries the image, the inner sections drop their solid
+   colors so the image shows through. Cards stay solid white for legibility. */
+body.has-bg-image .hero,
+body.has-bg-image .page-body{background:transparent;}
+body.has-bg-image .back-bar{background:rgba(238,240,243,0.45);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);}
+body.has-bg-image .site-header{background:rgba(7,34,86,0.85);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);}
+body.has-bg-image .hero-scallop{background:transparent;}
 .hero-badge{display:inline-block;background:rgba(255,255,255,0.12);color:#fff;font-size:11px;font-weight:700;letter-spacing:0.07em;padding:5px 16px;border-radius:999px;margin-bottom:14px;position:relative;z-index:2;backdrop-filter:blur(2px);}
-.hero-title{font-family:'Nunito',sans-serif;font-weight:900;font-size:clamp(26px,4.5vw,38px);color:#fff;line-height:1.12;margin-bottom:10px;position:relative;z-index:2;text-shadow:0 2px 14px rgba(0,0,0,0.55),0 1px 4px rgba(0,0,0,0.4);}
+.hero-title{font-family:'Nunito',sans-serif;font-weight:900;font-size:clamp(30px,5.5vw,48px);color:#fff;line-height:1.1;margin-bottom:12px;position:relative;z-index:2;text-shadow:0 2px 14px rgba(0,0,0,0.55),0 1px 4px rgba(0,0,0,0.4),0 0 28px rgba(229,149,0,0.25);letter-spacing:-0.01em;}
 .hero-sub{font-size:13px;color:#fff;line-height:1.6;margin-bottom:0;position:relative;z-index:2;text-shadow:0 1px 8px rgba(0,0,0,0.6);font-weight:500;}
 .hero-scallop{background:var(--aa-light-grey);height:28px;border-radius:28px 28px 0 0;margin:24px -32px 0;position:relative;z-index:3;}
 .hero-deco{position:absolute;pointer-events:none;user-select:none;z-index:1;line-height:1;animation:hero-float 6s ease-in-out infinite;will-change:transform;}
 @keyframes hero-float{
   0%,100%{transform:translate3d(0,0,0) rotate(var(--rot,0deg));}
-  50%{transform:translate3d(0,-8px,0) rotate(calc(var(--rot,0deg) + 4deg));}
+  50%{transform:translate3d(0,-10px,0) rotate(calc(var(--rot,0deg) + 6deg));}
+}
+
+/* Page-wide floating decorations (drift behind the body cards too) */
+.page-deco-layer{position:fixed;inset:0;pointer-events:none;z-index:0;overflow:hidden;}
+.page-deco{position:absolute;line-height:1;will-change:transform;animation:page-drift 14s ease-in-out infinite;}
+@keyframes page-drift{
+  0%,100%{transform:translate3d(0,0,0) rotate(var(--rot,0deg));}
+  50%{transform:translate3d(0,-22px,0) rotate(calc(var(--rot,0deg) + 8deg));}
+}
+/* Make sure interactive content sits above the page decoration layer */
+.site-header,.back-bar,.hero,.page-body,.site-footer{position:relative;z-index:1;}
+
+/* Card entrance animation — staggered fade-up on first paint */
+@keyframes card-rise{
+  from{opacity:0;transform:translateY(14px);}
+  to{opacity:1;transform:translateY(0);}
+}
+.card,.submit-card{animation:card-rise 0.55s ease-out both;}
+.page-inner > *:nth-child(1){animation-delay:0.05s;}
+.page-inner > *:nth-child(2){animation-delay:0.15s;}
+.page-inner > *:nth-child(3){animation-delay:0.25s;}
+.page-inner > *:nth-child(4){animation-delay:0.35s;}
+@media (prefers-reduced-motion: reduce){
+  .hero-deco,.page-deco{animation:none !important;}
+  .card,.submit-card{animation:none !important;}
 }
 
 /* ── Body ── */
@@ -313,71 +363,101 @@ function applyHeroTheme(trip){
   var hero = document.querySelector('.hero');
   if (!hero) return;
 
-  // Clear any previous decorations (e.g. on poll-driven re-renders)
-  hero.querySelectorAll('.hero-deco').forEach(function(el){ el.remove(); });
+  // ── 1. Body-wide image background (spans header → footer) ──
+  // Reset first so re-renders don't stack
+  document.body.classList.remove('has-bg-image');
+  document.body.style.removeProperty('--bg-image');
+  hero.classList.remove('has-image');
+  hero.style.backgroundImage = '';
 
-  // 1. Hero image — TEST that the URL actually loads as an image first.
-  // Most common gotcha: pasting a Pexels/Unsplash *page* URL (HTML) instead
-  // of the direct image URL. Pre-loading detects this and falls back cleanly.
   var img = (trip.hero_image_url || '').trim();
   if (img && /^https?:\/\//i.test(img)) {
+    // Test the URL first so a bad link doesn't blank the page
     var probe = new Image();
     probe.onload = function(){
-      hero.classList.add('has-image');
-      // Lighter overlay so the image really pops; title shadow keeps it readable.
-      hero.style.backgroundImage =
-        'linear-gradient(rgba(7,34,86,0.50), rgba(7,34,86,0.65)), url("' + img.replace(/"/g, '%22') + '")';
+      var safe = img.replace(/"/g, '%22');
+      document.body.style.setProperty('--bg-image', 'url("' + safe + '")');
+      document.body.classList.add('has-bg-image');
     };
     probe.onerror = function(){
       console.warn('[hero] could not load hero_image_url:', img,
         '\nTip: on Pexels/Unsplash, right-click the IMAGE itself and choose "Copy image address" — the URL should start with images.pexels.com or images.unsplash.com and end with .jpg / .jpeg.');
-      hero.classList.remove('has-image');
-      hero.style.backgroundImage = '';
     };
     probe.src = img;
-  } else {
-    hero.classList.remove('has-image');
-    hero.style.backgroundImage = '';
   }
 
-  // 2. Scattered theme emojis — bigger, bolder, gently floating
+  // ── 2. Theme emojis: scatter across hero AND drift across whole page ──
+  // Clear any previous decorations from BOTH layers
+  hero.querySelectorAll('.hero-deco').forEach(function(el){ el.remove(); });
+  var existingLayer = document.getElementById('page-deco-layer');
+  if (existingLayer) existingLayer.remove();
+
   var raw = (trip.theme_emojis || '').trim();
   if (!raw) return;
 
   var pieces = raw.split(/\s+/).filter(Boolean);
   if (!pieces.length) return;
 
-  // Aim for ~14 decorations, repeating the input list as needed
-  var TARGET = 14;
-  var bag = [];
-  while (bag.length < TARGET) bag = bag.concat(pieces);
-  bag = bag.slice(0, TARGET);
-
   var rand = seededRand(trip.trip_id || raw);
 
-  bag.forEach(function(em){
+  // 2a. Hero — denser cluster (16 emojis, big & bold, gently bobbing)
+  var HERO_COUNT = 16;
+  var heroBag = [];
+  while (heroBag.length < HERO_COUNT) heroBag = heroBag.concat(pieces);
+  heroBag = heroBag.slice(0, HERO_COUNT);
+  heroBag.forEach(function(em){
     var span = document.createElement('span');
-    span.className = 'hero-deco';
+    span.className   = 'hero-deco';
     span.textContent = em;
-
-    var size  = Math.round(40 + rand() * 70);         // 40–110px
-    var top   = Math.round(rand() * 88);              // 0–88%
-    var left  = Math.round(rand() * 92);              // 0–92%
-    var rot   = Math.round(rand() * 70 - 35);         // -35..+35 deg
-    var op    = (0.18 + rand() * 0.22).toFixed(2);    // 0.18–0.40
-    var dur   = (4 + rand() * 4).toFixed(2);          // 4–8s float duration
-    var delay = (-rand() * 8).toFixed(2);             // 0..-8s offset (so they don't sync)
-
-    span.style.fontSize        = size + 'px';
-    span.style.top             = top + '%';
-    span.style.left            = left + '%';
-    span.style.opacity         = op;
+    var size  = Math.round(44 + rand() * 80);         // 44–124px
+    var top   = Math.round(rand() * 88);
+    var left  = Math.round(rand() * 92);
+    var rot   = Math.round(rand() * 70 - 35);
+    var op    = (0.20 + rand() * 0.25).toFixed(2);    // 0.20–0.45
+    var dur   = (4 + rand() * 4).toFixed(2);
+    var delay = (-rand() * 8).toFixed(2);
+    span.style.fontSize          = size + 'px';
+    span.style.top               = top + '%';
+    span.style.left              = left + '%';
+    span.style.opacity           = op;
     span.style.setProperty('--rot', rot + 'deg');
-    span.style.transform       = 'rotate(' + rot + 'deg)';
+    span.style.transform         = 'rotate(' + rot + 'deg)';
     span.style.animationDuration = dur + 's';
     span.style.animationDelay    = delay + 's';
-
     hero.appendChild(span);
+  });
+
+  // 2b. Page-wide layer — fewer, slower-drifting emojis behind body cards
+  // Fixed-position layer so it stays put while the user scrolls.
+  var layer = document.createElement('div');
+  layer.id = 'page-deco-layer';
+  layer.className = 'page-deco-layer';
+  document.body.appendChild(layer);
+
+  var PAGE_COUNT = 18;
+  var pageBag = [];
+  while (pageBag.length < PAGE_COUNT) pageBag = pageBag.concat(pieces);
+  pageBag = pageBag.slice(0, PAGE_COUNT);
+  pageBag.forEach(function(em){
+    var span = document.createElement('span');
+    span.className   = 'page-deco';
+    span.textContent = em;
+    var size  = Math.round(28 + rand() * 70);         // 28–98px
+    var top   = Math.round(rand() * 92);
+    var left  = Math.round(rand() * 94);
+    var rot   = Math.round(rand() * 80 - 40);
+    var op    = (0.10 + rand() * 0.14).toFixed(2);    // 0.10–0.24 (subtle)
+    var dur   = (10 + rand() * 12).toFixed(2);        // 10–22s slow drift
+    var delay = (-rand() * 14).toFixed(2);
+    span.style.fontSize          = size + 'px';
+    span.style.top               = top + '%';
+    span.style.left              = left + '%';
+    span.style.opacity           = op;
+    span.style.setProperty('--rot', rot + 'deg');
+    span.style.transform         = 'rotate(' + rot + 'deg)';
+    span.style.animationDuration = dur + 's';
+    span.style.animationDelay    = delay + 's';
+    layer.appendChild(span);
   });
 }
 
