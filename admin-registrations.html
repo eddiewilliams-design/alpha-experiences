@@ -1,0 +1,646 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Admin — Registrations</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@700;800;900&family=Nunito+Sans:wght@300;400;600;700&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+:root{
+  --aa-navy:#072256;--aa-blue:#006FF9;--aa-yellow:#E59500;
+  --aa-white:#FAFAFA;--aa-light-blue:#E5F6FD;--aa-light-yellow:#FFF7E5;
+  --aa-med-grey:#DADFE7;--aa-dark-grey:#8291AA;--aa-light-grey:#EEF0F3;
+  --aa-green:#2C8707;--aa-light-green:#EEFDE8;
+}
+body{font-family:'Nunito Sans',sans-serif;background:var(--aa-white);min-height:100vh;color:var(--aa-navy);}
+
+/* ── Admin Header (shared with /admin) ── */
+.site-header{background:var(--aa-navy);padding:16px 32px;display:flex;align-items:center;justify-content:space-between;}
+.header-logo{display:flex;align-items:center;gap:12px;}
+.logo-divider{width:1px;height:28px;background:rgba(255,255,255,0.2);}
+.logo-text-top{font-family:'Nunito',sans-serif;font-weight:900;font-size:14px;color:#fff;line-height:1.1;}
+.logo-text-sub{font-size:10px;color:rgba(255,255,255,0.5);font-weight:600;letter-spacing:0.05em;text-transform:uppercase;}
+.header-right{display:flex;align-items:center;gap:10px;}
+.admin-badge{background:var(--aa-yellow);color:#3a2000;font-size:10px;font-weight:800;padding:4px 12px;border-radius:999px;letter-spacing:0.04em;text-transform:uppercase;}
+.user-wrap{position:relative;}
+.user-chip{display:flex;align-items:center;gap:8px;background:rgba(255,255,255,0.12);border:none;border-radius:999px;padding:6px 14px 6px 7px;cursor:pointer;font-family:inherit;}
+.user-chip:hover{background:rgba(255,255,255,0.18);}
+.avatar{width:26px;height:26px;border-radius:50%;background:var(--aa-blue);display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:#fff;}
+.user-name{font-size:13px;color:rgba(255,255,255,0.85);font-weight:600;}
+.user-menu{position:absolute;top:calc(100% + 8px);right:0;background:#fff;border:1px solid var(--aa-med-grey);border-radius:12px;box-shadow:0 8px 24px rgba(7,34,86,0.15);padding:6px;min-width:180px;display:none;z-index:50;}
+.user-menu.open{display:block;}
+.user-menu-email{font-size:11px;color:var(--aa-dark-grey);padding:8px 12px 10px;border-bottom:1px solid var(--aa-light-grey);margin-bottom:6px;word-break:break-all;}
+.user-menu a{display:block;padding:9px 12px;font-size:13px;font-weight:600;color:var(--aa-navy);text-decoration:none;border-radius:8px;}
+.user-menu a:hover{background:var(--aa-light-grey);}
+
+.admin-nav{background:#fff;border-bottom:1.5px solid var(--aa-med-grey);padding:0 32px;display:flex;gap:4px;overflow-x:auto;}
+.admin-tab{font-size:13px;font-weight:600;color:var(--aa-dark-grey);padding:14px 16px;border-bottom:2.5px solid transparent;cursor:pointer;white-space:nowrap;text-decoration:none;}
+.admin-tab.active{color:var(--aa-blue);border-bottom-color:var(--aa-blue);}
+.admin-tab:hover:not(.active){color:var(--aa-navy);}
+
+.page-body{background:var(--aa-light-grey);padding:28px 24px 56px;min-height:60vh;}
+.page-inner{max-width:980px;margin:0 auto;display:flex;flex-direction:column;gap:16px;}
+
+/* ── Toolbar ── */
+.toolbar{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;}
+.toolbar-left{display:flex;align-items:center;gap:14px;flex-wrap:wrap;}
+.trip-filter{padding:10px 16px;border:1.5px solid var(--aa-med-grey);border-radius:10px;font-family:'Nunito Sans',sans-serif;font-size:14px;color:var(--aa-navy);background:#fff;outline:none;font-weight:600;min-width:220px;}
+.toolbar-count{font-family:'Nunito',sans-serif;font-weight:800;font-size:16px;color:var(--aa-navy);}
+.btn-export,.btn-register-toggle{font-size:13px;font-weight:700;padding:10px 18px;border-radius:999px;border:1.5px solid var(--aa-med-grey);cursor:pointer;background:#fff;color:var(--aa-navy);font-family:inherit;}
+.btn-export:hover,.btn-register-toggle:hover{border-color:var(--aa-blue);color:var(--aa-blue);}
+.btn-blue{background:var(--aa-blue);color:#fff;font-size:13px;font-weight:700;padding:10px 20px;border-radius:999px;border:none;cursor:pointer;font-family:inherit;text-decoration:none;display:inline-block;}
+.btn-blue:disabled{opacity:0.5;cursor:not-allowed;}
+
+/* ── Banners ── */
+.banner{font-size:13px;font-weight:600;padding:10px 14px;border-radius:10px;line-height:1.5;display:none;}
+.banner.visible{display:block;}
+.banner.error{background:#fde8e8;border:1px solid #f5b5b5;color:#8b1a1a;}
+.banner.success{background:var(--aa-light-green);border:1px solid #a3d291;color:#1a5205;}
+
+/* ── Form card ── */
+.card{background:#fff;border-radius:20px;border:1.5px solid var(--aa-med-grey);overflow:hidden;}
+.form-card-header{padding:20px 28px 0;}
+.form-card-title{font-family:'Nunito',sans-serif;font-weight:800;font-size:15px;color:var(--aa-navy);margin-bottom:18px;display:flex;align-items:center;justify-content:space-between;}
+.form-card-close{background:none;border:none;color:var(--aa-dark-grey);cursor:pointer;font-size:20px;line-height:1;padding:0 4px;font-family:inherit;}
+.form-card-body{padding:0 28px 24px;}
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px;}
+@media(max-width:600px){.form-grid{grid-template-columns:1fr;}}
+.field-group{display:flex;flex-direction:column;gap:5px;}
+label{font-size:11px;font-weight:700;color:var(--aa-dark-grey);text-transform:uppercase;letter-spacing:0.05em;}
+input[type="text"],input[type="email"],input[type="date"],select{
+  width:100%;padding:10px 14px;border:1.5px solid var(--aa-med-grey);border-radius:10px;
+  font-family:'Nunito Sans',sans-serif;font-size:14px;color:var(--aa-navy);background:#fff;outline:none;
+}
+input:focus,select:focus{border-color:var(--aa-blue);}
+input::placeholder{color:var(--aa-dark-grey);}
+.btn-send{background:var(--aa-blue);color:#fff;font-size:14px;font-weight:700;padding:12px 28px;border-radius:999px;border:none;cursor:pointer;margin-top:4px;font-family:inherit;}
+.btn-send:disabled{opacity:0.5;cursor:not-allowed;}
+
+/* ── Table ── */
+.table-card{background:#fff;border-radius:20px;border:1.5px solid var(--aa-med-grey);overflow:auto;}
+.reg-table{width:100%;border-collapse:collapse;min-width:720px;}
+.reg-table th{background:var(--aa-light-grey);font-size:11px;font-weight:700;color:var(--aa-dark-grey);text-transform:uppercase;letter-spacing:0.05em;padding:12px 18px;text-align:left;border-bottom:1px solid var(--aa-med-grey);white-space:nowrap;}
+.reg-table td{padding:13px 18px;font-size:13px;color:var(--aa-navy);border-bottom:1px solid var(--aa-light-grey);vertical-align:middle;}
+.reg-table tr:last-child td{border-bottom:none;}
+.reg-table tr:hover td{background:var(--aa-light-grey);}
+.td-email{color:var(--aa-dark-grey);font-size:12px;word-break:break-all;}
+.td-session{font-weight:700;color:var(--aa-blue);font-size:12px;white-space:nowrap;}
+.td-trip{font-size:12px;color:var(--aa-dark-grey);}
+.td-trip strong{color:var(--aa-navy);}
+.td-date{color:var(--aa-dark-grey);font-size:12px;white-space:nowrap;}
+
+/* ── Attendance chip (clickable) ── */
+.chip{display:inline-block;font-size:10px;font-weight:700;padding:4px 12px;border-radius:999px;cursor:pointer;border:1px solid transparent;font-family:inherit;}
+.chip:hover{filter:brightness(0.95);}
+.chip-pending{background:var(--aa-light-grey);color:var(--aa-dark-grey);border-color:var(--aa-med-grey);}
+.chip-yes{background:var(--aa-light-green);color:#1a5205;}
+.chip-no{background:#fde8e8;color:#8b1a1a;}
+
+/* ── Empty state in the table ── */
+.table-empty{padding:40px 28px;text-align:center;color:var(--aa-dark-grey);font-size:13px;}
+
+/* ── Loading + denied ── */
+.page-loading,.page-denied{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:80px 24px;background:var(--aa-light-grey);min-height:60vh;text-align:center;}
+.spinner{width:32px;height:32px;border:3px solid var(--aa-med-grey);border-top-color:var(--aa-blue);border-radius:50%;animation:spin 0.7s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg);}}
+.denied-icon{font-size:48px;margin-bottom:12px;}
+.denied-title{font-family:'Nunito',sans-serif;font-weight:900;font-size:22px;color:var(--aa-navy);margin-bottom:8px;}
+.denied-sub{font-size:14px;color:var(--aa-dark-grey);max-width:360px;line-height:1.55;margin-bottom:20px;}
+
+.site-footer{background:var(--aa-navy);padding:20px 32px;text-align:center;border-top:3px solid var(--aa-blue);}
+.footer-text{font-size:11px;color:var(--aa-dark-grey);letter-spacing:0.05em;text-transform:uppercase;margin-top:8px;}
+</style>
+</head>
+<body>
+
+<header class="site-header">
+  <div class="header-logo">
+    <svg width="32" height="32" viewBox="0 0 67 55" fill="none"><path d="M66.3126 50.8822L48.3919 1.76245C48.0093 0.703285 46.9977 0 45.867 0H20.6096C19.479 0 18.4673 0.703285 18.0848 1.76245L0.164039 50.8822C-0.473557 52.6277 0.82714 54.4749 2.68892 54.4749H25.9059C27.0366 54.4749 28.0483 53.7716 28.4308 52.7125L33.2426 39.5365L38.0543 52.7125C38.4368 53.7716 39.4485 54.4749 40.5792 54.4749H63.7962C65.658 54.4749 66.9587 52.6277 66.3211 50.8822H66.3126ZM40.9532 51.255L34.9598 34.8253L45.9945 4.58406L63.0226 51.2635H40.9532V51.255Z" fill="white"/></svg>
+    <div class="logo-divider"></div>
+    <div>
+      <div class="logo-text-top">Alpha Experiences</div>
+      <div class="logo-text-sub">Admin Dashboard</div>
+    </div>
+  </div>
+  <div class="header-right">
+    <span class="admin-badge">Admin</span>
+    <div class="user-wrap">
+      <button class="user-chip" id="user-chip" aria-haspopup="true" aria-expanded="false">
+        <div class="avatar" id="user-avatar">··</div>
+        <span class="user-name" id="user-handle">…</span>
+      </button>
+      <div class="user-menu" id="user-menu" role="menu">
+        <div class="user-menu-email" id="user-menu-email"></div>
+        <a href="/admin" role="menuitem">Admin dashboard</a>
+        <a href="/trips" role="menuitem">Student view</a>
+        <a href="/auth/logout" role="menuitem">Sign out</a>
+      </div>
+    </div>
+  </div>
+</header>
+
+<nav class="admin-nav">
+  <a class="admin-tab" href="/admin">Field Trips</a>
+  <a class="admin-tab active" href="/admin/registrations">Registrations</a>
+  <a class="admin-tab" href="/admin/submissions">Submissions</a>
+  <a class="admin-tab" href="/admin/access">Admin Access</a>
+</nav>
+
+<div id="page-loading" class="page-loading">
+  <div class="spinner"></div>
+</div>
+
+<div id="page-denied" class="page-denied" style="display:none;">
+  <div class="denied-icon">🔒</div>
+  <p class="denied-title">Admins only</p>
+  <p class="denied-sub">This area is for Alpha Anywhere staff.</p>
+  <a href="/trips" class="btn-blue">← Back to my trips</a>
+</div>
+
+<div id="page-content" class="page-body" style="display:none;">
+  <div class="page-inner">
+
+    <div id="banner-error"   class="banner error"></div>
+    <div id="banner-success" class="banner success"></div>
+
+    <div class="toolbar">
+      <div class="toolbar-left">
+        <select id="trip-filter" class="trip-filter">
+          <option value="">All trips</option>
+        </select>
+        <span class="toolbar-count" id="reg-count">0 registrations</span>
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        <button type="button" class="btn-register-toggle" id="register-toggle">+ Register Student</button>
+        <button type="button" class="btn-export" id="export-csv">Export CSV</button>
+      </div>
+    </div>
+
+    <div id="register-form" class="card" style="display:none;">
+      <div class="form-card-header">
+        <p class="form-card-title">
+          <span>Register a student</span>
+          <button type="button" class="form-card-close" id="register-close" title="Close">✕</button>
+        </p>
+      </div>
+      <div class="form-card-body">
+        <div class="form-grid">
+          <div class="field-group">
+            <label for="rf-name">Student full name</label>
+            <input id="rf-name" type="text" placeholder="e.g. Alex Martinez" maxlength="100">
+          </div>
+          <div class="field-group">
+            <label for="rf-student-email">Student email</label>
+            <input id="rf-student-email" type="email" placeholder="student@2hourlearning.com" maxlength="120">
+          </div>
+        </div>
+        <div class="form-grid">
+          <div class="field-group">
+            <label for="rf-parent-email">Parent email <span style="font-weight:500;text-transform:none;letter-spacing:0;">(optional)</span></label>
+            <input id="rf-parent-email" type="email" placeholder="parent@gmail.com" maxlength="120">
+          </div>
+          <div class="field-group">
+            <label for="rf-trip">Trip</label>
+            <select id="rf-trip"></select>
+          </div>
+        </div>
+        <div class="form-grid">
+          <div class="field-group">
+            <label for="rf-session">Session</label>
+            <select id="rf-session"></select>
+          </div>
+          <div class="field-group">
+            <label for="rf-date">Purchase date</label>
+            <input id="rf-date" type="date">
+          </div>
+        </div>
+        <button type="button" class="btn-send" id="register-submit">Register Student</button>
+      </div>
+    </div>
+
+    <div class="table-card">
+      <table class="reg-table" id="reg-table">
+        <thead>
+          <tr>
+            <th>Trip</th>
+            <th>Student</th>
+            <th>Email</th>
+            <th>Parent Email</th>
+            <th>Session</th>
+            <th>Registered</th>
+            <th>Attended</th>
+          </tr>
+        </thead>
+        <tbody id="reg-tbody"></tbody>
+      </table>
+      <div id="table-empty" class="table-empty" style="display:none;">No registrations match the current filter.</div>
+    </div>
+
+  </div>
+</div>
+
+<footer class="site-footer">
+  <svg width="24" height="20" viewBox="0 0 67 55" fill="none"><path d="M66.3126 50.8822L48.3919 1.76245C48.0093 0.703285 46.9977 0 45.867 0H20.6096C19.479 0 18.4673 0.703285 18.0848 1.76245L0.164039 50.8822C-0.473557 52.6277 0.82714 54.4749 2.68892 54.4749H25.9059C27.0366 54.4749 28.0483 53.7716 28.4308 52.7125L33.2426 39.5365L38.0543 52.7125C38.4368 53.7716 39.4485 54.4749 40.5792 54.4749H63.7962C65.658 54.4749 66.9587 52.6277 66.3211 50.8822H66.3126ZM40.9532 51.255L34.9598 34.8253L45.9945 4.58406L63.0226 51.2635H40.9532V51.255Z" fill="#FAFAFA" opacity="0.4"/></svg>
+  <p class="footer-text">Alpha Experiences · Admin</p>
+</footer>
+
+<script>
+// ── State ────────────────────────────────────────────────
+var TRIPS = [];          // [{trip_id, title, emoji, sessions:[...]}]
+var REGISTRATIONS = [];  // server data (newest first)
+var ACTIVE_TRIP = '';    // '' = all
+var TRIPS_BY_ID = {};
+
+// ── Helpers ──────────────────────────────────────────────
+function emailHandle(e){ if(!e) return ''; var i=e.indexOf('@'); return i<0?e:e.slice(0,i); }
+function initialsFor(name, email){
+  var s = (name || emailHandle(email) || '').trim();
+  if (!s) return '··';
+  var parts = s.split(/[\s.]+/).filter(Boolean);
+  if (parts.length === 1) return (parts[0][0] || '·').toUpperCase();
+  return ((parts[0][0] || '·') + (parts[parts.length-1][0] || '')).toUpperCase();
+}
+function formatTripDate(iso){
+  if (!iso) return '';
+  var d = new Date(iso + 'T00:00:00');
+  if (isNaN(d.getTime())) return iso;
+  return d.toLocaleDateString('en-US', { year:'numeric', month:'short', day:'numeric' });
+}
+function todayIso(){
+  var d = new Date();
+  return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+}
+function showError(msg){
+  var e = document.getElementById('banner-error');
+  e.textContent = msg; e.classList.add('visible');
+  document.getElementById('banner-success').classList.remove('visible');
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+function showSuccess(msg){
+  var s = document.getElementById('banner-success');
+  s.textContent = msg; s.classList.add('visible');
+  document.getElementById('banner-error').classList.remove('visible');
+  setTimeout(function(){ s.classList.remove('visible'); }, 4500);
+}
+function clearBanners(){
+  document.getElementById('banner-error').classList.remove('visible');
+  document.getElementById('banner-success').classList.remove('visible');
+}
+
+// ── User menu ────────────────────────────────────────────
+function setupUserMenu(user){
+  document.getElementById('user-avatar').textContent     = initialsFor(user.name, user.email);
+  document.getElementById('user-handle').textContent     = emailHandle(user.email);
+  document.getElementById('user-menu-email').textContent = user.email;
+  var btn  = document.getElementById('user-chip');
+  var menu = document.getElementById('user-menu');
+  btn.addEventListener('click', function(e){
+    e.stopPropagation();
+    var open = menu.classList.toggle('open');
+    btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+  });
+  document.addEventListener('click', function(e){
+    if (!menu.contains(e.target) && e.target !== btn) {
+      menu.classList.remove('open');
+      btn.setAttribute('aria-expanded', 'false');
+    }
+  });
+}
+
+// ── Trip filter dropdown ─────────────────────────────────
+function buildTripFilter(){
+  var sel = document.getElementById('trip-filter');
+  while (sel.options.length > 1) sel.remove(1);
+  TRIPS.forEach(function(t){
+    var opt = document.createElement('option');
+    opt.value = t.trip_id;
+    opt.textContent = (t.emoji ? t.emoji + ' ' : '') + (t.title || t.trip_id);
+    sel.appendChild(opt);
+  });
+  if (ACTIVE_TRIP) sel.value = ACTIVE_TRIP;
+  sel.addEventListener('change', function(){
+    ACTIVE_TRIP = sel.value;
+    var url = new URL(window.location.href);
+    if (ACTIVE_TRIP) url.searchParams.set('trip', ACTIVE_TRIP);
+    else             url.searchParams.delete('trip');
+    window.history.replaceState({}, '', url);
+    renderTable();
+  });
+}
+
+// ── Register form trip/session dropdowns ─────────────────
+function buildRegisterFormTrips(){
+  var sel = document.getElementById('rf-trip');
+  sel.innerHTML = '';
+  if (!TRIPS.length) {
+    var opt = document.createElement('option');
+    opt.value = '';
+    opt.textContent = 'No trips — create one first';
+    sel.appendChild(opt);
+    sel.disabled = true;
+    document.getElementById('register-submit').disabled = true;
+    return;
+  }
+  sel.disabled = false;
+  document.getElementById('register-submit').disabled = false;
+
+  TRIPS.forEach(function(t){
+    var opt = document.createElement('option');
+    opt.value = t.trip_id;
+    opt.textContent = (t.emoji ? t.emoji + ' ' : '') + (t.title || t.trip_id);
+    sel.appendChild(opt);
+  });
+  sel.addEventListener('change', refreshSessionDropdown);
+  // Pre-pick the currently filtered trip if any
+  if (ACTIVE_TRIP && TRIPS_BY_ID[ACTIVE_TRIP]) sel.value = ACTIVE_TRIP;
+  refreshSessionDropdown();
+}
+function refreshSessionDropdown(){
+  var trip = TRIPS_BY_ID[document.getElementById('rf-trip').value];
+  var sel  = document.getElementById('rf-session');
+  sel.innerHTML = '';
+  var sessions = (trip && trip.sessions) || [];
+  if (!sessions.length) {
+    var opt = document.createElement('option');
+    opt.value = '';
+    opt.textContent = 'No sessions for this trip';
+    sel.appendChild(opt);
+    sel.disabled = true;
+    return;
+  }
+  sel.disabled = false;
+  sessions.forEach(function(s){
+    var opt = document.createElement('option');
+    opt.value = s.session_id;
+    opt.textContent = [s.start_time, s.end_time].filter(Boolean).join(' – ');
+    sel.appendChild(opt);
+  });
+}
+
+// ── Table rendering ──────────────────────────────────────
+function filteredRegs(){
+  return ACTIVE_TRIP
+    ? REGISTRATIONS.filter(function(r){ return r.trip_id === ACTIVE_TRIP; })
+    : REGISTRATIONS.slice();
+}
+
+function attendanceChipClass(v){
+  if (v === 'YES') return 'chip chip-yes';
+  if (v === 'NO')  return 'chip chip-no';
+  return 'chip chip-pending';
+}
+function attendanceChipLabel(v){
+  if (v === 'YES') return 'Yes';
+  if (v === 'NO')  return 'No';
+  return 'Pending';
+}
+function nextAttendance(v){
+  // cycle Pending → YES → NO → Pending
+  if (v === 'YES') return 'NO';
+  if (v === 'NO')  return '';
+  return 'YES';
+}
+
+async function cycleAttendance(reg, chipEl){
+  var prev = reg.attended || '';
+  var next = nextAttendance(prev);
+  // Optimistic
+  reg.attended = next;
+  chipEl.className   = attendanceChipClass(next);
+  chipEl.textContent = attendanceChipLabel(next);
+  try {
+    var r = await fetch('/api/admin/reg-attendance', {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        student_email: reg.student_email,
+        trip_id:       reg.trip_id,
+        session_id:    reg.session_id,
+        attended:      next
+      })
+    });
+    if (r.status !== 200) throw new Error('save failed: ' + r.status);
+  } catch (err) {
+    // Revert
+    reg.attended = prev;
+    chipEl.className   = attendanceChipClass(prev);
+    chipEl.textContent = attendanceChipLabel(prev);
+    showError('Couldn\'t save attendance — ' + (err.message || err));
+  }
+}
+
+function renderTable(){
+  var rows  = filteredRegs();
+  var tbody = document.getElementById('reg-tbody');
+  var empty = document.getElementById('table-empty');
+  tbody.innerHTML = '';
+
+  document.getElementById('reg-count').textContent =
+    rows.length + (rows.length === 1 ? ' registration' : ' registrations');
+
+  if (!rows.length) {
+    empty.style.display = '';
+    return;
+  }
+  empty.style.display = 'none';
+
+  rows.forEach(function(r){
+    var tr = document.createElement('tr');
+
+    var tdTrip = document.createElement('td');
+    tdTrip.className = 'td-trip';
+    var em = r.trip_emoji ? r.trip_emoji + '  ' : '';
+    var strong = document.createElement('strong');
+    strong.textContent = em + (r.trip_title || r.trip_id);
+    tdTrip.appendChild(strong);
+    tr.appendChild(tdTrip);
+
+    var tdName = document.createElement('td');
+    var b = document.createElement('strong');
+    b.textContent = r.student_name || '—';
+    tdName.appendChild(b);
+    tr.appendChild(tdName);
+
+    var tdEmail = document.createElement('td');
+    tdEmail.className = 'td-email';
+    tdEmail.textContent = r.student_email || '';
+    tr.appendChild(tdEmail);
+
+    var tdParent = document.createElement('td');
+    tdParent.className = 'td-email';
+    tdParent.textContent = r.parent_email || '';
+    tr.appendChild(tdParent);
+
+    var tdSession = document.createElement('td');
+    tdSession.className = 'td-session';
+    tdSession.textContent = r.session_time || r.session_id;
+    tr.appendChild(tdSession);
+
+    var tdDate = document.createElement('td');
+    tdDate.className = 'td-date';
+    tdDate.textContent = formatTripDate(r.purchase_date);
+    tr.appendChild(tdDate);
+
+    var tdAtt = document.createElement('td');
+    var chip = document.createElement('button');
+    chip.type = 'button';
+    chip.className   = attendanceChipClass(r.attended);
+    chip.textContent = attendanceChipLabel(r.attended);
+    chip.title       = 'Click to cycle Pending → Yes → No';
+    chip.addEventListener('click', function(){ cycleAttendance(r, chip); });
+    tdAtt.appendChild(chip);
+    tr.appendChild(tdAtt);
+
+    tbody.appendChild(tr);
+  });
+}
+
+// ── CSV export ───────────────────────────────────────────
+function csvEscape(v){
+  v = (v == null) ? '' : String(v);
+  return /[",\n\r]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v;
+}
+function exportCsv(){
+  var rows = filteredRegs();
+  var headers = ['Trip','Student','Student Email','Parent Email','Session','Registered','Attended'];
+  var out = [headers.map(csvEscape).join(',')];
+  rows.forEach(function(r){
+    out.push([
+      r.trip_title || r.trip_id,
+      r.student_name,
+      r.student_email,
+      r.parent_email,
+      r.session_time || r.session_id,
+      r.purchase_date,
+      attendanceChipLabel(r.attended)
+    ].map(csvEscape).join(','));
+  });
+  var blob = new Blob([out.join('\r\n')], { type: 'text/csv;charset=utf-8;' });
+  var url  = URL.createObjectURL(blob);
+  var a    = document.createElement('a');
+  a.href     = url;
+  a.download = 'registrations'
+    + (ACTIVE_TRIP ? '-' + ACTIVE_TRIP : '')
+    + '-' + todayIso() + '.csv';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(function(){ URL.revokeObjectURL(url); }, 1000);
+}
+
+// ── Register flow ────────────────────────────────────────
+function toggleRegisterForm(open){
+  var form = document.getElementById('register-form');
+  if (open === undefined) open = form.style.display === 'none';
+  form.style.display = open ? '' : 'none';
+  if (open) {
+    document.getElementById('rf-date').value = todayIso();
+    setTimeout(function(){ document.getElementById('rf-name').focus(); }, 0);
+  }
+}
+function clearRegisterForm(){
+  ['rf-name','rf-student-email','rf-parent-email'].forEach(function(id){
+    document.getElementById(id).value = '';
+  });
+}
+
+async function submitRegistration(){
+  clearBanners();
+  var btn = document.getElementById('register-submit');
+  btn.disabled = true;
+
+  var body = {
+    student_name:  document.getElementById('rf-name').value.trim(),
+    student_email: document.getElementById('rf-student-email').value.trim(),
+    parent_email:  document.getElementById('rf-parent-email').value.trim(),
+    trip_id:       document.getElementById('rf-trip').value,
+    session_id:    document.getElementById('rf-session').value,
+    purchase_date: document.getElementById('rf-date').value
+  };
+
+  if (!body.student_name)  { showError('Student name is required.'); btn.disabled = false; return; }
+  if (!body.student_email) { showError('Student email is required.'); btn.disabled = false; return; }
+  if (!body.trip_id || !body.session_id) { showError('Pick a trip and session.'); btn.disabled = false; return; }
+
+  try {
+    var r = await fetch('/api/admin/reg-create', {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    });
+    var data = await r.json().catch(function(){ return {}; });
+
+    if (r.status === 409 && data.error === 'already_registered') {
+      throw new Error('That student is already registered for this session.');
+    }
+    if (r.status !== 200) {
+      throw new Error(data.error || ('save failed: ' + r.status));
+    }
+
+    showSuccess('Registered ' + body.student_name + '.');
+    clearRegisterForm();
+    await reloadData();
+  } catch (err) {
+    console.error(err);
+    showError('Couldn\'t register: ' + (err.message || err));
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+// ── Data load ────────────────────────────────────────────
+async function reloadData(){
+  var r = await fetch('/api/admin/regs-list', { credentials: 'same-origin' });
+  if (r.status !== 200) throw new Error('regs-list failed: ' + r.status);
+  var data = await r.json();
+  REGISTRATIONS = (data && data.registrations) || [];
+  TRIPS         = (data && data.trips)         || [];
+  TRIPS_BY_ID   = {};
+  TRIPS.forEach(function(t){ TRIPS_BY_ID[t.trip_id] = t; });
+  buildTripFilter();
+  buildRegisterFormTrips();
+  renderTable();
+}
+
+// ── Init ─────────────────────────────────────────────────
+async function init(){
+  var meRes;
+  try { meRes = await fetch('/auth/me', { credentials:'same-origin' }); }
+  catch (e) { window.location.href = '/auth/login'; return; }
+  if (meRes.status !== 200) { window.location.href = '/auth/login'; return; }
+  var user = await meRes.json();
+  if (!user.isAdmin) {
+    document.getElementById('page-loading').style.display = 'none';
+    document.getElementById('page-denied').style.display  = 'flex';
+    return;
+  }
+  setupUserMenu(user);
+
+  // Pre-select trip filter from URL (so "View regs" from /admin lands here filtered)
+  ACTIVE_TRIP = (new URLSearchParams(window.location.search)).get('trip') || '';
+
+  try {
+    await reloadData();
+  } catch (err) {
+    showError('Couldn\'t load data: ' + (err.message || err));
+  }
+
+  document.getElementById('register-toggle').addEventListener('click', function(){ toggleRegisterForm(); });
+  document.getElementById('register-close').addEventListener('click',  function(){ toggleRegisterForm(false); });
+  document.getElementById('register-submit').addEventListener('click', submitRegistration);
+  document.getElementById('export-csv').addEventListener('click',      exportCsv);
+
+  document.getElementById('page-loading').style.display = 'none';
+  document.getElementById('page-content').style.display = '';
+}
+
+init();
+</script>
+
+</body>
+</html>

@@ -554,6 +554,247 @@ async function handleTripDelete(req, res) {
   });
 }
 
+// ── handleRegsList: registrations + trips/sessions for the dropdowns ─
+async function handleRegsList(req, res) {
+  let registrations = [];
+  let trips = [];
+
+  try {
+    const token = await getAccessToken();
+    const sheet = await batchGet(token, ['FT_Catalog!A:K', 'FT_Sessions!A:F', 'FT_Purchases!A:I']);
+    const ranges = (sheet && sheet.valueRanges) || [];
+    const catalogRows  = (ranges[0] && ranges[0].values) || [];
+    const sessionRows  = (ranges[1] && ranges[1].values) || [];
+    const purchaseRows = (ranges[2] && ranges[2].values) || [];
+
+    // Build trips with their sessions for the form dropdown
+    const tripsById = {};
+    for (let i = 1; i < catalogRows.length; i++) {
+      const r  = catalogRows[i];
+      const id = (r[0] || '').toString().trim();
+      if (!id) continue;
+      tripsById[id] = {
+        trip_id:   id,
+        title:     (r[1] || '').toString(),
+        emoji:     (r[3] || '').toString(),
+        trip_date: (r[4] || '').toString(),
+        status:    (r[5] || '').toString().toLowerCase(),
+        sessions:  []
+      };
+    }
+
+    const sessionsById = {};
+    for (let i = 1; i < sessionRows.length; i++) {
+      const r  = sessionRows[i];
+      const id = (r[0] || '').toString().trim();
+      if (!id) continue;
+      const sess = {
+        session_id: id,
+        trip_id:    (r[1] || '').toString().trim(),
+        start_time: (r[2] || '').toString(),
+        end_time:   (r[3] || '').toString()
+      };
+      sessionsById[id] = sess;
+      if (tripsById[sess.trip_id]) tripsById[sess.trip_id].sessions.push(sess);
+    }
+
+    trips = Object.values(tripsById).sort((a, b) =>
+      (a.trip_date || '').localeCompare(b.trip_date || '') ||
+      (a.title || '').localeCompare(b.title || '')
+    );
+
+    // Build registrations
+    for (let i = 1; i < purchaseRows.length; i++) {
+      const r = purchaseRows[i];
+      const studentEmail = (r[1] || '').toString().trim();
+      if (!studentEmail) continue;
+
+      const sessionId = (r[3] || '').toString().trim();
+      const tripId    = (r[4] || '').toString().trim();
+      const trip      = tripsById[tripId];
+      const session   = sessionsById[sessionId];
+
+      registrations.push({
+        student_name:  (r[0] || '').toString(),
+        student_email: studentEmail,
+        parent_email:  (r[2] || '').toString(),
+        session_id:    sessionId,
+        trip_id:       tripId,
+        purchase_date: (r[5] || '').toString(),
+        status:        (r[6] || '').toString().toLowerCase().trim() || 'active',
+        attended:      (r[7] || '').toString().toUpperCase().trim(),
+        // Joined for convenience on the client
+        trip_title:    trip ? trip.title : tripId,
+        trip_emoji:    trip ? trip.emoji : '',
+        session_time:  session ? [session.start_time, session.end_time].filter(Boolean).join(' – ') : ''
+      });
+    }
+
+    // Newest registrations first
+    registrations.sort((a, b) => (b.purchase_date || '').localeCompare(a.purchase_date || ''));
+  } catch (err) {
+    console.error('regs-list error:', err.message);
+    registrations = [];
+    trips = [];
+  }
+
+  return res.status(200).json({ registrations, trips });
+}
+
+// ── handleRegCreate: append a row to FT_Purchases ──────────
+async function handleRegCreate(req, res) {
+  if (req.method !== 'POST') return res.status(405).json({ error: 'method_not_allowed' });
+
+  let body;
+  try { body = await readJsonBody(req); }
+  catch (e) { return res.status(400).json({ error: 'bad_json' }); }
+
+  const studentName  = (body.student_name  || '').toString().trim();
+  const studentEmail = (body.student_email || '').toString().toLowerCase().trim();
+  const parentEmail  = (body.parent_email  || '').toString().toLowerCase().trim();
+  const tripId       = (body.trip_id       || '').toString().trim();
+  const sessionId    = (body.session_id    || '').toString().trim();
+  let   purchaseDate = (body.purchase_date || '').toString().trim();
+  if (!purchaseDate) purchaseDate = new Date().toISOString().slice(0, 10);
+
+  if (!studentName || !studentEmail || !tripId || !sessionId) {
+    return res.status(400).json({ error: 'bad_request', detail: 'student_name, student_email, trip_id, session_id required' });
+  }
+
+  // Light email-shape sanity check
+  if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(studentEmail)) {
+    return res.status(400).json({ error: 'bad_email', field: 'student_email' });
+  }
+  if (parentEmail && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(parentEmail)) {
+    return res.status(400).json({ error: 'bad_email', field: 'parent_email' });
+  }
+
+  let token;
+  try { token = await getAccessToken('https://www.googleapis.com/auth/spreadsheets'); }
+  catch (err) {
+    console.error('reg-create token error:', err.message);
+    return res.status(500).json({ error: 'server_error' });
+  }
+
+  // Verify the trip + session exist (and that the session belongs to the trip)
+  try {
+    const sheet = await batchGet(token, ['FT_Catalog!A:A', 'FT_Sessions!A:B', 'FT_Purchases!A:I']);
+    const ranges = (sheet && sheet.valueRanges) || [];
+    const catalogRows  = (ranges[0] && ranges[0].values) || [];
+    const sessionRows  = (ranges[1] && ranges[1].values) || [];
+    const purchaseRows = (ranges[2] && ranges[2].values) || [];
+
+    let tripExists = false;
+    for (let i = 1; i < catalogRows.length; i++) {
+      if ((catalogRows[i][0] || '').toString().trim() === tripId) { tripExists = true; break; }
+    }
+    if (!tripExists) return res.status(400).json({ error: 'unknown_trip' });
+
+    let sessionMatch = false;
+    for (let i = 1; i < sessionRows.length; i++) {
+      const r = sessionRows[i];
+      if ((r[0] || '').toString().trim() === sessionId &&
+          (r[1] || '').toString().trim() === tripId) { sessionMatch = true; break; }
+    }
+    if (!sessionMatch) return res.status(400).json({ error: 'unknown_session' });
+
+    // Reject duplicate active registration for same email + trip + session
+    for (let i = 1; i < purchaseRows.length; i++) {
+      const r = purchaseRows[i];
+      const sameEmail   = (r[1] || '').toString().toLowerCase().trim() === studentEmail;
+      const sameSession = (r[3] || '').toString().trim() === sessionId;
+      const sameTrip    = (r[4] || '').toString().trim() === tripId;
+      const status      = (r[6] || '').toString().toLowerCase().trim();
+      if (sameEmail && sameSession && sameTrip && (!status || status === 'active')) {
+        return res.status(409).json({ error: 'already_registered' });
+      }
+    }
+  } catch (err) {
+    console.error('reg-create validate error:', err.message);
+    return res.status(500).json({ error: 'server_error' });
+  }
+
+  // Append row: A name, B student_email, C parent_email, D session_id, E trip_id,
+  // F purchase_date, G status, H attended, I email_sent
+  try {
+    await sheetsAppend(token, 'FT_Purchases!A:I', [[
+      studentName,
+      studentEmail,
+      parentEmail,
+      sessionId,
+      tripId,
+      purchaseDate,
+      'active',
+      '',
+      ''
+    ]]);
+  } catch (err) {
+    console.error('reg-create append error:', err.message);
+    return res.status(500).json({ error: 'server_error' });
+  }
+
+  return res.status(200).json({ ok: true });
+}
+
+// ── handleRegAttendance: cycle Pending → YES → NO → Pending ──
+async function handleRegAttendance(req, res) {
+  if (req.method !== 'POST' && req.method !== 'PUT') {
+    return res.status(405).json({ error: 'method_not_allowed' });
+  }
+
+  let body;
+  try { body = await readJsonBody(req); }
+  catch (e) { return res.status(400).json({ error: 'bad_json' }); }
+
+  const studentEmail = (body.student_email || '').toString().toLowerCase().trim();
+  const tripId       = (body.trip_id       || '').toString().trim();
+  const sessionId    = (body.session_id    || '').toString().trim();
+  let   attended     = (body.attended      || '').toString().toUpperCase().trim();
+
+  if (!studentEmail || !tripId || !sessionId) {
+    return res.status(400).json({ error: 'bad_request' });
+  }
+  if (attended !== 'YES' && attended !== 'NO' && attended !== '') {
+    return res.status(400).json({ error: 'bad_attended', detail: 'must be YES, NO, or empty' });
+  }
+
+  let token;
+  try { token = await getAccessToken('https://www.googleapis.com/auth/spreadsheets'); }
+  catch (err) {
+    console.error('reg-attendance token error:', err.message);
+    return res.status(500).json({ error: 'server_error' });
+  }
+
+  let rowNum = -1;
+  try {
+    const sheet = await batchGet(token, ['FT_Purchases!A:I']);
+    const rows = (sheet && sheet.valueRanges && sheet.valueRanges[0] && sheet.valueRanges[0].values) || [];
+    for (let i = 1; i < rows.length; i++) {
+      const r = rows[i];
+      if ((r[1] || '').toString().toLowerCase().trim() === studentEmail &&
+          (r[3] || '').toString().trim() === sessionId &&
+          (r[4] || '').toString().trim() === tripId) {
+        rowNum = i + 1; // 1-indexed for Sheets
+        break;
+      }
+    }
+  } catch (err) {
+    console.error('reg-attendance read error:', err.message);
+    return res.status(500).json({ error: 'server_error' });
+  }
+
+  if (rowNum < 0) return res.status(404).json({ error: 'registration_not_found' });
+
+  try {
+    await sheetsUpdate(token, `FT_Purchases!H${rowNum}`, [[attended]]);
+  } catch (err) {
+    console.error('reg-attendance write error:', err.message);
+    return res.status(500).json({ error: 'server_error' });
+  }
+
+  return res.status(200).json({ ok: true, attended });
+}
+
 // ── Dispatch ────────────────────────────────────────────────
 module.exports = async (req, res) => {
   res.setHeader('Cache-Control', 'no-store');
@@ -566,10 +807,13 @@ module.exports = async (req, res) => {
   const action = (req.query.action || '').toString();
 
   switch (action) {
-    case 'trips-list':  return handleTripsList(req, res);
-    case 'trip-get':    return handleTripGet(req, res);
-    case 'trip-save':   return handleTripSave(req, res);
-    case 'trip-delete': return handleTripDelete(req, res);
-    default:            return res.status(404).json({ error: 'not_found', detail: action });
+    case 'trips-list':     return handleTripsList(req, res);
+    case 'trip-get':       return handleTripGet(req, res);
+    case 'trip-save':      return handleTripSave(req, res);
+    case 'trip-delete':    return handleTripDelete(req, res);
+    case 'regs-list':      return handleRegsList(req, res);
+    case 'reg-create':     return handleRegCreate(req, res);
+    case 'reg-attendance': return handleRegAttendance(req, res);
+    default:               return res.status(404).json({ error: 'not_found', detail: action });
   }
 };
