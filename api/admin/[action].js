@@ -603,11 +603,14 @@ async function handleRegsList(req, res) {
       (a.title || '').localeCompare(b.title || '')
     );
 
-    // Build registrations
+    // Build registrations — skip cancelled rows (they're soft-deleted
+    // and shouldn't appear in the admin table or CSV)
     for (let i = 1; i < purchaseRows.length; i++) {
       const r = purchaseRows[i];
       const studentEmail = (r[1] || '').toString().trim();
       if (!studentEmail) continue;
+      const status = (r[6] || '').toString().toLowerCase().trim();
+      if (status === 'cancelled') continue;
 
       const sessionId = (r[3] || '').toString().trim();
       const tripId    = (r[4] || '').toString().trim();
@@ -621,7 +624,7 @@ async function handleRegsList(req, res) {
         session_id:    sessionId,
         trip_id:       tripId,
         purchase_date: (r[5] || '').toString(),
-        status:        (r[6] || '').toString().toLowerCase().trim() || 'active',
+        status:        status || 'active',
         attended:      (r[7] || '').toString().toUpperCase().trim(),
         // Joined for convenience on the client
         trip_title:    trip ? trip.title : tripId,
@@ -736,6 +739,190 @@ async function handleRegCreate(req, res) {
   return res.status(200).json({ ok: true });
 }
 
+// ── handleRegUpdate: edit an existing registration in place ──
+// Identified by ORIGINAL composite key (email + trip + session) so
+// any of those three fields can be edited.
+async function handleRegUpdate(req, res) {
+  if (req.method !== 'POST' && req.method !== 'PUT') {
+    return res.status(405).json({ error: 'method_not_allowed' });
+  }
+
+  let body;
+  try { body = await readJsonBody(req); }
+  catch (e) { return res.status(400).json({ error: 'bad_json' }); }
+
+  const orig = {
+    student_email: (body.original_student_email || '').toString().toLowerCase().trim(),
+    trip_id:       (body.original_trip_id       || '').toString().trim(),
+    session_id:    (body.original_session_id    || '').toString().trim()
+  };
+  if (!orig.student_email || !orig.trip_id || !orig.session_id) {
+    return res.status(400).json({ error: 'bad_request', detail: 'original key required' });
+  }
+
+  const updated = {
+    student_name:  (body.student_name  || '').toString().trim(),
+    student_email: (body.student_email || '').toString().toLowerCase().trim(),
+    parent_email:  (body.parent_email  || '').toString().toLowerCase().trim(),
+    trip_id:       (body.trip_id       || '').toString().trim(),
+    session_id:    (body.session_id    || '').toString().trim(),
+    purchase_date: (body.purchase_date || '').toString().trim()
+  };
+  if (!updated.student_name || !updated.student_email || !updated.trip_id || !updated.session_id) {
+    return res.status(400).json({ error: 'bad_request', detail: 'name, email, trip, session required' });
+  }
+  if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(updated.student_email)) {
+    return res.status(400).json({ error: 'bad_email', field: 'student_email' });
+  }
+  if (updated.parent_email && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(updated.parent_email)) {
+    return res.status(400).json({ error: 'bad_email', field: 'parent_email' });
+  }
+
+  let token;
+  try { token = await getAccessToken('https://www.googleapis.com/auth/spreadsheets'); }
+  catch (err) {
+    console.error('reg-update token error:', err.message);
+    return res.status(500).json({ error: 'server_error' });
+  }
+
+  // Validate the new trip/session and find the row to update
+  let rowNum = -1, currentRow = null;
+  let purchaseRows;
+  try {
+    const sheet = await batchGet(token, ['FT_Catalog!A:A', 'FT_Sessions!A:B', 'FT_Purchases!A:I']);
+    const ranges = (sheet && sheet.valueRanges) || [];
+    const catalogRows = (ranges[0] && ranges[0].values) || [];
+    const sessionRows = (ranges[1] && ranges[1].values) || [];
+    purchaseRows      = (ranges[2] && ranges[2].values) || [];
+
+    let tripExists = false;
+    for (let i = 1; i < catalogRows.length; i++) {
+      if ((catalogRows[i][0] || '').toString().trim() === updated.trip_id) { tripExists = true; break; }
+    }
+    if (!tripExists) return res.status(400).json({ error: 'unknown_trip' });
+
+    let sessionMatch = false;
+    for (let i = 1; i < sessionRows.length; i++) {
+      const r = sessionRows[i];
+      if ((r[0] || '').toString().trim() === updated.session_id &&
+          (r[1] || '').toString().trim() === updated.trip_id) { sessionMatch = true; break; }
+    }
+    if (!sessionMatch) return res.status(400).json({ error: 'unknown_session' });
+
+    for (let i = 1; i < purchaseRows.length; i++) {
+      const r = purchaseRows[i];
+      if ((r[1] || '').toString().toLowerCase().trim() === orig.student_email &&
+          (r[3] || '').toString().trim() === orig.session_id &&
+          (r[4] || '').toString().trim() === orig.trip_id) {
+        rowNum     = i + 1;
+        currentRow = r;
+        break;
+      }
+    }
+    if (rowNum < 0) return res.status(404).json({ error: 'registration_not_found' });
+
+    // If the composite key changed, make sure we don't collide with another active row
+    const keyChanged =
+      updated.student_email !== orig.student_email ||
+      updated.trip_id       !== orig.trip_id       ||
+      updated.session_id    !== orig.session_id;
+    if (keyChanged) {
+      for (let i = 1; i < purchaseRows.length; i++) {
+        if (i + 1 === rowNum) continue;
+        const r = purchaseRows[i];
+        const status = (r[6] || '').toString().toLowerCase().trim();
+        if (status && status !== 'active') continue;
+        if ((r[1] || '').toString().toLowerCase().trim() === updated.student_email &&
+            (r[3] || '').toString().trim() === updated.session_id &&
+            (r[4] || '').toString().trim() === updated.trip_id) {
+          return res.status(409).json({ error: 'already_registered' });
+        }
+      }
+    }
+  } catch (err) {
+    console.error('reg-update validate error:', err.message);
+    return res.status(500).json({ error: 'server_error' });
+  }
+
+  // Preserve the existing values for status/attended/email_sent (cols G/H/I)
+  const status     = (currentRow[6] || 'active').toString();
+  const attended   = (currentRow[7] || '').toString();
+  const emailSent  = (currentRow[8] || '').toString();
+  const newRow = [
+    updated.student_name,
+    updated.student_email,
+    updated.parent_email,
+    updated.session_id,
+    updated.trip_id,
+    updated.purchase_date,
+    status,
+    attended,
+    emailSent
+  ];
+
+  try {
+    await sheetsUpdate(token, `FT_Purchases!A${rowNum}:I${rowNum}`, [newRow]);
+  } catch (err) {
+    console.error('reg-update write error:', err.message);
+    return res.status(500).json({ error: 'server_error' });
+  }
+  return res.status(200).json({ ok: true });
+}
+
+// ── handleRegCancel: soft-delete a registration ────────────
+// Sets FT_Purchases column G to "cancelled". Row stays in the
+// sheet so we keep a record, but it disappears from the admin
+// table and the student's /trips home (which only shows active).
+async function handleRegCancel(req, res) {
+  if (req.method !== 'POST' && req.method !== 'DELETE') {
+    return res.status(405).json({ error: 'method_not_allowed' });
+  }
+
+  let body;
+  try { body = await readJsonBody(req); }
+  catch (e) { return res.status(400).json({ error: 'bad_json' }); }
+
+  const studentEmail = (body.student_email || '').toString().toLowerCase().trim();
+  const tripId       = (body.trip_id       || '').toString().trim();
+  const sessionId    = (body.session_id    || '').toString().trim();
+  if (!studentEmail || !tripId || !sessionId) {
+    return res.status(400).json({ error: 'bad_request' });
+  }
+
+  let token;
+  try { token = await getAccessToken('https://www.googleapis.com/auth/spreadsheets'); }
+  catch (err) {
+    console.error('reg-cancel token error:', err.message);
+    return res.status(500).json({ error: 'server_error' });
+  }
+
+  let rowNum = -1;
+  try {
+    const sheet = await batchGet(token, ['FT_Purchases!A:I']);
+    const rows = (sheet && sheet.valueRanges && sheet.valueRanges[0] && sheet.valueRanges[0].values) || [];
+    for (let i = 1; i < rows.length; i++) {
+      const r = rows[i];
+      if ((r[1] || '').toString().toLowerCase().trim() === studentEmail &&
+          (r[3] || '').toString().trim() === sessionId &&
+          (r[4] || '').toString().trim() === tripId) {
+        rowNum = i + 1; break;
+      }
+    }
+  } catch (err) {
+    console.error('reg-cancel read error:', err.message);
+    return res.status(500).json({ error: 'server_error' });
+  }
+  if (rowNum < 0) return res.status(404).json({ error: 'registration_not_found' });
+
+  try {
+    await sheetsUpdate(token, `FT_Purchases!G${rowNum}`, [['cancelled']]);
+  } catch (err) {
+    console.error('reg-cancel write error:', err.message);
+    return res.status(500).json({ error: 'server_error' });
+  }
+  return res.status(200).json({ ok: true });
+}
+
 // ── handleRegAttendance: cycle Pending → YES → NO → Pending ──
 async function handleRegAttendance(req, res) {
   if (req.method !== 'POST' && req.method !== 'PUT') {
@@ -813,6 +1000,8 @@ module.exports = async (req, res) => {
     case 'trip-delete':    return handleTripDelete(req, res);
     case 'regs-list':      return handleRegsList(req, res);
     case 'reg-create':     return handleRegCreate(req, res);
+    case 'reg-update':     return handleRegUpdate(req, res);
+    case 'reg-cancel':     return handleRegCancel(req, res);
     case 'reg-attendance': return handleRegAttendance(req, res);
     default:               return res.status(404).json({ error: 'not_found', detail: action });
   }

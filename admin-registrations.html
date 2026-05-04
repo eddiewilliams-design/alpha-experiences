@@ -99,6 +99,15 @@ input::placeholder{color:var(--aa-dark-grey);}
 .chip-yes{background:var(--aa-light-green);color:#1a5205;}
 .chip-no{background:#fde8e8;color:#8b1a1a;}
 
+/* ── Row edit button ── */
+.btn-row-edit{background:#fff;color:var(--aa-navy);font-size:11px;font-weight:700;padding:5px 12px;border-radius:999px;border:1.5px solid var(--aa-med-grey);cursor:pointer;font-family:inherit;}
+.btn-row-edit:hover{border-color:var(--aa-blue);color:var(--aa-blue);}
+
+/* ── Cancel-registration button ── */
+.btn-cancel-reg{background:#fff;color:#8b1a1a;font-size:13px;font-weight:700;padding:11px 22px;border-radius:999px;border:1.5px solid #f5b5b5;cursor:pointer;font-family:inherit;margin-left:10px;}
+.btn-cancel-reg:hover{background:#fde8e8;border-color:#c0392b;color:#c0392b;}
+.btn-cancel-reg:disabled{opacity:0.5;cursor:not-allowed;}
+
 /* ── Empty state in the table ── */
 .table-empty{padding:40px 28px;text-align:center;color:var(--aa-dark-grey);font-size:13px;}
 
@@ -182,7 +191,7 @@ input::placeholder{color:var(--aa-dark-grey);}
     <div id="register-form" class="card" style="display:none;">
       <div class="form-card-header">
         <p class="form-card-title">
-          <span>Register a student</span>
+          <span id="register-form-title">Register a student</span>
           <button type="button" class="form-card-close" id="register-close" title="Close">✕</button>
         </p>
       </div>
@@ -217,7 +226,8 @@ input::placeholder{color:var(--aa-dark-grey);}
             <input id="rf-date" type="date">
           </div>
         </div>
-        <button type="button" class="btn-send" id="register-submit">Register Student</button>
+        <button type="button" class="btn-send"       id="register-submit">Register Student</button>
+        <button type="button" class="btn-cancel-reg" id="cancel-reg-btn" style="display:none;">Cancel registration</button>
       </div>
     </div>
 
@@ -232,6 +242,7 @@ input::placeholder{color:var(--aa-dark-grey);}
             <th>Session</th>
             <th>Registered</th>
             <th>Attended</th>
+            <th></th>
           </tr>
         </thead>
         <tbody id="reg-tbody"></tbody>
@@ -253,6 +264,7 @@ var TRIPS = [];          // [{trip_id, title, emoji, sessions:[...]}]
 var REGISTRATIONS = [];  // server data (newest first)
 var ACTIVE_TRIP = '';    // '' = all
 var TRIPS_BY_ID = {};
+var EDITING = null;      // null when creating; { student_email, trip_id, session_id } when editing
 
 // ── Helpers ──────────────────────────────────────────────
 function emailHandle(e){ if(!e) return ''; var i=e.indexOf('@'); return i<0?e:e.slice(0,i); }
@@ -495,6 +507,15 @@ function renderTable(){
     tdAtt.appendChild(chip);
     tr.appendChild(tdAtt);
 
+    var tdEdit = document.createElement('td');
+    var editBtn = document.createElement('button');
+    editBtn.type = 'button';
+    editBtn.className = 'btn-row-edit';
+    editBtn.textContent = 'Edit';
+    editBtn.addEventListener('click', function(){ openEdit(r); });
+    tdEdit.appendChild(editBtn);
+    tr.appendChild(tdEdit);
+
     tbody.appendChild(tr);
   });
 }
@@ -532,20 +553,71 @@ function exportCsv(){
   setTimeout(function(){ URL.revokeObjectURL(url); }, 1000);
 }
 
-// ── Register flow ────────────────────────────────────────
+// ── Register / Edit flow ────────────────────────────────
+function setFormMode(mode){
+  // mode: 'create' | 'edit'
+  var title  = document.getElementById('register-form-title');
+  var submit = document.getElementById('register-submit');
+  var cancel = document.getElementById('cancel-reg-btn');
+  if (mode === 'edit') {
+    title.textContent  = 'Edit registration';
+    submit.textContent = 'Save changes';
+    cancel.style.display = '';
+  } else {
+    title.textContent  = 'Register a student';
+    submit.textContent = 'Register Student';
+    cancel.style.display = 'none';
+  }
+}
+
 function toggleRegisterForm(open){
   var form = document.getElementById('register-form');
   if (open === undefined) open = form.style.display === 'none';
   form.style.display = open ? '' : 'none';
   if (open) {
-    document.getElementById('rf-date').value = todayIso();
     setTimeout(function(){ document.getElementById('rf-name').focus(); }, 0);
+    form.scrollIntoView({ behavior:'smooth', block:'start' });
   }
 }
+
 function clearRegisterForm(){
   ['rf-name','rf-student-email','rf-parent-email'].forEach(function(id){
     document.getElementById(id).value = '';
   });
+}
+
+function fillRegisterForm(r){
+  document.getElementById('rf-name').value          = r.student_name  || '';
+  document.getElementById('rf-student-email').value = r.student_email || '';
+  document.getElementById('rf-parent-email').value  = r.parent_email  || '';
+  document.getElementById('rf-trip').value          = r.trip_id || '';
+  refreshSessionDropdown();
+  document.getElementById('rf-session').value       = r.session_id || '';
+  document.getElementById('rf-date').value          = r.purchase_date || todayIso();
+}
+
+function openCreate(){
+  EDITING = null;
+  setFormMode('create');
+  clearRegisterForm();
+  document.getElementById('rf-date').value = todayIso();
+  // Pre-pick the currently filtered trip if any
+  if (ACTIVE_TRIP && TRIPS_BY_ID[ACTIVE_TRIP]) {
+    document.getElementById('rf-trip').value = ACTIVE_TRIP;
+    refreshSessionDropdown();
+  }
+  toggleRegisterForm(true);
+}
+
+function openEdit(r){
+  EDITING = {
+    original_student_email: r.student_email,
+    original_trip_id:       r.trip_id,
+    original_session_id:    r.session_id
+  };
+  setFormMode('edit');
+  fillRegisterForm(r);
+  toggleRegisterForm(true);
 }
 
 async function submitRegistration(){
@@ -566,8 +638,18 @@ async function submitRegistration(){
   if (!body.student_email) { showError('Student email is required.'); btn.disabled = false; return; }
   if (!body.trip_id || !body.session_id) { showError('Pick a trip and session.'); btn.disabled = false; return; }
 
+  var endpoint, successMsg;
+  if (EDITING) {
+    Object.assign(body, EDITING);
+    endpoint   = '/api/admin/reg-update';
+    successMsg = 'Updated ' + body.student_name + '.';
+  } else {
+    endpoint   = '/api/admin/reg-create';
+    successMsg = 'Registered ' + body.student_name + '.';
+  }
+
   try {
-    var r = await fetch('/api/admin/reg-create', {
+    var r = await fetch(endpoint, {
       method: 'POST',
       credentials: 'same-origin',
       headers: { 'Content-Type': 'application/json' },
@@ -576,20 +658,60 @@ async function submitRegistration(){
     var data = await r.json().catch(function(){ return {}; });
 
     if (r.status === 409 && data.error === 'already_registered') {
-      throw new Error('That student is already registered for this session.');
+      throw new Error('Another active registration already exists for that student / trip / session.');
     }
     if (r.status !== 200) {
       throw new Error(data.error || ('save failed: ' + r.status));
     }
 
-    showSuccess('Registered ' + body.student_name + '.');
+    showSuccess(successMsg);
+    EDITING = null;
+    setFormMode('create');
     clearRegisterForm();
+    toggleRegisterForm(false);
     await reloadData();
   } catch (err) {
     console.error(err);
-    showError('Couldn\'t register: ' + (err.message || err));
+    showError('Couldn\'t save: ' + (err.message || err));
   } finally {
     btn.disabled = false;
+  }
+}
+
+async function cancelRegistration(){
+  if (!EDITING) return;
+  var name = document.getElementById('rf-name').value.trim() || EDITING.original_student_email;
+  if (!confirm('Cancel registration for "' + name + '"?\n\nThe row stays in FT_Purchases marked as "cancelled" so you keep the record. The student will lose access to the trip.')) {
+    return;
+  }
+  clearBanners();
+  var btn = document.getElementById('cancel-reg-btn');
+  var sub = document.getElementById('register-submit');
+  btn.disabled = true; sub.disabled = true;
+  try {
+    var r = await fetch('/api/admin/reg-cancel', {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        student_email: EDITING.original_student_email,
+        trip_id:       EDITING.original_trip_id,
+        session_id:    EDITING.original_session_id
+      })
+    });
+    var data = await r.json().catch(function(){ return {}; });
+    if (r.status !== 200) throw new Error(data.error || ('cancel failed: ' + r.status));
+    showSuccess('Registration cancelled.');
+    EDITING = null;
+    setFormMode('create');
+    clearRegisterForm();
+    toggleRegisterForm(false);
+    await reloadData();
+  } catch (err) {
+    console.error(err);
+    showError('Couldn\'t cancel: ' + (err.message || err));
+  } finally {
+    btn.disabled = false; sub.disabled = false;
   }
 }
 
@@ -630,9 +752,17 @@ async function init(){
     showError('Couldn\'t load data: ' + (err.message || err));
   }
 
-  document.getElementById('register-toggle').addEventListener('click', function(){ toggleRegisterForm(); });
-  document.getElementById('register-close').addEventListener('click',  function(){ toggleRegisterForm(false); });
+  document.getElementById('register-toggle').addEventListener('click', function(){
+    if (document.getElementById('register-form').style.display === 'none') openCreate();
+    else                                                                   toggleRegisterForm(false);
+  });
+  document.getElementById('register-close').addEventListener('click',  function(){
+    EDITING = null;
+    setFormMode('create');
+    toggleRegisterForm(false);
+  });
   document.getElementById('register-submit').addEventListener('click', submitRegistration);
+  document.getElementById('cancel-reg-btn').addEventListener('click',  cancelRegistration);
   document.getElementById('export-csv').addEventListener('click',      exportCsv);
 
   document.getElementById('page-loading').style.display = 'none';
