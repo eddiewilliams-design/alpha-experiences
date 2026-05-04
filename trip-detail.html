@@ -43,10 +43,14 @@ body{font-family:'Nunito Sans',sans-serif;background:var(--aa-white);min-height:
 .hero{background:var(--aa-navy);padding:36px 32px 0;text-align:center;position:relative;overflow:hidden;}
 .hero.has-image{background-color:var(--aa-navy);background-size:cover;background-position:center;background-repeat:no-repeat;}
 .hero-badge{display:inline-block;background:rgba(255,255,255,0.12);color:#fff;font-size:11px;font-weight:700;letter-spacing:0.07em;padding:5px 16px;border-radius:999px;margin-bottom:14px;position:relative;z-index:2;backdrop-filter:blur(2px);}
-.hero-title{font-family:'Nunito',sans-serif;font-weight:900;font-size:clamp(24px,4vw,34px);color:#fff;line-height:1.12;margin-bottom:10px;position:relative;z-index:2;text-shadow:0 2px 8px rgba(0,0,0,0.3);}
-.hero-sub{font-size:13px;color:rgba(255,255,255,0.7);line-height:1.6;margin-bottom:0;position:relative;z-index:2;text-shadow:0 1px 4px rgba(0,0,0,0.3);}
-.hero-scallop{background:var(--aa-light-grey);height:28px;border-radius:28px 28px 0 0;margin:24px -32px 0;position:relative;z-index:2;}
-.hero-deco{position:absolute;pointer-events:none;user-select:none;z-index:1;line-height:1;}
+.hero-title{font-family:'Nunito',sans-serif;font-weight:900;font-size:clamp(26px,4.5vw,38px);color:#fff;line-height:1.12;margin-bottom:10px;position:relative;z-index:2;text-shadow:0 2px 14px rgba(0,0,0,0.55),0 1px 4px rgba(0,0,0,0.4);}
+.hero-sub{font-size:13px;color:#fff;line-height:1.6;margin-bottom:0;position:relative;z-index:2;text-shadow:0 1px 8px rgba(0,0,0,0.6);font-weight:500;}
+.hero-scallop{background:var(--aa-light-grey);height:28px;border-radius:28px 28px 0 0;margin:24px -32px 0;position:relative;z-index:3;}
+.hero-deco{position:absolute;pointer-events:none;user-select:none;z-index:1;line-height:1;animation:hero-float 6s ease-in-out infinite;will-change:transform;}
+@keyframes hero-float{
+  0%,100%{transform:translate3d(0,0,0) rotate(var(--rot,0deg));}
+  50%{transform:translate3d(0,-8px,0) rotate(calc(var(--rot,0deg) + 4deg));}
+}
 
 /* ── Body ── */
 .page-body{background:var(--aa-light-grey);padding:24px 24px 56px;}
@@ -312,27 +316,39 @@ function applyHeroTheme(trip){
   // Clear any previous decorations (e.g. on poll-driven re-renders)
   hero.querySelectorAll('.hero-deco').forEach(function(el){ el.remove(); });
 
-  // 1. Hero image (with dark overlay so white text stays readable)
+  // 1. Hero image — TEST that the URL actually loads as an image first.
+  // Most common gotcha: pasting a Pexels/Unsplash *page* URL (HTML) instead
+  // of the direct image URL. Pre-loading detects this and falls back cleanly.
   var img = (trip.hero_image_url || '').trim();
   if (img && /^https?:\/\//i.test(img)) {
-    hero.classList.add('has-image');
-    hero.style.backgroundImage =
-      'linear-gradient(rgba(7,34,86,0.62), rgba(7,34,86,0.78)), url("' + img.replace(/"/g, '%22') + '")';
+    var probe = new Image();
+    probe.onload = function(){
+      hero.classList.add('has-image');
+      // Lighter overlay so the image really pops; title shadow keeps it readable.
+      hero.style.backgroundImage =
+        'linear-gradient(rgba(7,34,86,0.50), rgba(7,34,86,0.65)), url("' + img.replace(/"/g, '%22') + '")';
+    };
+    probe.onerror = function(){
+      console.warn('[hero] could not load hero_image_url:', img,
+        '\nTip: on Pexels/Unsplash, right-click the IMAGE itself and choose "Copy image address" — the URL should start with images.pexels.com or images.unsplash.com and end with .jpg / .jpeg.');
+      hero.classList.remove('has-image');
+      hero.style.backgroundImage = '';
+    };
+    probe.src = img;
   } else {
     hero.classList.remove('has-image');
     hero.style.backgroundImage = '';
   }
 
-  // 2. Scattered theme emojis
+  // 2. Scattered theme emojis — bigger, bolder, gently floating
   var raw = (trip.theme_emojis || '').trim();
   if (!raw) return;
 
-  // Split on whitespace; preserve compound emojis (already non-space sequences)
   var pieces = raw.split(/\s+/).filter(Boolean);
   if (!pieces.length) return;
 
-  // Aim for ~12 decorations, repeating the input list as needed
-  var TARGET = 12;
+  // Aim for ~14 decorations, repeating the input list as needed
+  var TARGET = 14;
   var bag = [];
   while (bag.length < TARGET) bag = bag.concat(pieces);
   bag = bag.slice(0, TARGET);
@@ -344,17 +360,22 @@ function applyHeroTheme(trip){
     span.className = 'hero-deco';
     span.textContent = em;
 
-    var size = Math.round(28 + rand() * 48);          // 28–76px
-    var top  = Math.round(rand() * 88);               // 0–88%
-    var left = Math.round(rand() * 92);               // 0–92%
-    var rot  = Math.round(rand() * 60 - 30);          // -30..+30 deg
-    var op   = (0.12 + rand() * 0.18).toFixed(2);     // 0.12–0.30
+    var size  = Math.round(40 + rand() * 70);         // 40–110px
+    var top   = Math.round(rand() * 88);              // 0–88%
+    var left  = Math.round(rand() * 92);              // 0–92%
+    var rot   = Math.round(rand() * 70 - 35);         // -35..+35 deg
+    var op    = (0.18 + rand() * 0.22).toFixed(2);    // 0.18–0.40
+    var dur   = (4 + rand() * 4).toFixed(2);          // 4–8s float duration
+    var delay = (-rand() * 8).toFixed(2);             // 0..-8s offset (so they don't sync)
 
-    span.style.fontSize  = size + 'px';
-    span.style.top       = top + '%';
-    span.style.left      = left + '%';
-    span.style.transform = 'rotate(' + rot + 'deg)';
-    span.style.opacity   = op;
+    span.style.fontSize        = size + 'px';
+    span.style.top             = top + '%';
+    span.style.left            = left + '%';
+    span.style.opacity         = op;
+    span.style.setProperty('--rot', rot + 'deg');
+    span.style.transform       = 'rotate(' + rot + 'deg)';
+    span.style.animationDuration = dur + 's';
+    span.style.animationDelay    = delay + 's';
 
     hero.appendChild(span);
   });

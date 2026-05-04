@@ -53,7 +53,8 @@ body{font-family:'Nunito Sans',sans-serif;background:var(--aa-white);min-height:
 
 /* ── Trip Rows ── */
 .trip-row{background:#fff;border-radius:16px;border:1.5px solid var(--aa-med-grey);padding:18px 20px;margin-bottom:12px;display:flex;align-items:center;gap:18px;flex-wrap:wrap;}
-.trip-thumb{width:56px;height:56px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:28px;flex-shrink:0;}
+.trip-thumb{width:56px;height:56px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:28px;flex-shrink:0;overflow:hidden;position:relative;background:var(--aa-light-grey);}
+.trip-thumb img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;}
 .trip-info{flex:1;min-width:160px;}
 .trip-name{font-family:'Nunito',sans-serif;font-weight:800;font-size:16px;color:var(--aa-navy);margin-bottom:3px;}
 .trip-meta{font-size:12px;color:var(--aa-dark-grey);}
@@ -275,8 +276,23 @@ function renderTrips(trips){
 
     var thumb = document.createElement('div');
     thumb.className = 'trip-thumb';
-    thumb.style.background = colorForTrip(t.trip_id);
-    thumb.textContent = t.emoji || '📌';
+
+    var thumbUrl = (t.thumbnail_url || '').trim();
+    if (thumbUrl && /^https?:\/\//i.test(thumbUrl)) {
+      var img = document.createElement('img');
+      img.src     = thumbUrl;
+      img.alt     = t.title || 'Trip';
+      img.loading = 'lazy';
+      img.addEventListener('error', function(){
+        img.remove();
+        thumb.style.background = colorForTrip(t.trip_id);
+        thumb.textContent = t.emoji || '📌';
+      });
+      thumb.appendChild(img);
+    } else {
+      thumb.style.background = colorForTrip(t.trip_id);
+      thumb.textContent = t.emoji || '📌';
+    }
     row.appendChild(thumb);
 
     var info = document.createElement('div');

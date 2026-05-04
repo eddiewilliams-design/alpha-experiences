@@ -211,6 +211,7 @@ async function handleTripsList(req, res) {
         emoji:              (r[3] || '').toString(),
         trip_date:          (r[4] || '').toString(),
         status:             status,
+        thumbnail_url:      (r[8] || '').toString().trim(),
         session_count:      sessionCnt,
         prep_count:         prepCnt,
         registration_count: regCnt,
@@ -333,6 +334,7 @@ async function handleTripSave(req, res) {
     status:                status,
     max_seats_per_session: (body.max_seats_per_session || '').toString(),
     reflection_prompt:     (body.reflection_prompt || '').toString(),
+    thumbnail_url:         (body.thumbnail_url     || '').toString().trim(),
     what_to_bring:         (body.what_to_bring     || '').toString(),
     format:                (body.format            || '').toString(),
     hero_image_url:        (body.hero_image_url    || '').toString().trim(),
@@ -400,11 +402,11 @@ async function handleTripSave(req, res) {
     incoming.status,
     incoming.max_seats_per_session,
     incoming.reflection_prompt,
-    '',                       // thumbnail_url (col I) — unused for now
+    incoming.thumbnail_url,   // col I — small image for trip cards
     incoming.what_to_bring,
     incoming.format,
-    incoming.hero_image_url,
-    incoming.theme_emojis
+    incoming.hero_image_url,  // col L — wide hero background
+    incoming.theme_emojis     // col M — decorative emojis
   ];
 
   try {

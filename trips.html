@@ -58,8 +58,10 @@ body{font-family:'Nunito Sans',sans-serif;background:var(--aa-white);min-height:
 
 .trip-card{background:#fff;border-radius:20px;overflow:hidden;border:1.5px solid var(--aa-med-grey);transition:border-color 0.15s,transform 0.1s,box-shadow 0.15s;cursor:pointer;text-decoration:none;display:block;color:inherit;}
 .trip-card:hover{border-color:var(--aa-blue);transform:translateY(-2px);box-shadow:0 6px 24px rgba(0,111,249,0.12);}
-.trip-thumb{height:120px;display:flex;align-items:center;justify-content:center;position:relative;}
-.trip-thumb-emoji{font-size:44px;}
+.trip-thumb{height:120px;display:flex;align-items:center;justify-content:center;position:relative;overflow:hidden;}
+.trip-thumb.has-image{background:var(--aa-light-grey);}
+.trip-thumb img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;}
+.trip-thumb-emoji{font-size:44px;position:relative;z-index:1;}
 .trip-status-badge{position:absolute;top:10px;right:10px;font-size:10px;font-weight:700;padding:3px 10px;border-radius:999px;}
 .status-registered{background:var(--aa-light-green);color:#1a5205;}
 .status-completed{background:var(--aa-light-grey);color:var(--aa-dark-grey);border:1px solid var(--aa-med-grey);}
@@ -271,13 +273,35 @@ function renderTrips(trips) {
     card.className = 'trip-card';
 
     var thumb = document.createElement('div');
-    thumb.className           = 'trip-thumb';
-    thumb.style.background    = colorForTrip(t.trip_id);
+    thumb.className = 'trip-thumb';
 
-    var emoji = document.createElement('span');
-    emoji.className   = 'trip-thumb-emoji';
-    emoji.textContent = t.emoji || '✨';
-    thumb.appendChild(emoji);
+    // If a thumbnail_url is set and is an http(s) URL, use the image; the
+    // <img> covers the whole thumb, so no emoji overlay is needed.
+    var thumbUrl = (t.thumbnail_url || '').trim();
+    if (thumbUrl && /^https?:\/\//i.test(thumbUrl)) {
+      thumb.className = 'trip-thumb has-image';
+      var img = document.createElement('img');
+      img.src     = thumbUrl;
+      img.alt     = t.title || 'Trip';
+      img.loading = 'lazy';
+      // If the image fails to load, fall back to the gradient + emoji.
+      img.addEventListener('error', function(){
+        img.remove();
+        thumb.className = 'trip-thumb';
+        thumb.style.background = colorForTrip(t.trip_id);
+        var emoji = document.createElement('span');
+        emoji.className   = 'trip-thumb-emoji';
+        emoji.textContent = t.emoji || '✨';
+        thumb.insertBefore(emoji, thumb.firstChild);
+      });
+      thumb.appendChild(img);
+    } else {
+      thumb.style.background = colorForTrip(t.trip_id);
+      var emoji = document.createElement('span');
+      emoji.className   = 'trip-thumb-emoji';
+      emoji.textContent = t.emoji || '✨';
+      thumb.appendChild(emoji);
+    }
 
     var badge = document.createElement('span');
     badge.className =

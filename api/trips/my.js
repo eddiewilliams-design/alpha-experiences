@@ -121,12 +121,13 @@ module.exports = async (req, res) => {
       const id = (r[0] || '').toString().trim();
       if (!id) continue;
       tripsById[id] = {
-        trip_id:     id,
-        title:       (r[1] || '').toString(),
-        description: (r[2] || '').toString(),
-        emoji:       (r[3] || '').toString(),
-        trip_date:   (r[4] || '').toString(),
-        status:      (r[5] || '').toString().toLowerCase()
+        trip_id:       id,
+        title:         (r[1] || '').toString(),
+        description:   (r[2] || '').toString(),
+        emoji:         (r[3] || '').toString(),
+        trip_date:     (r[4] || '').toString(),
+        status:        (r[5] || '').toString().toLowerCase(),
+        thumbnail_url: (r[8] || '').toString().trim()
       };
     }
 
@@ -163,6 +164,7 @@ module.exports = async (req, res) => {
         emoji:         trip.emoji,
         trip_date:     trip.trip_date,
         status:        trip.status === 'completed' ? 'completed' : 'registered',
+        thumbnail_url: trip.thumbnail_url || '',
         session_id:    sessionId,
         session_start: sessRow ? sessRow.start_time : '',
         session_end:   sessRow ? sessRow.end_time   : ''

@@ -228,18 +228,24 @@ input::placeholder,textarea::placeholder{color:var(--aa-dark-grey);}
 
       <div class="card">
         <p class="card-title">Theming <span style="font-weight:500;font-size:12px;color:var(--aa-dark-grey);text-transform:none;letter-spacing:0;">(optional)</span></p>
-        <p style="font-size:12px;color:var(--aa-dark-grey);line-height:1.55;margin-top:-12px;margin-bottom:18px;">Make the trip's detail page feel themed. Both fields are optional — leave blank for the default look.</p>
+        <p style="font-size:12px;color:var(--aa-dark-grey);line-height:1.55;margin-top:-12px;margin-bottom:18px;">Make the trip feel themed everywhere it appears. All three fields are optional — leave blank for the default look. <strong>Tip:</strong> on Pexels/Unsplash, right-click the IMAGE itself and choose "Copy image address." A page URL won't work as an image.</p>
 
         <div class="field-group">
+          <label for="f-thumbnail">Card thumbnail URL</label>
+          <input id="f-thumbnail" type="url" placeholder="https://images.unsplash.com/photo-...">
+          <p style="font-size:11px;color:var(--aa-dark-grey);margin-top:4px;">A small image for the trip card on the student home page and admin dashboard. Square-ish crop works best.</p>
+        </div>
+
+        <div class="field-group" style="margin-top:16px;">
           <label for="f-hero-image">Hero image URL</label>
           <input id="f-hero-image" type="url" placeholder="https://images.unsplash.com/photo-...">
-          <p style="font-size:11px;color:var(--aa-dark-grey);margin-top:4px;">A landscape photo to use as the hero background. Try Unsplash → right-click → Copy image address. We'll auto-darken it so the title stays readable.</p>
+          <p style="font-size:11px;color:var(--aa-dark-grey);margin-top:4px;">A landscape photo for the hero on the trip detail page. We'll auto-darken it so the title stays readable. Same URL as the thumbnail is fine — the browser handles cropping.</p>
         </div>
 
         <div class="field-group" style="margin-top:16px;">
           <label for="f-theme-emojis">Theme emojis</label>
           <input id="f-theme-emojis" type="text" placeholder="🚀 🌌 👨‍🚀 🛸 ⭐ 🌙">
-          <p style="font-size:11px;color:var(--aa-dark-grey);margin-top:4px;">Space-separated emojis to scatter as decoration in the hero. Skip this if your topic doesn't have great emojis (museums, history, etc.) — the hero image alone is plenty.</p>
+          <p style="font-size:11px;color:var(--aa-dark-grey);margin-top:4px;">Space-separated emojis to scatter and float in the hero. Skip if your topic doesn't have great emojis (museums, history, etc.) — the hero image alone is plenty.</p>
         </div>
       </div>
 
@@ -480,6 +486,7 @@ function setForm(data){
   document.getElementById('f-format').value        = trip.format || '';
   document.getElementById('f-bring').value         = trip.what_to_bring || '';
   document.getElementById('f-prompt').value        = trip.reflection_prompt || '';
+  document.getElementById('f-thumbnail').value     = trip.thumbnail_url || '';
   document.getElementById('f-hero-image').value    = trip.hero_image_url || '';
   document.getElementById('f-theme-emojis').value  = trip.theme_emojis || '';
 
@@ -538,6 +545,7 @@ function readForm(){
     format:                document.getElementById('f-format').value.trim(),
     what_to_bring:         document.getElementById('f-bring').value.trim(),
     reflection_prompt:     document.getElementById('f-prompt').value.trim(),
+    thumbnail_url:         document.getElementById('f-thumbnail').value.trim(),
     hero_image_url:        document.getElementById('f-hero-image').value.trim(),
     theme_emojis:          document.getElementById('f-theme-emojis').value.trim(),
     sessions:              sessions,
