@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Project Gallery — Alpha Experiences</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@700;800;900&family=Nunito+Sans:wght@300;400;600;700&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+:root{
+  --aa-navy:#072256;--aa-blue:#006FF9;--aa-yellow:#E59500;
+  --aa-white:#FAFAFA;--aa-light-blue:#E5F6FD;--aa-light-yellow:#FFF7E5;
+  --aa-med-grey:#DADFE7;--aa-dark-grey:#8291AA;--aa-light-grey:#EEF0F3;
+  --aa-green:#2C8707;--aa-light-green:#EEFDE8;
+}
+body{font-family:'Nunito Sans',sans-serif;background:var(--aa-white);min-height:100vh;color:var(--aa-navy);}
+
+/* ── Header ── */
+.site-header{background:var(--aa-navy);padding:16px 32px;display:flex;align-items:center;justify-content:space-between;}
+.header-logo{display:flex;align-items:center;gap:12px;}
+.logo-divider{width:1px;height:28px;background:rgba(255,255,255,0.2);}
+.logo-text-top{font-family:'Nunito',sans-serif;font-weight:900;font-size:14px;color:#fff;line-height:1.1;}
+.logo-text-sub{font-size:10px;color:rgba(255,255,255,0.5);font-weight:600;letter-spacing:0.05em;text-transform:uppercase;}
+.user-wrap{position:relative;}
+.user-chip{display:flex;align-items:center;gap:8px;background:rgba(255,255,255,0.12);border:none;border-radius:999px;padding:6px 14px 6px 7px;cursor:pointer;font-family:inherit;}
+.user-chip:hover{background:rgba(255,255,255,0.18);}
+.avatar{width:26px;height:26px;border-radius:50%;background:var(--aa-blue);display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:#fff;}
+.user-name{font-size:13px;color:rgba(255,255,255,0.85);font-weight:600;}
+.user-menu{position:absolute;top:calc(100% + 8px);right:0;background:#fff;border:1px solid var(--aa-med-grey);border-radius:12px;box-shadow:0 8px 24px rgba(7,34,86,0.15);padding:6px;min-width:180px;display:none;z-index:50;}
+.user-menu.open{display:block;}
+.user-menu-email{font-size:11px;color:var(--aa-dark-grey);padding:8px 12px 10px;border-bottom:1px solid var(--aa-light-grey);margin-bottom:6px;word-break:break-all;}
+.user-menu a{display:block;padding:9px 12px;font-size:13px;font-weight:600;color:var(--aa-navy);text-decoration:none;border-radius:8px;}
+.user-menu a:hover{background:var(--aa-light-grey);}
+
+/* ── Hero ── */
+.hero{background:var(--aa-navy);padding:36px 32px 0;text-align:center;}
+.hero-badge{display:inline-block;background:rgba(255,255,255,0.12);color:rgba(255,255,255,0.85);font-size:11px;font-weight:700;letter-spacing:0.07em;padding:5px 16px;border-radius:999px;margin-bottom:14px;}
+.hero-title{font-family:'Nunito',sans-serif;font-weight:900;font-size:clamp(24px,4vw,34px);color:#fff;line-height:1.12;margin-bottom:10px;}
+.hero-title span{color:var(--aa-yellow);}
+.hero-sub{font-size:13px;color:rgba(255,255,255,0.5);line-height:1.6;}
+.hero-scallop{background:var(--aa-light-grey);height:28px;border-radius:28px 28px 0 0;margin:24px -32px 0;}
+
+/* ── Body ── */
+.page-body{background:var(--aa-light-grey);padding:24px 24px 56px;min-height:50vh;}
+.page-inner{max-width:900px;margin:0 auto;}
+
+/* ── Filter Row ── */
+.filter-row{display:flex;align-items:center;gap:10px;margin-bottom:24px;flex-wrap:wrap;}
+.filter-label{font-size:12px;font-weight:700;color:var(--aa-dark-grey);text-transform:uppercase;letter-spacing:0.05em;white-space:nowrap;}
+.pill{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:700;padding:7px 16px;border-radius:999px;cursor:pointer;border:1.5px solid transparent;transition:all 0.15s;background:#fff;color:var(--aa-dark-grey);border-color:var(--aa-med-grey);font-family:inherit;}
+.pill:hover{border-color:var(--aa-blue);}
+.pill.active{background:var(--aa-blue);color:#fff;border-color:var(--aa-blue);}
+
+/* ── Gallery Grid ── */
+.gallery-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;}
+@media(max-width:760px){.gallery-grid{grid-template-columns:repeat(2,1fr);}}
+@media(max-width:460px){.gallery-grid{grid-template-columns:1fr;}}
+
+/* ── Gallery Card ── */
+.gallery-card{background:#fff;border-radius:16px;overflow:hidden;border:1.5px solid var(--aa-med-grey);transition:transform 0.1s,box-shadow 0.15s;display:flex;flex-direction:column;}
+.gallery-card:hover{transform:translateY(-2px);box-shadow:0 6px 24px rgba(7,34,86,0.1);}
+.thumb-wrap{position:relative;height:180px;background:linear-gradient(135deg,#0a1628,#1a3a8c);display:block;overflow:hidden;}
+.thumb-wrap a{display:block;width:100%;height:100%;}
+.thumb-wrap img{width:100%;height:100%;object-fit:cover;display:block;}
+.thumb-wrap video{width:100%;height:100%;object-fit:cover;display:block;background:#000;}
+.video-badge{position:absolute;top:10px;left:10px;background:rgba(0,0,0,0.55);color:#fff;font-size:10px;font-weight:700;padding:3px 8px;border-radius:999px;display:flex;align-items:center;gap:4px;pointer-events:none;}
+
+.gallery-card-body{padding:14px 16px;}
+.gallery-student-name{font-family:'Nunito',sans-serif;font-weight:800;font-size:14px;color:var(--aa-navy);margin-bottom:2px;}
+.gallery-location{font-size:11px;color:var(--aa-dark-grey);margin-bottom:8px;}
+.trip-pill{display:inline-block;background:var(--aa-navy);color:#fff;font-size:10px;font-weight:700;padding:3px 10px;border-radius:999px;}
+.trip-pill .em{margin-right:4px;}
+
+/* ── Empty state ── */
+.empty-state{background:#fff;border:1.5px solid var(--aa-med-grey);border-radius:20px;padding:50px 28px;text-align:center;}
+.empty-icon{font-size:42px;margin-bottom:10px;}
+.empty-title{font-family:'Nunito',sans-serif;font-weight:800;font-size:17px;color:var(--aa-navy);margin-bottom:6px;}
+.empty-sub{font-size:13px;color:var(--aa-dark-grey);line-height:1.55;max-width:380px;margin:0 auto 18px;}
+.empty-btn{background:var(--aa-blue);color:#fff;font-size:13px;font-weight:700;padding:10px 22px;border-radius:999px;text-decoration:none;display:inline-block;}
+
+/* ── Loading ── */
+.page-loading{display:flex;align-items:center;justify-content:center;padding:80px 24px;background:var(--aa-light-grey);min-height:60vh;}
+.spinner{width:32px;height:32px;border:3px solid var(--aa-med-grey);border-top-color:var(--aa-blue);border-radius:50%;animation:spin 0.7s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg);}}
+
+/* ── Footer ── */
+.site-footer{background:var(--aa-navy);padding:20px 32px;text-align:center;border-top:3px solid var(--aa-blue);}
+.footer-text{font-size:11px;color:var(--aa-dark-grey);letter-spacing:0.05em;text-transform:uppercase;margin-top:8px;}
+</style>
+</head>
+<body>
+
+<header class="site-header">
+  <div class="header-logo">
+    <svg width="32" height="32" viewBox="0 0 67 55" fill="none"><path d="M66.3126 50.8822L48.3919 1.76245C48.0093 0.703285 46.9977 0 45.867 0H20.6096C19.479 0 18.4673 0.703285 18.0848 1.76245L0.164039 50.8822C-0.473557 52.6277 0.82714 54.4749 2.68892 54.4749H25.9059C27.0366 54.4749 28.0483 53.7716 28.4308 52.7125L33.2426 39.5365L38.0543 52.7125C38.4368 53.7716 39.4485 54.4749 40.5792 54.4749H63.7962C65.658 54.4749 66.9587 52.6277 66.3211 50.8822H66.3126ZM40.9532 51.255L34.9598 34.8253L45.9945 4.58406L63.0226 51.2635H40.9532V51.255Z" fill="white"/></svg>
+    <div class="logo-divider"></div>
+    <div>
+      <div class="logo-text-top">Alpha Experiences</div>
+      <div class="logo-text-sub">Student Portal</div>
+    </div>
+  </div>
+  <div class="user-wrap">
+    <button class="user-chip" id="user-chip" aria-haspopup="true" aria-expanded="false">
+      <div class="avatar" id="user-avatar">··</div>
+      <span class="user-name" id="user-handle">…</span>
+    </button>
+    <div class="user-menu" id="user-menu" role="menu">
+      <div class="user-menu-email" id="user-menu-email"></div>
+      <a href="/trips" role="menuitem">My trips</a>
+      <a href="/auth/logout" role="menuitem">Sign out</a>
+    </div>
+  </div>
+</header>
+
+<div class="hero">
+  <div class="hero-badge">Project Gallery</div>
+  <h1 class="hero-title">Student <span>Submissions</span></h1>
+  <p class="hero-sub">Browse projects from Alpha Anywhere virtual field trips</p>
+  <div class="hero-scallop"></div>
+</div>
+
+<div id="page-loading" class="page-loading">
+  <div class="spinner"></div>
+</div>
+
+<div id="page-body" class="page-body" style="display:none;">
+  <div class="page-inner">
+
+    <div id="filter-row" class="filter-row" style="display:none;">
+      <span class="filter-label">Filter by trip:</span>
+      <div id="filter-pills" style="display:flex;gap:8px;flex-wrap:wrap;"></div>
+    </div>
+
+    <div id="gallery-grid" class="gallery-grid"></div>
+
+    <div id="empty-state" class="empty-state" style="display:none;">
+      <div class="empty-icon">🎨</div>
+      <p class="empty-title">No submissions yet</p>
+      <p class="empty-sub">Be the first to share your work — finish a trip and submit your project.</p>
+      <a href="/trips" class="empty-btn">Go to my trips →</a>
+    </div>
+
+    <div id="filter-empty" class="empty-state" style="display:none;">
+      <div class="empty-icon">🔎</div>
+      <p class="empty-title">No submissions for this trip yet</p>
+      <p class="empty-sub">Try selecting "All trips" or pick a different one.</p>
+    </div>
+
+  </div>
+</div>
+
+<footer class="site-footer">
+  <svg width="24" height="20" viewBox="0 0 67 55" fill="none"><path d="M66.3126 50.8822L48.3919 1.76245C48.0093 0.703285 46.9977 0 45.867 0H20.6096C19.479 0 18.4673 0.703285 18.0848 1.76245L0.164039 50.8822C-0.473557 52.6277 0.82714 54.4749 2.68892 54.4749H25.9059C27.0366 54.4749 28.0483 53.7716 28.4308 52.7125L33.2426 39.5365L38.0543 52.7125C38.4368 53.7716 39.4485 54.4749 40.5792 54.4749H63.7962C65.658 54.4749 66.9587 52.6277 66.3211 50.8822H66.3126ZM40.9532 51.255L34.9598 34.8253L45.9945 4.58406L63.0226 51.2635H40.9532V51.255Z" fill="#FAFAFA" opacity="0.4"/></svg>
+  <p class="footer-text">Alpha Experiences · Alpha Anywhere</p>
+</footer>
+
+<script>
+// ── State ──
+var SUBMISSIONS = [];
+var TRIP_PILLS  = [];
+var ACTIVE_TRIP = null; // null = all
+
+// ── Helpers ──
+function emailHandle(e){ if(!e) return ''; var i=e.indexOf('@'); return i<0?e:e.slice(0,i); }
+function initialsFor(name, email){
+  var s = (name || emailHandle(email) || '').trim();
+  if (!s) return '··';
+  var parts = s.split(/[\s.]+/).filter(Boolean);
+  if (parts.length === 1) return (parts[0][0] || '·').toUpperCase();
+  return ((parts[0][0] || '·') + (parts[parts.length-1][0] || '')).toUpperCase();
+}
+function firstName(name){
+  if (!name) return '';
+  var p = String(name).trim().split(/\s+/)[0];
+  return p || '';
+}
+
+// Hash trip_id → palette index, so each trip card has a stable fallback gradient.
+var THUMB_PALETTES = [
+  'linear-gradient(135deg,#0a1628,#1a3a6e)',
+  'linear-gradient(135deg,#003a3a,#006a6a)',
+  'linear-gradient(135deg,#7a2c00,#e06030)',
+  'linear-gradient(135deg,#0a3d1a,#1a7a38)',
+  'linear-gradient(135deg,#1a0a3d,#5b2d8e)',
+  'linear-gradient(135deg,#3a2800,#8a6000)'
+];
+function colorForTrip(id) {
+  var h = 0, s = id || '';
+  for (var i = 0; i < s.length; i++) h = ((h << 5) - h + s.charCodeAt(i)) | 0;
+  return THUMB_PALETTES[Math.abs(h) % THUMB_PALETTES.length];
+}
+
+function safeHttpsUrl(u){
+  if (!u) return '';
+  var s = String(u).trim();
+  return /^https?:\/\//i.test(s) ? s : '';
+}
+
+// ── User menu ──
+function setupUserMenu(user){
+  document.getElementById('user-avatar').textContent     = initialsFor(user.name, user.email);
+  document.getElementById('user-handle').textContent     = emailHandle(user.email);
+  document.getElementById('user-menu-email').textContent = user.email;
+  var btn  = document.getElementById('user-chip');
+  var menu = document.getElementById('user-menu');
+  btn.addEventListener('click', function(e){
+    e.stopPropagation();
+    var open = menu.classList.toggle('open');
+    btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+  });
+  document.addEventListener('click', function(e){
+    if (!menu.contains(e.target) && e.target !== btn) {
+      menu.classList.remove('open');
+      btn.setAttribute('aria-expanded', 'false');
+    }
+  });
+}
+
+// ── Render ──
+function renderFilterPills(){
+  var row = document.getElementById('filter-row');
+  var box = document.getElementById('filter-pills');
+  box.innerHTML = '';
+
+  if (!TRIP_PILLS.length) {
+    row.style.display = 'none';
+    return;
+  }
+  row.style.display = '';
+
+  function makePill(id, label){
+    var p = document.createElement('button');
+    p.type = 'button';
+    p.className = 'pill' + ((ACTIVE_TRIP === id) ? ' active' : '');
+    p.textContent = label;
+    p.addEventListener('click', function(){
+      ACTIVE_TRIP = id;
+      renderFilterPills();
+      renderGrid();
+    });
+    return p;
+  }
+
+  box.appendChild(makePill(null, 'All trips'));
+  TRIP_PILLS.forEach(function(t){
+    box.appendChild(makePill(t.trip_id, (t.emoji ? t.emoji + ' ' : '') + (t.title || t.trip_id)));
+  });
+}
+
+function renderGrid(){
+  var grid        = document.getElementById('gallery-grid');
+  var emptyAll    = document.getElementById('empty-state');
+  var emptyFilter = document.getElementById('filter-empty');
+  grid.innerHTML = '';
+
+  if (!SUBMISSIONS.length) {
+    grid.style.display = 'none';
+    emptyFilter.style.display = 'none';
+    emptyAll.style.display = '';
+    return;
+  }
+
+  var filtered = ACTIVE_TRIP
+    ? SUBMISSIONS.filter(function(s){ return s.trip_id === ACTIVE_TRIP; })
+    : SUBMISSIONS;
+
+  emptyAll.style.display = 'none';
+  if (!filtered.length) {
+    grid.style.display = 'none';
+    emptyFilter.style.display = '';
+    return;
+  }
+  emptyFilter.style.display = 'none';
+  grid.style.display = '';
+
+  filtered.forEach(function(s){
+    var card = document.createElement('div');
+    card.className = 'gallery-card';
+
+    var thumb = document.createElement('div');
+    thumb.className = 'thumb-wrap';
+    thumb.style.background = colorForTrip(s.trip_id);
+
+    var url = safeHttpsUrl(s.file_url);
+
+    if (s.file_type === 'video' && url) {
+      var v = document.createElement('video');
+      v.src         = url;
+      v.controls    = true;
+      v.preload     = 'metadata';
+      v.playsInline = true;
+      v.setAttribute('playsinline', '');
+      thumb.appendChild(v);
+      var b = document.createElement('span');
+      b.className = 'video-badge';
+      b.textContent = '▶  Video';
+      thumb.appendChild(b);
+    } else if (url) {
+      var a = document.createElement('a');
+      a.href   = url;
+      a.target = '_blank';
+      a.rel    = 'noopener noreferrer';
+      var img = document.createElement('img');
+      img.src     = url;
+      img.alt     = (firstName(s.name) || 'Student') + '’s submission';
+      img.loading = 'lazy';
+      a.appendChild(img);
+      thumb.appendChild(a);
+    }
+
+    card.appendChild(thumb);
+
+    var body = document.createElement('div');
+    body.className = 'gallery-card-body';
+
+    var nm = document.createElement('p');
+    nm.className   = 'gallery-student-name';
+    nm.textContent = firstName(s.name) || '—';
+    body.appendChild(nm);
+
+    var loc = document.createElement('p');
+    loc.className   = 'gallery-location';
+    loc.textContent = s.location || '';
+    body.appendChild(loc);
+
+    var trip = document.createElement('span');
+    trip.className = 'trip-pill';
+    if (s.trip_emoji) {
+      var em = document.createElement('span');
+      em.className = 'em';
+      em.textContent = s.trip_emoji;
+      trip.appendChild(em);
+    }
+    var tt = document.createTextNode(s.trip_title || s.trip_id || 'Trip');
+    trip.appendChild(tt);
+    body.appendChild(trip);
+
+    card.appendChild(body);
+    grid.appendChild(card);
+  });
+}
+
+// ── Init ──
+async function init(){
+  // Auth gate
+  var meRes;
+  try { meRes = await fetch('/auth/me', { credentials: 'same-origin' }); }
+  catch (e) { window.location.href = '/auth/login'; return; }
+  if (meRes.status !== 200) { window.location.href = '/auth/login'; return; }
+  var user = await meRes.json();
+  setupUserMenu(user);
+
+  // Gallery data
+  try {
+    var r = await fetch('/api/gallery/list', { credentials: 'same-origin' });
+    if (r.status === 200) {
+      var data = await r.json();
+      SUBMISSIONS = (data && data.submissions) || [];
+      TRIP_PILLS  = (data && data.trips)       || [];
+    }
+  } catch (e) { /* fall through to empty */ }
+
+  renderFilterPills();
+  renderGrid();
+
+  document.getElementById('page-loading').style.display = 'none';
+  document.getElementById('page-body').style.display    = '';
+}
+
+init();
+</script>
+
+</body>
+</html>
