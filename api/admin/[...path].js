@@ -8,8 +8,12 @@
 // submissions delete). Routing them all through one catch-all
 // keeps us comfortably under the limit forever.
 //
-// Adds a new endpoint = new case in the switch below + new
-// `case 'foo/bar':` line. URL pattern is /api/admin/<segment>/<segment>.
+// URL pattern: /api/admin/<single-segment-action>
+// Vercel's [...path] catch-all on API routes only reliably matches
+// ONE segment, so we use dash-joined names like "trips-list" instead
+// of nested paths like "trips/list".
+//
+// Adds a new endpoint = new case in the switch below.
 //
 // Every request goes through one place that:
 //   1. Verifies session
@@ -179,7 +183,7 @@ module.exports = async (req, res) => {
   const path = Array.isArray(raw) ? raw.join('/') : (raw || '');
 
   switch (path) {
-    case 'trips/list': return handleTripsList(req, res);
+    case 'trips-list': return handleTripsList(req, res);
     default:           return res.status(404).json({ error: 'not_found', detail: path });
   }
 };

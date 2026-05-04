@@ -369,7 +369,7 @@ async function init(){
   // Load trips
   var trips = [], stats = {};
   try {
-    var r = await fetch('/api/admin/trips/list', { credentials:'same-origin' });
+    var r = await fetch('/api/admin/trips-list', { credentials:'same-origin' });
     if (r.status === 200) {
       var data = await r.json();
       trips = (data && data.trips) || [];
