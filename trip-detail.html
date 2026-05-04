@@ -386,8 +386,11 @@ function applyHeroTheme(trip){
     probe.src = img;
   }
 
-  // ── 2. Theme emojis: scatter across hero AND drift across whole page ──
-  // Clear any previous decorations from BOTH layers
+  // ── 2. Theme emojis: 1–2 unique emojis, evenly tiled across the page ──
+  // Repetition of a small palette reads as intentional. Random variety
+  // looked messy, so we deliberately use only the first 1–2 emojis from
+  // the admin's list and place them on a 3×4 grid (with light jitter)
+  // covering the whole viewport — not just the hero.
   hero.querySelectorAll('.hero-deco').forEach(function(el){ el.remove(); });
   var existingLayer = document.getElementById('page-deco-layer');
   if (existingLayer) existingLayer.remove();
@@ -395,60 +398,42 @@ function applyHeroTheme(trip){
   var raw = (trip.theme_emojis || '').trim();
   if (!raw) return;
 
-  var pieces = raw.split(/\s+/).filter(Boolean);
-  if (!pieces.length) return;
+  var allPieces = raw.split(/\s+/).filter(Boolean);
+  if (!allPieces.length) return;
+
+  // Cap to 1 or 2 unique emojis. Admin can list more — we use the first 2.
+  var palette = allPieces.slice(0, 2);
 
   var rand = seededRand(trip.trip_id || raw);
 
-  // 2a. Hero — denser cluster (16 emojis, big & bold, gently bobbing)
-  var HERO_COUNT = 16;
-  var heroBag = [];
-  while (heroBag.length < HERO_COUNT) heroBag = heroBag.concat(pieces);
-  heroBag = heroBag.slice(0, HERO_COUNT);
-  heroBag.forEach(function(em){
-    var span = document.createElement('span');
-    span.className   = 'hero-deco';
-    span.textContent = em;
-    var size  = Math.round(44 + rand() * 80);         // 44–124px
-    var top   = Math.round(rand() * 88);
-    var left  = Math.round(rand() * 92);
-    var rot   = Math.round(rand() * 70 - 35);
-    var op    = (0.20 + rand() * 0.25).toFixed(2);    // 0.20–0.45
-    var dur   = (4 + rand() * 4).toFixed(2);
-    var delay = (-rand() * 8).toFixed(2);
-    span.style.fontSize          = size + 'px';
-    span.style.top               = top + '%';
-    span.style.left              = left + '%';
-    span.style.opacity           = op;
-    span.style.setProperty('--rot', rot + 'deg');
-    span.style.transform         = 'rotate(' + rot + 'deg)';
-    span.style.animationDuration = dur + 's';
-    span.style.animationDelay    = delay + 's';
-    hero.appendChild(span);
-  });
-
-  // 2b. Page-wide layer — fewer, slower-drifting emojis behind body cards
-  // Fixed-position layer so it stays put while the user scrolls.
   var layer = document.createElement('div');
   layer.id = 'page-deco-layer';
   layer.className = 'page-deco-layer';
   document.body.appendChild(layer);
 
-  var PAGE_COUNT = 18;
-  var pageBag = [];
-  while (pageBag.length < PAGE_COUNT) pageBag = pageBag.concat(pieces);
-  pageBag = pageBag.slice(0, PAGE_COUNT);
-  pageBag.forEach(function(em){
+  // 3 rows × 4 cols = 12 evenly-spread slots, each with light position jitter
+  var COLS = 4, ROWS = 3;
+  for (var i = 0; i < COLS * ROWS; i++) {
+    var col = i % COLS;
+    var row = Math.floor(i / COLS);
+
+    // Alternate emojis in a checkerboard pattern so neighbours differ
+    var em = palette[(col + row) % palette.length];
+
+    var topBase  = (row + 0.5) * (100 / ROWS);   // 16.7, 50, 83.3
+    var leftBase = (col + 0.5) * (100 / COLS);   // 12.5, 37.5, 62.5, 87.5
+    var top      = topBase  + (rand() * 8 - 4);  // ±4%
+    var left     = leftBase + (rand() * 8 - 4);  // ±4%
+
+    var size  = Math.round(48 + rand() * 36);    // 48–84px (tighter range = cleaner)
+    var rot   = Math.round(rand() * 20 - 10);    // ±10° (calm)
+    var op    = (0.13 + rand() * 0.10).toFixed(2); // 0.13–0.23 (subtle)
+    var dur   = (10 + rand() * 8).toFixed(2);    // 10–18s slow drift
+    var delay = (-rand() * 12).toFixed(2);
+
     var span = document.createElement('span');
     span.className   = 'page-deco';
     span.textContent = em;
-    var size  = Math.round(28 + rand() * 70);         // 28–98px
-    var top   = Math.round(rand() * 92);
-    var left  = Math.round(rand() * 94);
-    var rot   = Math.round(rand() * 80 - 40);
-    var op    = (0.10 + rand() * 0.14).toFixed(2);    // 0.10–0.24 (subtle)
-    var dur   = (10 + rand() * 12).toFixed(2);        // 10–22s slow drift
-    var delay = (-rand() * 14).toFixed(2);
     span.style.fontSize          = size + 'px';
     span.style.top               = top + '%';
     span.style.left              = left + '%';
@@ -458,7 +443,7 @@ function applyHeroTheme(trip){
     span.style.animationDuration = dur + 's';
     span.style.animationDelay    = delay + 's';
     layer.appendChild(span);
-  });
+  }
 }
 
 function renderDetails(trip, mySession){
