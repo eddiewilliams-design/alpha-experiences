@@ -78,6 +78,74 @@ async function batchGet(token, ranges) {
   return httpsGet(url, { Authorization: 'Bearer ' + token });
 }
 
+function httpsRequest(method, url, headers, body) {
+  return new Promise((resolve, reject) => {
+    const u   = new URL(url);
+    const buf = body ? Buffer.from(body) : null;
+    const opts = {
+      method,
+      hostname: u.hostname,
+      path:     u.pathname + u.search,
+      headers:  Object.assign({}, headers || {}, buf ? { 'Content-Length': buf.length } : {})
+    };
+    const req = https.request(opts, res => {
+      let d = '';
+      res.on('data', c => d += c);
+      res.on('end',  () => resolve({ status: res.statusCode, body: d }));
+    });
+    req.on('error', reject);
+    if (buf) req.write(buf);
+    req.end();
+  });
+}
+
+async function sheetsClear(token, range) {
+  const url = `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/${encodeURIComponent(range)}:clear`;
+  const r = await httpsRequest('POST', url, {
+    'Authorization': 'Bearer ' + token,
+    'Content-Type':  'application/json'
+  }, '{}');
+  if (r.status < 200 || r.status >= 300) throw new Error('clear failed: ' + r.status + ' ' + r.body);
+}
+
+async function sheetsUpdate(token, range, values) {
+  const url = `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/${encodeURIComponent(range)}?valueInputOption=USER_ENTERED`;
+  const r = await httpsRequest('PUT', url, {
+    'Authorization': 'Bearer ' + token,
+    'Content-Type':  'application/json'
+  }, JSON.stringify({ range, majorDimension: 'ROWS', values }));
+  if (r.status < 200 || r.status >= 300) throw new Error('update failed: ' + r.status + ' ' + r.body);
+}
+
+async function sheetsAppend(token, range, values) {
+  const url = `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/${encodeURIComponent(range)}` +
+              `:append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS`;
+  const r = await httpsRequest('POST', url, {
+    'Authorization': 'Bearer ' + token,
+    'Content-Type':  'application/json'
+  }, JSON.stringify({ range, majorDimension: 'ROWS', values }));
+  if (r.status < 200 || r.status >= 300) throw new Error('append failed: ' + r.status + ' ' + r.body);
+}
+
+function readJsonBody(req) {
+  return new Promise((resolve, reject) => {
+    if (req.body && typeof req.body === 'object') return resolve(req.body);
+    if (typeof req.body === 'string') { try { return resolve(JSON.parse(req.body)); } catch (e) {} }
+    let d = '';
+    req.on('data', c => d += c);
+    req.on('end',  () => { try { resolve(d ? JSON.parse(d) : {}); } catch (e) { reject(e); } });
+    req.on('error', reject);
+  });
+}
+
+function slugify(s) {
+  return String(s || '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 60) || 'trip';
+}
+
 // ── Handlers ─────────────────────────────────────────────────
 
 async function handleTripsList(req, res) {
@@ -171,6 +239,224 @@ async function handleTripsList(req, res) {
   return res.status(200).json({ trips, stats });
 }
 
+// ── handleTripGet: load one trip + its sessions + prep ─────
+async function handleTripGet(req, res) {
+  const tripId = (req.query.trip_id || '').toString().trim();
+  if (!tripId) return res.status(400).json({ error: 'bad_request', detail: 'trip_id required' });
+
+  try {
+    const token = await getAccessToken();
+    const sheet = await batchGet(token, ['FT_Catalog!A:K', 'FT_Sessions!A:F', 'FT_Prep!A:F']);
+    const ranges = (sheet && sheet.valueRanges) || [];
+    const catalogRows = (ranges[0] && ranges[0].values) || [];
+    const sessionRows = (ranges[1] && ranges[1].values) || [];
+    const prepRows    = (ranges[2] && ranges[2].values) || [];
+
+    let trip = null;
+    for (let i = 1; i < catalogRows.length; i++) {
+      const r = catalogRows[i];
+      if ((r[0] || '').toString().trim() === tripId) {
+        trip = {
+          trip_id:               tripId,
+          title:                 (r[1]  || '').toString(),
+          description:           (r[2]  || '').toString(),
+          emoji:                 (r[3]  || '').toString(),
+          trip_date:             (r[4]  || '').toString(),
+          status:                (r[5]  || '').toString().toLowerCase(),
+          max_seats_per_session: (r[6]  || '').toString(),
+          reflection_prompt:     (r[7]  || '').toString(),
+          thumbnail_url:         (r[8]  || '').toString(),
+          what_to_bring:         (r[9]  || '').toString(),
+          format:                (r[10] || '').toString()
+        };
+        break;
+      }
+    }
+    if (!trip) return res.status(404).json({ error: 'not_found' });
+
+    const sessions = [];
+    for (let i = 1; i < sessionRows.length; i++) {
+      const r = sessionRows[i];
+      if ((r[1] || '').toString().trim() !== tripId) continue;
+      sessions.push({
+        session_id:   (r[0] || '').toString(),
+        start_time:   (r[2] || '').toString(),
+        end_time:     (r[3] || '').toString(),
+        zoom_link:    (r[4] || '').toString(),
+        nearpod_link: (r[5] || '').toString()
+      });
+    }
+
+    const prep = [];
+    for (let i = 1; i < prepRows.length; i++) {
+      const r = prepRows[i];
+      if ((r[1] || '').toString().trim() !== tripId) continue;
+      prep.push({
+        prep_id:  (r[0] || '').toString(),
+        title:    (r[2] || '').toString(),
+        type:     (r[3] || '').toString().toLowerCase(),
+        url:      (r[4] || '').toString(),
+        duration: (r[5] || '').toString()
+      });
+    }
+
+    return res.status(200).json({ trip, sessions, prep });
+  } catch (err) {
+    console.error('trip-get error:', err.message);
+    return res.status(500).json({ error: 'server_error' });
+  }
+}
+
+// ── handleTripSave: create or update a trip + replace its sessions/prep ──
+async function handleTripSave(req, res) {
+  if (req.method !== 'POST') return res.status(405).json({ error: 'method_not_allowed' });
+
+  let body;
+  try { body = await readJsonBody(req); }
+  catch (e) { return res.status(400).json({ error: 'bad_json' }); }
+
+  const title = (body.title || '').toString().trim();
+  if (!title) return res.status(400).json({ error: 'bad_request', detail: 'title required' });
+
+  const VALID_STATUS = ['draft', 'open', 'closed', 'completed'];
+  let status = (body.status || 'draft').toString().toLowerCase().trim();
+  if (VALID_STATUS.indexOf(status) === -1) status = 'draft';
+
+  const incoming = {
+    trip_id:               (body.trip_id || '').toString().trim(),
+    title:                 title,
+    description:           (body.description       || '').toString(),
+    emoji:                 (body.emoji             || '').toString(),
+    trip_date:             (body.trip_date         || '').toString(),
+    status:                status,
+    max_seats_per_session: (body.max_seats_per_session || '').toString(),
+    reflection_prompt:     (body.reflection_prompt || '').toString(),
+    what_to_bring:         (body.what_to_bring     || '').toString(),
+    format:                (body.format            || '').toString()
+  };
+
+  const incomingSessions = Array.isArray(body.sessions) ? body.sessions : [];
+  const incomingPrep     = Array.isArray(body.prep)     ? body.prep     : [];
+
+  let token;
+  try {
+    token = await getAccessToken('https://www.googleapis.com/auth/spreadsheets');
+  } catch (err) {
+    console.error('getAccessToken (write) failed:', err.message);
+    return res.status(500).json({ error: 'server_error' });
+  }
+
+  // 1. Read existing data
+  let catalogRows, sessionRows, prepRows;
+  try {
+    const sheet = await batchGet(token, ['FT_Catalog!A:K', 'FT_Sessions!A:F', 'FT_Prep!A:F']);
+    const ranges = (sheet && sheet.valueRanges) || [];
+    catalogRows = (ranges[0] && ranges[0].values) || [];
+    sessionRows = (ranges[1] && ranges[1].values) || [];
+    prepRows    = (ranges[2] && ranges[2].values) || [];
+  } catch (err) {
+    console.error('trip-save read error:', err.message);
+    return res.status(500).json({ error: 'server_error' });
+  }
+
+  // 2. Resolve trip_id (preserve existing on edit; generate unique slug on create)
+  const existingIds = new Set();
+  let existingRowIndex = -1;
+  for (let i = 1; i < catalogRows.length; i++) {
+    const id = (catalogRows[i][0] || '').toString().trim();
+    if (id) existingIds.add(id);
+  }
+  let tripId = incoming.trip_id;
+  if (tripId) {
+    for (let i = 1; i < catalogRows.length; i++) {
+      if ((catalogRows[i][0] || '').toString().trim() === tripId) {
+        existingRowIndex = i; break;
+      }
+    }
+    if (existingRowIndex === -1) {
+      // Caller passed a trip_id that doesn't exist — refuse to silently create
+      return res.status(404).json({ error: 'not_found' });
+    }
+  } else {
+    // Generate from title, ensure unique
+    const base = slugify(title);
+    let candidate = base;
+    let n = 2;
+    while (existingIds.has(candidate)) candidate = `${base}-${n++}`;
+    tripId = candidate;
+  }
+
+  // 3. Build the catalog row
+  const catalogRow = [
+    tripId,
+    incoming.title,
+    incoming.description,
+    incoming.emoji,
+    incoming.trip_date,
+    incoming.status,
+    incoming.max_seats_per_session,
+    incoming.reflection_prompt,
+    '',                       // thumbnail_url (col I) — unused for now
+    incoming.what_to_bring,
+    incoming.format
+  ];
+
+  try {
+    if (existingRowIndex >= 0) {
+      const rowNum = existingRowIndex + 1; // 1-indexed
+      await sheetsUpdate(token, `FT_Catalog!A${rowNum}:K${rowNum}`, [catalogRow]);
+    } else {
+      await sheetsAppend(token, 'FT_Catalog!A:K', [catalogRow]);
+    }
+  } catch (err) {
+    console.error('trip-save catalog write error:', err.message);
+    return res.status(500).json({ error: 'server_error' });
+  }
+
+  // 4. Replace sessions for this trip:
+  //    keep header + other-trip rows, append the form's session rows.
+  try {
+    const sessionsHeader = sessionRows[0] || ['session_id', 'trip_id', 'start_time', 'end_time', 'zoom_link', 'nearpod_link'];
+    const otherSessions  = sessionRows.slice(1).filter(r => (r[1] || '').toString().trim() !== tripId);
+    const newSessions    = incomingSessions.map((s, i) => [
+      (s.session_id && String(s.session_id).trim()) || `${tripId}-${Date.now()}-${i}`,
+      tripId,
+      (s.start_time   || '').toString(),
+      (s.end_time     || '').toString(),
+      (s.zoom_link    || '').toString(),
+      (s.nearpod_link || '').toString()
+    ]);
+    const allSessions = [sessionsHeader].concat(otherSessions).concat(newSessions);
+    await sheetsClear(token, 'FT_Sessions!A:F');
+    await sheetsUpdate(token, 'FT_Sessions!A1', allSessions);
+  } catch (err) {
+    console.error('trip-save sessions write error:', err.message);
+    return res.status(500).json({ error: 'server_error' });
+  }
+
+  // 5. Replace prep for this trip — same pattern
+  try {
+    const prepHeader  = prepRows[0] || ['prep_id', 'trip_id', 'title', 'type', 'url', 'duration'];
+    const otherPrep   = prepRows.slice(1).filter(r => (r[1] || '').toString().trim() !== tripId);
+    const newPrep     = incomingPrep.map((p, i) => [
+      (p.prep_id && String(p.prep_id).trim()) || `${tripId}-prep-${Date.now()}-${i}`,
+      tripId,
+      (p.title    || '').toString(),
+      (p.type     || '').toString().toLowerCase(),
+      (p.url      || '').toString(),
+      (p.duration || '').toString()
+    ]);
+    const allPrep = [prepHeader].concat(otherPrep).concat(newPrep);
+    await sheetsClear(token, 'FT_Prep!A:F');
+    await sheetsUpdate(token, 'FT_Prep!A1', allPrep);
+  } catch (err) {
+    console.error('trip-save prep write error:', err.message);
+    return res.status(500).json({ error: 'server_error' });
+  }
+
+  return res.status(200).json({ ok: true, trip_id: tripId });
+}
+
 // ── Dispatch ────────────────────────────────────────────────
 module.exports = async (req, res) => {
   res.setHeader('Cache-Control', 'no-store');
@@ -184,6 +470,8 @@ module.exports = async (req, res) => {
 
   switch (action) {
     case 'trips-list': return handleTripsList(req, res);
+    case 'trip-get':   return handleTripGet(req, res);
+    case 'trip-save':  return handleTripSave(req, res);
     default:           return res.status(404).json({ error: 'not_found', detail: action });
   }
 };

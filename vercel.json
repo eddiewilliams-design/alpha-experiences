@@ -7,6 +7,8 @@
     { "source": "/trips/:tripId", "destination": "/trip-detail.html" },
     { "source": "/gallery", "destination": "/gallery.html" },
     { "source": "/admin", "destination": "/admin.html" },
+    { "source": "/admin/trips/new", "destination": "/admin-trip-editor.html" },
+    { "source": "/admin/trips/:tripId/edit", "destination": "/admin-trip-editor.html" },
     { "source": "/auth/google", "destination": "/api/auth/google" },
     { "source": "/auth/callback", "destination": "/api/auth/callback" },
     { "source": "/auth/me", "destination": "/api/auth/me" },

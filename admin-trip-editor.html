@@ -1,0 +1,628 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Admin — Trip Editor</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@700;800;900&family=Nunito+Sans:wght@300;400;600;700&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+:root{
+  --aa-navy:#072256;--aa-blue:#006FF9;--aa-yellow:#E59500;
+  --aa-white:#FAFAFA;--aa-light-blue:#E5F6FD;--aa-light-yellow:#FFF7E5;
+  --aa-med-grey:#DADFE7;--aa-dark-grey:#8291AA;--aa-light-grey:#EEF0F3;
+  --aa-green:#2C8707;--aa-light-green:#EEFDE8;
+}
+body{font-family:'Nunito Sans',sans-serif;background:var(--aa-white);min-height:100vh;color:var(--aa-navy);}
+
+/* ── Admin Header ── */
+.site-header{background:var(--aa-navy);padding:16px 32px;display:flex;align-items:center;justify-content:space-between;}
+.header-logo{display:flex;align-items:center;gap:12px;}
+.logo-divider{width:1px;height:28px;background:rgba(255,255,255,0.2);}
+.logo-text-top{font-family:'Nunito',sans-serif;font-weight:900;font-size:14px;color:#fff;line-height:1.1;}
+.logo-text-sub{font-size:10px;color:rgba(255,255,255,0.5);font-weight:600;letter-spacing:0.05em;text-transform:uppercase;}
+.header-right{display:flex;align-items:center;gap:10px;}
+.admin-badge{background:var(--aa-yellow);color:#3a2000;font-size:10px;font-weight:800;padding:4px 12px;border-radius:999px;letter-spacing:0.04em;text-transform:uppercase;}
+.user-wrap{position:relative;}
+.user-chip{display:flex;align-items:center;gap:8px;background:rgba(255,255,255,0.12);border:none;border-radius:999px;padding:6px 14px 6px 7px;cursor:pointer;font-family:inherit;}
+.user-chip:hover{background:rgba(255,255,255,0.18);}
+.avatar{width:26px;height:26px;border-radius:50%;background:var(--aa-blue);display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:#fff;}
+.user-name{font-size:13px;color:rgba(255,255,255,0.85);font-weight:600;}
+.user-menu{position:absolute;top:calc(100% + 8px);right:0;background:#fff;border:1px solid var(--aa-med-grey);border-radius:12px;box-shadow:0 8px 24px rgba(7,34,86,0.15);padding:6px;min-width:180px;display:none;z-index:50;}
+.user-menu.open{display:block;}
+.user-menu-email{font-size:11px;color:var(--aa-dark-grey);padding:8px 12px 10px;border-bottom:1px solid var(--aa-light-grey);margin-bottom:6px;word-break:break-all;}
+.user-menu a{display:block;padding:9px 12px;font-size:13px;font-weight:600;color:var(--aa-navy);text-decoration:none;border-radius:8px;}
+.user-menu a:hover{background:var(--aa-light-grey);}
+
+/* ── Back link ── */
+.back-bar{background:var(--aa-light-grey);border-bottom:1px solid var(--aa-med-grey);padding:12px 32px;display:flex;align-items:center;justify-content:space-between;gap:12px;}
+.back-link{font-size:13px;font-weight:700;color:var(--aa-blue);text-decoration:none;}
+.back-link:hover{text-decoration:underline;}
+.trip-id-pill{font-family:monospace;font-size:11px;color:var(--aa-dark-grey);background:#fff;border:1px solid var(--aa-med-grey);padding:4px 10px;border-radius:999px;}
+
+/* ── Body ── */
+.page-body{background:var(--aa-light-grey);padding:24px 24px 80px;}
+.page-inner{max-width:720px;margin:0 auto;display:flex;flex-direction:column;gap:20px;}
+
+/* ── Form Cards ── */
+.card{background:#fff;border-radius:20px;padding:28px 32px;border:1.5px solid var(--aa-med-grey);}
+.card-title{font-family:'Nunito',sans-serif;font-weight:800;font-size:15px;color:var(--aa-navy);margin-bottom:20px;}
+
+/* ── Grid + fields ── */
+.grid-2{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+@media(max-width:520px){.grid-2{grid-template-columns:1fr;}}
+.grid-full{margin-top:16px;}
+.field-group{display:flex;flex-direction:column;gap:6px;}
+label{font-size:11px;font-weight:700;color:var(--aa-dark-grey);text-transform:uppercase;letter-spacing:0.05em;}
+input[type="text"],input[type="date"],input[type="number"],input[type="url"],select,textarea{
+  width:100%;padding:11px 14px;border:1.5px solid var(--aa-med-grey);border-radius:10px;
+  font-family:'Nunito Sans',sans-serif;font-size:14px;color:var(--aa-navy);background:#fff;outline:none;
+  transition:border-color 0.15s;
+}
+textarea{resize:vertical;min-height:80px;line-height:1.55;}
+input:focus,select:focus,textarea:focus{border-color:var(--aa-blue);}
+input::placeholder,textarea::placeholder{color:var(--aa-dark-grey);}
+
+/* ── Inner cards (sessions / prep rows) ── */
+.inner-card{background:var(--aa-light-grey);border-radius:14px;padding:18px 20px;margin-bottom:12px;position:relative;}
+.inner-card:last-of-type{margin-bottom:0;}
+.inner-card-title{font-size:12px;font-weight:700;color:var(--aa-dark-grey);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:14px;}
+.remove-link{position:absolute;top:14px;right:18px;font-size:12px;color:var(--aa-dark-grey);cursor:pointer;font-weight:600;background:none;border:none;font-family:inherit;}
+.remove-link:hover{color:#c0392b;}
+.add-btn{width:100%;padding:12px;border:2px dashed var(--aa-med-grey);border-radius:12px;background:transparent;color:var(--aa-blue);font-size:13px;font-weight:700;cursor:pointer;margin-top:12px;transition:border-color 0.15s,background 0.15s;font-family:inherit;}
+.add-btn:hover{border-color:var(--aa-blue);background:var(--aa-light-blue);}
+
+/* ── Footer bar ── */
+.footer-bar{background:#fff;border-radius:20px;border:1.5px solid var(--aa-med-grey);padding:20px 28px;display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;}
+.footer-msg{font-size:12px;color:var(--aa-dark-grey);}
+.footer-actions{display:flex;gap:10px;flex-wrap:wrap;}
+.btn-save{background:#fff;color:var(--aa-navy);font-size:14px;font-weight:700;padding:11px 24px;border-radius:999px;border:1.5px solid var(--aa-med-grey);cursor:pointer;font-family:inherit;}
+.btn-save:hover{border-color:var(--aa-blue);color:var(--aa-blue);}
+.btn-publish{background:var(--aa-blue);color:#fff;font-size:14px;font-weight:700;padding:11px 28px;border-radius:999px;border:none;cursor:pointer;font-family:inherit;}
+.btn-publish:hover{opacity:0.9;}
+.btn-save:disabled,.btn-publish:disabled{opacity:0.5;cursor:not-allowed;}
+
+/* ── Banners ── */
+.error-banner{background:#fde8e8;border:1px solid #f5b5b5;color:#8b1a1a;font-size:13px;font-weight:600;padding:10px 14px;border-radius:10px;line-height:1.5;display:none;}
+.error-banner.visible{display:block;}
+.success-banner{background:var(--aa-light-green);border:1px solid #a3d291;color:#1a5205;font-size:13px;font-weight:600;padding:10px 14px;border-radius:10px;line-height:1.5;display:none;}
+.success-banner.visible{display:block;}
+
+/* ── Loading + denied ── */
+.page-loading,.page-denied{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:80px 24px;background:var(--aa-light-grey);min-height:60vh;text-align:center;}
+.spinner{width:32px;height:32px;border:3px solid var(--aa-med-grey);border-top-color:var(--aa-blue);border-radius:50%;animation:spin 0.7s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg);}}
+.denied-icon{font-size:48px;margin-bottom:12px;}
+.denied-title{font-family:'Nunito',sans-serif;font-weight:900;font-size:22px;color:var(--aa-navy);margin-bottom:8px;}
+.denied-sub{font-size:14px;color:var(--aa-dark-grey);max-width:360px;line-height:1.55;margin-bottom:20px;}
+.btn-blue{background:var(--aa-blue);color:#fff;font-size:13px;font-weight:700;padding:10px 22px;border-radius:999px;text-decoration:none;display:inline-block;border:none;cursor:pointer;font-family:inherit;}
+
+/* ── Site footer ── */
+.site-footer{background:var(--aa-navy);padding:20px 32px;text-align:center;border-top:3px solid var(--aa-blue);}
+.footer-text{font-size:11px;color:var(--aa-dark-grey);letter-spacing:0.05em;text-transform:uppercase;margin-top:8px;}
+</style>
+</head>
+<body>
+
+<header class="site-header">
+  <div class="header-logo">
+    <svg width="32" height="32" viewBox="0 0 67 55" fill="none"><path d="M66.3126 50.8822L48.3919 1.76245C48.0093 0.703285 46.9977 0 45.867 0H20.6096C19.479 0 18.4673 0.703285 18.0848 1.76245L0.164039 50.8822C-0.473557 52.6277 0.82714 54.4749 2.68892 54.4749H25.9059C27.0366 54.4749 28.0483 53.7716 28.4308 52.7125L33.2426 39.5365L38.0543 52.7125C38.4368 53.7716 39.4485 54.4749 40.5792 54.4749H63.7962C65.658 54.4749 66.9587 52.6277 66.3211 50.8822H66.3126ZM40.9532 51.255L34.9598 34.8253L45.9945 4.58406L63.0226 51.2635H40.9532V51.255Z" fill="white"/></svg>
+    <div class="logo-divider"></div>
+    <div>
+      <div class="logo-text-top">Alpha Experiences</div>
+      <div class="logo-text-sub">Admin Dashboard</div>
+    </div>
+  </div>
+  <div class="header-right">
+    <span class="admin-badge">Admin</span>
+    <div class="user-wrap">
+      <button class="user-chip" id="user-chip" aria-haspopup="true" aria-expanded="false">
+        <div class="avatar" id="user-avatar">··</div>
+        <span class="user-name" id="user-handle">…</span>
+      </button>
+      <div class="user-menu" id="user-menu" role="menu">
+        <div class="user-menu-email" id="user-menu-email"></div>
+        <a href="/admin" role="menuitem">Admin dashboard</a>
+        <a href="/trips" role="menuitem">Student view</a>
+        <a href="/auth/logout" role="menuitem">Sign out</a>
+      </div>
+    </div>
+  </div>
+</header>
+
+<div id="page-loading" class="page-loading">
+  <div class="spinner"></div>
+</div>
+
+<div id="page-denied" class="page-denied" style="display:none;">
+  <div class="denied-icon">🔒</div>
+  <p class="denied-title">Admins only</p>
+  <p class="denied-sub">This area is for Alpha Anywhere staff.</p>
+  <a href="/trips" class="btn-blue">← Back to my trips</a>
+</div>
+
+<div id="page-content" style="display:none;">
+
+  <div class="back-bar">
+    <a class="back-link" href="/admin">← Back to all trips</a>
+    <span id="trip-id-pill" class="trip-id-pill" style="display:none;">trip_id: <span id="trip-id-value"></span></span>
+  </div>
+
+  <div class="page-body">
+    <div class="page-inner">
+
+      <div id="error-banner"   class="error-banner"></div>
+      <div id="success-banner" class="success-banner"></div>
+
+      <div class="card">
+        <p class="card-title" id="card-title">New trip</p>
+
+        <div class="grid-2">
+          <div class="field-group">
+            <label for="f-title">Trip name</label>
+            <input id="f-title" type="text" maxlength="120" placeholder="Kennedy Space Center">
+          </div>
+          <div class="field-group">
+            <label for="f-emoji">Emoji</label>
+            <input id="f-emoji" type="text" maxlength="4" placeholder="🚀">
+          </div>
+        </div>
+
+        <div class="grid-full">
+          <div class="field-group">
+            <label for="f-description">Description</label>
+            <textarea id="f-description" placeholder="What students will experience on this trip…"></textarea>
+          </div>
+        </div>
+
+        <div class="grid-2" style="margin-top:16px;">
+          <div class="field-group">
+            <label for="f-date">Trip date</label>
+            <input id="f-date" type="date">
+          </div>
+          <div class="field-group">
+            <label for="f-max-seats">Max seats per session</label>
+            <input id="f-max-seats" type="number" min="1" placeholder="20">
+          </div>
+        </div>
+
+        <div class="grid-2" style="margin-top:16px;">
+          <div class="field-group">
+            <label for="f-status">Status</label>
+            <select id="f-status">
+              <option value="draft">Draft</option>
+              <option value="open">Open</option>
+              <option value="closed">Closed</option>
+              <option value="completed">Completed</option>
+            </select>
+          </div>
+          <div class="field-group">
+            <label for="f-format">Format</label>
+            <input id="f-format" type="text" placeholder="Zoom + Nearpod">
+          </div>
+        </div>
+
+        <div class="grid-full" style="margin-top:16px;">
+          <div class="field-group">
+            <label for="f-bring">What to bring</label>
+            <input id="f-bring" type="text" placeholder="Notebook, pencil, curiosity">
+          </div>
+        </div>
+
+        <div class="grid-full" style="margin-top:16px;">
+          <div class="field-group">
+            <label for="f-prompt">Reflection prompt (shown to students at submission)</label>
+            <textarea id="f-prompt" placeholder="What was the most surprising thing you learned?"></textarea>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <p class="card-title">Sessions &amp; links</p>
+        <div id="sessions-list"></div>
+        <button type="button" class="add-btn" id="add-session-btn">+ Add another session</button>
+      </div>
+
+      <div class="card">
+        <p class="card-title">Prep materials</p>
+        <div id="prep-list"></div>
+        <button type="button" class="add-btn" id="add-prep-btn">+ Add prep item</button>
+      </div>
+
+      <div class="footer-bar">
+        <span class="footer-msg" id="footer-msg">Drafts aren't visible to students. Publish when ready.</span>
+        <div class="footer-actions">
+          <button type="button" class="btn-save" id="save-draft-btn">Save as draft</button>
+          <button type="button" class="btn-publish" id="publish-btn">Publish trip</button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<footer class="site-footer">
+  <svg width="24" height="20" viewBox="0 0 67 55" fill="none"><path d="M66.3126 50.8822L48.3919 1.76245C48.0093 0.703285 46.9977 0 45.867 0H20.6096C19.479 0 18.4673 0.703285 18.0848 1.76245L0.164039 50.8822C-0.473557 52.6277 0.82714 54.4749 2.68892 54.4749H25.9059C27.0366 54.4749 28.0483 53.7716 28.4308 52.7125L33.2426 39.5365L38.0543 52.7125C38.4368 53.7716 39.4485 54.4749 40.5792 54.4749H63.7962C65.658 54.4749 66.9587 52.6277 66.3211 50.8822H66.3126ZM40.9532 51.255L34.9598 34.8253L45.9945 4.58406L63.0226 51.2635H40.9532V51.255Z" fill="#FAFAFA" opacity="0.4"/></svg>
+  <p class="footer-text">Alpha Experiences · Admin</p>
+</footer>
+
+<script>
+// ── State ─────────────────────────────────────────────────
+var TRIP_ID = '';   // set on edit; empty for new
+var SAVED   = false;
+
+// ── Helpers ───────────────────────────────────────────────
+function emailHandle(e){ if(!e) return ''; var i=e.indexOf('@'); return i<0?e:e.slice(0,i); }
+function initialsFor(name, email){
+  var s = (name || emailHandle(email) || '').trim();
+  if (!s) return '··';
+  var parts = s.split(/[\s.]+/).filter(Boolean);
+  if (parts.length === 1) return (parts[0][0] || '·').toUpperCase();
+  return ((parts[0][0] || '·') + (parts[parts.length-1][0] || '')).toUpperCase();
+}
+
+function mode(){
+  var p = window.location.pathname.replace(/\/$/, '');
+  if (p === '/admin/trips/new') return { mode:'new', tripId:'' };
+  var m = p.match(/^\/admin\/trips\/([^\/]+)\/edit$/);
+  if (m) return { mode:'edit', tripId: decodeURIComponent(m[1]) };
+  return { mode:'new', tripId:'' };
+}
+
+function showError(msg){
+  var el = document.getElementById('error-banner');
+  el.textContent = msg;
+  el.classList.add('visible');
+  document.getElementById('success-banner').classList.remove('visible');
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+function showSuccess(msg){
+  var el = document.getElementById('success-banner');
+  el.textContent = msg;
+  el.classList.add('visible');
+  document.getElementById('error-banner').classList.remove('visible');
+}
+function clearBanners(){
+  document.getElementById('error-banner').classList.remove('visible');
+  document.getElementById('success-banner').classList.remove('visible');
+}
+
+// ── User menu ─────────────────────────────────────────────
+function setupUserMenu(user){
+  document.getElementById('user-avatar').textContent     = initialsFor(user.name, user.email);
+  document.getElementById('user-handle').textContent     = emailHandle(user.email);
+  document.getElementById('user-menu-email').textContent = user.email;
+  var btn  = document.getElementById('user-chip');
+  var menu = document.getElementById('user-menu');
+  btn.addEventListener('click', function(e){
+    e.stopPropagation();
+    var open = menu.classList.toggle('open');
+    btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+  });
+  document.addEventListener('click', function(e){
+    if (!menu.contains(e.target) && e.target !== btn) {
+      menu.classList.remove('open');
+      btn.setAttribute('aria-expanded', 'false');
+    }
+  });
+}
+
+// ── Sessions list (dynamic) ───────────────────────────────
+function addSessionRow(s){
+  s = s || {};
+  var list = document.getElementById('sessions-list');
+  var card = document.createElement('div');
+  card.className = 'inner-card';
+
+  var num  = list.querySelectorAll('.inner-card').length + 1;
+  var t    = document.createElement('p');
+  t.className   = 'inner-card-title';
+  t.textContent = 'Session ' + num;
+  card.appendChild(t);
+
+  var rm = document.createElement('button');
+  rm.type = 'button';
+  rm.className = 'remove-link';
+  rm.textContent = 'Remove';
+  rm.addEventListener('click', function(){
+    card.remove();
+    renumberSessions();
+  });
+  card.appendChild(rm);
+
+  card.innerHTML += `
+    <input type="hidden" data-field="session_id" value="${escapeAttr(s.session_id || '')}">
+    <div class="grid-2">
+      <div class="field-group">
+        <label>Start time</label>
+        <input type="text" data-field="start_time" value="${escapeAttr(s.start_time || '')}" placeholder="2:00 PM">
+      </div>
+      <div class="field-group">
+        <label>End time</label>
+        <input type="text" data-field="end_time" value="${escapeAttr(s.end_time || '')}" placeholder="3:00 PM">
+      </div>
+    </div>
+    <div class="grid-2" style="margin-top:12px;">
+      <div class="field-group">
+        <label>Zoom link</label>
+        <input type="url" data-field="zoom_link" value="${escapeAttr(s.zoom_link || '')}" placeholder="Add day-of...">
+      </div>
+      <div class="field-group">
+        <label>Nearpod link</label>
+        <input type="url" data-field="nearpod_link" value="${escapeAttr(s.nearpod_link || '')}" placeholder="Add day-of...">
+      </div>
+    </div>
+  `;
+
+  list.appendChild(card);
+}
+function renumberSessions(){
+  var list = document.getElementById('sessions-list');
+  var cards = list.querySelectorAll('.inner-card');
+  cards.forEach(function(c, i){
+    var t = c.querySelector('.inner-card-title');
+    if (t) t.textContent = 'Session ' + (i + 1);
+  });
+}
+
+// ── Prep list (dynamic) ───────────────────────────────────
+function addPrepRow(p){
+  p = p || {};
+  var list = document.getElementById('prep-list');
+  var card = document.createElement('div');
+  card.className = 'inner-card';
+
+  var num  = list.querySelectorAll('.inner-card').length + 1;
+  var t    = document.createElement('p');
+  t.className   = 'inner-card-title';
+  t.textContent = 'Prep item ' + num;
+  card.appendChild(t);
+
+  var rm = document.createElement('button');
+  rm.type = 'button';
+  rm.className = 'remove-link';
+  rm.textContent = 'Remove';
+  rm.addEventListener('click', function(){
+    card.remove();
+    renumberPrep();
+  });
+  card.appendChild(rm);
+
+  var typeVal = (p.type || 'video').toLowerCase();
+  card.innerHTML += `
+    <input type="hidden" data-field="prep_id" value="${escapeAttr(p.prep_id || '')}">
+    <div class="grid-2">
+      <div class="field-group">
+        <label>Title</label>
+        <input type="text" data-field="title" value="${escapeAttr(p.title || '')}" placeholder="Intro to the Space Program">
+      </div>
+      <div class="field-group">
+        <label>Type</label>
+        <select data-field="type">
+          <option value="video"    ${typeVal==='video'?'selected':''}>Video</option>
+          <option value="reading"  ${typeVal==='reading'?'selected':''}>Reading</option>
+          <option value="activity" ${typeVal==='activity'?'selected':''}>Activity</option>
+        </select>
+      </div>
+    </div>
+    <div class="grid-2" style="margin-top:12px;">
+      <div class="field-group">
+        <label>URL</label>
+        <input type="url" data-field="url" value="${escapeAttr(p.url || '')}" placeholder="https://...">
+      </div>
+      <div class="field-group">
+        <label>Duration</label>
+        <input type="text" data-field="duration" value="${escapeAttr(p.duration || '')}" placeholder="8 min">
+      </div>
+    </div>
+  `;
+
+  list.appendChild(card);
+}
+function renumberPrep(){
+  var list = document.getElementById('prep-list');
+  var cards = list.querySelectorAll('.inner-card');
+  cards.forEach(function(c, i){
+    var t = c.querySelector('.inner-card-title');
+    if (t) t.textContent = 'Prep item ' + (i + 1);
+  });
+}
+
+function escapeAttr(s){
+  return String(s || '').replace(/[&<>"']/g, function(c){
+    return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];
+  });
+}
+
+// ── Form (de)serialization ────────────────────────────────
+function setForm(data){
+  data = data || {};
+  var trip = data.trip || {};
+
+  document.getElementById('f-title').value       = trip.title || '';
+  document.getElementById('f-emoji').value       = trip.emoji || '';
+  document.getElementById('f-description').value = trip.description || '';
+  document.getElementById('f-date').value        = trip.trip_date || '';
+  document.getElementById('f-max-seats').value   = trip.max_seats_per_session || '';
+  document.getElementById('f-status').value      = trip.status || 'draft';
+  document.getElementById('f-format').value      = trip.format || '';
+  document.getElementById('f-bring').value       = trip.what_to_bring || '';
+  document.getElementById('f-prompt').value      = trip.reflection_prompt || '';
+
+  var sl = document.getElementById('sessions-list'); sl.innerHTML = '';
+  (data.sessions || []).forEach(addSessionRow);
+  if (!sl.children.length) addSessionRow({});
+
+  var pl = document.getElementById('prep-list'); pl.innerHTML = '';
+  (data.prep || []).forEach(addPrepRow);
+}
+
+function readForm(){
+  var sessions = [];
+  document.querySelectorAll('#sessions-list .inner-card').forEach(function(card){
+    var get = function(n){
+      var el = card.querySelector('[data-field="'+n+'"]');
+      return el ? el.value : '';
+    };
+    sessions.push({
+      session_id:   get('session_id'),
+      start_time:   get('start_time').trim(),
+      end_time:     get('end_time').trim(),
+      zoom_link:    get('zoom_link').trim(),
+      nearpod_link: get('nearpod_link').trim()
+    });
+  });
+  // Drop fully-empty session rows
+  sessions = sessions.filter(function(s){
+    return s.start_time || s.end_time || s.zoom_link || s.nearpod_link;
+  });
+
+  var prep = [];
+  document.querySelectorAll('#prep-list .inner-card').forEach(function(card){
+    var get = function(n){
+      var el = card.querySelector('[data-field="'+n+'"]');
+      return el ? el.value : '';
+    };
+    prep.push({
+      prep_id:  get('prep_id'),
+      title:    get('title').trim(),
+      type:     get('type'),
+      url:      get('url').trim(),
+      duration: get('duration').trim()
+    });
+  });
+  prep = prep.filter(function(p){ return p.title || p.url; });
+
+  return {
+    trip_id:               TRIP_ID || '',
+    title:                 document.getElementById('f-title').value.trim(),
+    emoji:                 document.getElementById('f-emoji').value.trim(),
+    description:           document.getElementById('f-description').value.trim(),
+    trip_date:             document.getElementById('f-date').value,
+    max_seats_per_session: document.getElementById('f-max-seats').value,
+    status:                document.getElementById('f-status').value,
+    format:                document.getElementById('f-format').value.trim(),
+    what_to_bring:         document.getElementById('f-bring').value.trim(),
+    reflection_prompt:     document.getElementById('f-prompt').value.trim(),
+    sessions:              sessions,
+    prep:                  prep
+  };
+}
+
+// ── Save ──────────────────────────────────────────────────
+function setBusy(busy){
+  document.getElementById('save-draft-btn').disabled = busy;
+  document.getElementById('publish-btn').disabled    = busy;
+}
+
+async function save(forceStatus){
+  clearBanners();
+  var body = readForm();
+  if (forceStatus) body.status = forceStatus;
+  if (!body.title) {
+    showError('Trip name is required.');
+    return;
+  }
+  setBusy(true);
+  try {
+    var r = await fetch('/api/admin/trip-save', {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    });
+    var data = await r.json().catch(function(){ return {}; });
+    if (r.status !== 200) {
+      throw new Error(data.error || ('save failed: ' + r.status));
+    }
+
+    SAVED = true;
+    var newId = data.trip_id;
+    showSuccess('Saved.');
+
+    // For a new trip, redirect to the edit URL so further saves are updates
+    if (!TRIP_ID && newId) {
+      window.location.replace('/admin/trips/' + encodeURIComponent(newId) + '/edit');
+      return;
+    }
+  } catch (err) {
+    console.error(err);
+    showError('Couldn\'t save: ' + (err.message || err));
+  } finally {
+    setBusy(false);
+  }
+}
+
+// ── Init ──────────────────────────────────────────────────
+async function init(){
+  var meRes;
+  try { meRes = await fetch('/auth/me', { credentials:'same-origin' }); }
+  catch (e) { window.location.href = '/auth/login'; return; }
+  if (meRes.status !== 200) { window.location.href = '/auth/login'; return; }
+  var user = await meRes.json();
+
+  if (!user.isAdmin) {
+    document.getElementById('page-loading').style.display = 'none';
+    document.getElementById('page-denied').style.display = 'flex';
+    return;
+  }
+  setupUserMenu(user);
+
+  var m = mode();
+
+  if (m.mode === 'edit') {
+    TRIP_ID = m.tripId;
+    document.getElementById('card-title').textContent = 'Edit trip';
+    document.getElementById('trip-id-pill').style.display = '';
+    document.getElementById('trip-id-value').textContent = TRIP_ID;
+
+    try {
+      var r = await fetch('/api/admin/trip-get?trip_id=' + encodeURIComponent(TRIP_ID), { credentials:'same-origin' });
+      if (r.status === 404) {
+        document.getElementById('page-loading').style.display = 'none';
+        document.getElementById('page-denied').style.display = 'flex';
+        document.querySelector('.denied-icon').textContent = '❓';
+        document.querySelector('.denied-title').textContent = 'Trip not found';
+        document.querySelector('.denied-sub').textContent = 'No trip with that ID exists.';
+        return;
+      }
+      if (r.status !== 200) {
+        document.getElementById('page-loading').style.display = 'none';
+        document.getElementById('page-denied').style.display = 'flex';
+        document.querySelector('.denied-title').textContent = 'Couldn\'t load trip';
+        document.querySelector('.denied-sub').textContent = 'Try refreshing the page.';
+        return;
+      }
+      var data = await r.json();
+      setForm(data);
+    } catch (e) {
+      console.error(e);
+    }
+  } else {
+    document.getElementById('card-title').textContent = 'New trip';
+    setForm({ trip:{}, sessions:[], prep:[] });
+  }
+
+  document.getElementById('add-session-btn').addEventListener('click', function(){ addSessionRow({}); });
+  document.getElementById('add-prep-btn').addEventListener('click',    function(){ addPrepRow({}); });
+  document.getElementById('save-draft-btn').addEventListener('click',  function(){ save('draft'); });
+  document.getElementById('publish-btn').addEventListener('click',     function(){ save('open'); });
+
+  // Warn before navigating away with unsaved input (but not after a successful save)
+  window.addEventListener('beforeunload', function(e){
+    if (SAVED) return;
+    var hasContent = document.getElementById('f-title').value.trim();
+    if (hasContent) { e.preventDefault(); e.returnValue = ''; }
+  });
+
+  document.getElementById('page-loading').style.display = 'none';
+  document.getElementById('page-content').style.display = '';
+}
+
+init();
+</script>
+
+</body>
+</html>
