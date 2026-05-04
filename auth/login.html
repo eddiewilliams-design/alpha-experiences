@@ -63,7 +63,7 @@ h1 span{color:var(--aa-blue);}
 
   <div id="error-banner" class="error-banner"></div>
 
-  <a href="/auth/google" class="google-btn">
+  <a href="/auth/google" class="google-btn" id="google-btn">
     <svg class="google-icon" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
       <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
       <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
@@ -81,18 +81,30 @@ h1 span{color:var(--aa-blue);}
 <script>
 (function(){
   var params = new URLSearchParams(window.location.search);
+
+  // Show any error message
   var err = params.get('error');
-  if (!err) return;
-  var messages = {
-    domain: 'This portal is for Alpha Anywhere team members only. Sign in with your @2hourlearning.com or @alpha.school account.',
-    unverified: 'Your Google account email is not verified. Verify it in your Google account settings, then try again.',
-    state: 'Your sign-in session expired. Please try signing in again.',
-    oauth: 'We couldn’t complete sign-in with Google. Please try again.',
-    server: 'Something went wrong on our end. Please try again in a moment.'
-  };
-  var el = document.getElementById('error-banner');
-  el.textContent = messages[err] || messages.server;
-  el.className = 'error-banner visible';
+  if (err) {
+    var messages = {
+      domain: 'This portal is for Alpha Anywhere team members only. Sign in with your @2hourlearning.com or @alpha.school account.',
+      unverified: 'Your Google account email is not verified. Verify it in your Google account settings, then try again.',
+      state: 'Your sign-in session expired. Please try signing in again.',
+      oauth: 'We couldn’t complete sign-in with Google. Please try again.',
+      server: 'Something went wrong on our end. Please try again in a moment.'
+    };
+    var el = document.getElementById('error-banner');
+    el.textContent = messages[err] || messages.server;
+    el.className = 'error-banner visible';
+  }
+
+  // Forward an optional return_to to /auth/google so the OAuth round-trip
+  // can land the user back on the deep link they originally clicked.
+  // Reject anything that isn't a same-origin path, just in case.
+  var rt = params.get('return_to') || '';
+  if (rt && rt[0] === '/' && rt.indexOf('//') !== 0 && rt.indexOf('\\') === -1) {
+    var btn = document.getElementById('google-btn');
+    if (btn) btn.href = '/auth/google?return_to=' + encodeURIComponent(rt);
+  }
 })();
 </script>
 

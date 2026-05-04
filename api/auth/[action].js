@@ -18,7 +18,8 @@ const {
   isAllowedDomain,
   isAdminEmail,
   getSession,
-  getState,
+  getStateAndReturn,
+  sanitizeReturnTo,
   clearStateCookie,
   makeStateCookie,
   makeSessionCookie,
@@ -35,6 +36,7 @@ function handleGoogle(req, res) {
 
   const state       = crypto.randomBytes(24).toString('hex');
   const redirectUri = `${getOrigin(req)}/auth/callback`;
+  const returnTo    = sanitizeReturnTo(req.query.return_to);
 
   const params = new URLSearchParams({
     client_id:     clientId,
@@ -46,7 +48,7 @@ function handleGoogle(req, res) {
     prompt:        'select_account'
   });
 
-  res.setHeader('Set-Cookie', makeStateCookie(state));
+  res.setHeader('Set-Cookie', makeStateCookie(state, returnTo));
   res.setHeader('Cache-Control', 'no-store');
   return res.redirect(302, 'https://accounts.google.com/o/oauth2/v2/auth?' + params.toString());
 }
@@ -58,9 +60,9 @@ function callbackFail(res, code) {
 }
 
 async function handleCallback(req, res) {
-  const code        = (req.query.code  || '').toString();
-  const stateParam  = (req.query.state || '').toString();
-  const stateCookie = getState(req);
+  const code           = (req.query.code  || '').toString();
+  const stateParam     = (req.query.state || '').toString();
+  const { state: stateCookie, returnTo } = getStateAndReturn(req);
 
   if (!code || !stateParam || !stateCookie || stateParam !== stateCookie) {
     return callbackFail(res, 'state');
@@ -109,7 +111,10 @@ async function handleCallback(req, res) {
   });
 
   res.setHeader('Set-Cookie', [sessionCookie, clearStateCookie()]);
-  return res.redirect(302, admin ? '/admin' : '/trips');
+  // If a deep link was preserved through the OAuth round-trip, honour
+  // it. Otherwise fall back to the role-default landing page.
+  const dest = returnTo || (admin ? '/admin' : '/trips');
+  return res.redirect(302, dest);
 }
 
 // ── /auth/me ────────────────────────────────────────────────

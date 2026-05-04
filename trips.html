@@ -340,11 +340,11 @@ async function init() {
   var meRes;
   try { meRes = await fetch('/auth/me', { credentials: 'same-origin' }); }
   catch (e) {
-    window.location.href = '/auth/login';
+    window.location.href = '/auth/login?return_to=' + encodeURIComponent(window.location.pathname + window.location.search);
     return;
   }
   if (meRes.status !== 200) {
-    window.location.href = '/auth/login';
+    window.location.href = '/auth/login?return_to=' + encodeURIComponent(window.location.pathname + window.location.search);
     return;
   }
   var user = await meRes.json();

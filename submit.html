@@ -465,7 +465,7 @@ async function submitProject(){
     if (msg === 'not_purchased') {
       showError('You\'re not registered for this trip. Reach out to your coach if you think this is wrong.');
     } else if (msg === 'not_authenticated') {
-      window.location.href = '/auth/login';
+      window.location.href = '/auth/login?return_to=' + encodeURIComponent(window.location.pathname + window.location.search);
     } else {
       showError('Something went wrong while submitting. Please try again, or refresh the page if it keeps failing.');
     }
@@ -477,8 +477,8 @@ async function init(){
   // Auth gate
   var meRes;
   try { meRes = await fetch('/auth/me', { credentials: 'same-origin' }); }
-  catch (e) { window.location.href = '/auth/login'; return; }
-  if (meRes.status !== 200) { window.location.href = '/auth/login'; return; }
+  catch (e) { window.location.href = '/auth/login?return_to=' + encodeURIComponent(window.location.pathname + window.location.search); return; }
+  if (meRes.status !== 200) { window.location.href = '/auth/login?return_to=' + encodeURIComponent(window.location.pathname + window.location.search); return; }
   var user = await meRes.json();
   setupUserMenu(user);
 
@@ -501,7 +501,7 @@ async function init(){
     document.getElementById('page-error').style.display = 'flex';
     return;
   }
-  if (tr.status === 401) { window.location.href = '/auth/login'; return; }
+  if (tr.status === 401) { window.location.href = '/auth/login?return_to=' + encodeURIComponent(window.location.pathname + window.location.search); return; }
   if (tr.status !== 200) {
     document.getElementById('page-loading').style.display = 'none';
     document.getElementById('error-title').textContent = 'Trip not found';

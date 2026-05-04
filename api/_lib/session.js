@@ -116,9 +116,29 @@ function getSession(req) {
   return verifySession(cookies[SESSION_COOKIE]);
 }
 
-// ── OAuth state cookie (CSRF) ───────────────────────────────
-function makeStateCookie(state) {
-  return serializeCookie(STATE_COOKIE, state, {
+// ── Return-to (deep-link) sanitiser ────────────────────────
+// Accepts only same-origin paths. Blocks open-redirect vectors
+// like `//evil.com/foo` or `\\evil.com` and refuses to bounce
+// the user back into the auth flow.
+function sanitizeReturnTo(p) {
+  if (!p || typeof p !== 'string') return '';
+  const s = p.trim();
+  if (s.length === 0 || s.length > 500)        return '';
+  if (s[0] !== '/')                              return '';
+  if (s.startsWith('//') || s.startsWith('/\\')) return '';
+  if (s.indexOf('\\') !== -1)                    return '';
+  if (s === '/auth' || s.startsWith('/auth/'))   return '';
+  return s;
+}
+
+// ── OAuth state cookie (CSRF + deep-link return) ───────────
+// Cookie value:
+//   "<state>"                    when no return_to
+//   "<state>.<b64url(returnTo)>" when carrying a deep link
+function makeStateCookie(state, returnTo) {
+  const safeReturn = sanitizeReturnTo(returnTo);
+  const value = safeReturn ? `${state}.${b64urlEncode(safeReturn)}` : state;
+  return serializeCookie(STATE_COOKIE, value, {
     httpOnly: true,
     secure:   true,
     sameSite: 'Lax',
@@ -138,7 +158,21 @@ function clearStateCookie() {
 }
 
 function getState(req) {
-  return parseCookies(req)[STATE_COOKIE] || '';
+  // Returns just the CSRF portion (left of the dot) for legacy callers.
+  const v = parseCookies(req)[STATE_COOKIE] || '';
+  const i = v.indexOf('.');
+  return i < 0 ? v : v.slice(0, i);
+}
+
+// New helper: returns both the CSRF token and the optional deep-link path.
+function getStateAndReturn(req) {
+  const v = parseCookies(req)[STATE_COOKIE] || '';
+  const i = v.indexOf('.');
+  if (i < 0) return { state: v, returnTo: '' };
+  let returnTo = '';
+  try { returnTo = b64urlDecode(v.slice(i + 1)).toString('utf8'); }
+  catch (e) { returnTo = ''; }
+  return { state: v.slice(0, i), returnTo: sanitizeReturnTo(returnTo) };
 }
 
 // ── Domain check ────────────────────────────────────────────
@@ -269,6 +303,8 @@ module.exports = {
   makeStateCookie,
   clearStateCookie,
   getState,
+  getStateAndReturn,
+  sanitizeReturnTo,
   isAllowedDomain,
   isAdminEmail,
   decodeIdToken,
