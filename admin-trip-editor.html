@@ -15,7 +15,7 @@
   --aa-med-grey:#DADFE7;--aa-dark-grey:#8291AA;--aa-light-grey:#EEF0F3;
   --aa-green:#2C8707;--aa-light-green:#EEFDE8;
 }
-body{font-family:'Nunito Sans',sans-serif;background:var(--aa-white);min-height:100vh;color:var(--aa-navy);}
+body{font-family:'Nunito Sans',sans-serif;background:var(--aa-white);min-height:100vh;color:var(--aa-navy);display:flex;flex-direction:column;}
 
 /* ── Admin Header ── */
 .site-header{background:var(--aa-navy);padding:16px 32px;display:flex;align-items:center;justify-content:space-between;}
@@ -107,7 +107,7 @@ input::placeholder,textarea::placeholder{color:var(--aa-dark-grey);}
 .btn-blue{background:var(--aa-blue);color:#fff;font-size:13px;font-weight:700;padding:10px 22px;border-radius:999px;text-decoration:none;display:inline-block;border:none;cursor:pointer;font-family:inherit;}
 
 /* ── Site footer ── */
-.site-footer{background:var(--aa-navy);padding:20px 32px;text-align:center;border-top:3px solid var(--aa-blue);}
+.site-footer{background:var(--aa-navy);padding:20px 32px;text-align:center;border-top:3px solid var(--aa-blue);margin-top:auto;}
 .footer-text{font-size:11px;color:var(--aa-dark-grey);letter-spacing:0.05em;text-transform:uppercase;margin-top:8px;}
 </style>
 </head>
@@ -223,6 +223,23 @@ input::placeholder,textarea::placeholder{color:var(--aa-dark-grey);}
             <label for="f-prompt">Reflection prompt (shown to students at submission)</label>
             <textarea id="f-prompt" placeholder="What was the most surprising thing you learned?"></textarea>
           </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <p class="card-title">Theming <span style="font-weight:500;font-size:12px;color:var(--aa-dark-grey);text-transform:none;letter-spacing:0;">(optional)</span></p>
+        <p style="font-size:12px;color:var(--aa-dark-grey);line-height:1.55;margin-top:-12px;margin-bottom:18px;">Make the trip's detail page feel themed. Both fields are optional — leave blank for the default look.</p>
+
+        <div class="field-group">
+          <label for="f-hero-image">Hero image URL</label>
+          <input id="f-hero-image" type="url" placeholder="https://images.unsplash.com/photo-...">
+          <p style="font-size:11px;color:var(--aa-dark-grey);margin-top:4px;">A landscape photo to use as the hero background. Try Unsplash → right-click → Copy image address. We'll auto-darken it so the title stays readable.</p>
+        </div>
+
+        <div class="field-group" style="margin-top:16px;">
+          <label for="f-theme-emojis">Theme emojis</label>
+          <input id="f-theme-emojis" type="text" placeholder="🚀 🌌 👨‍🚀 🛸 ⭐ 🌙">
+          <p style="font-size:11px;color:var(--aa-dark-grey);margin-top:4px;">Space-separated emojis to scatter as decoration in the hero. Skip this if your topic doesn't have great emojis (museums, history, etc.) — the hero image alone is plenty.</p>
         </div>
       </div>
 
@@ -454,15 +471,17 @@ function setForm(data){
   data = data || {};
   var trip = data.trip || {};
 
-  document.getElementById('f-title').value       = trip.title || '';
-  document.getElementById('f-emoji').value       = trip.emoji || '';
-  document.getElementById('f-description').value = trip.description || '';
-  document.getElementById('f-date').value        = trip.trip_date || '';
-  document.getElementById('f-max-seats').value   = trip.max_seats_per_session || '';
-  document.getElementById('f-status').value      = trip.status || 'draft';
-  document.getElementById('f-format').value      = trip.format || '';
-  document.getElementById('f-bring').value       = trip.what_to_bring || '';
-  document.getElementById('f-prompt').value      = trip.reflection_prompt || '';
+  document.getElementById('f-title').value         = trip.title || '';
+  document.getElementById('f-emoji').value         = trip.emoji || '';
+  document.getElementById('f-description').value   = trip.description || '';
+  document.getElementById('f-date').value          = trip.trip_date || '';
+  document.getElementById('f-max-seats').value     = trip.max_seats_per_session || '';
+  document.getElementById('f-status').value        = trip.status || 'draft';
+  document.getElementById('f-format').value        = trip.format || '';
+  document.getElementById('f-bring').value         = trip.what_to_bring || '';
+  document.getElementById('f-prompt').value        = trip.reflection_prompt || '';
+  document.getElementById('f-hero-image').value    = trip.hero_image_url || '';
+  document.getElementById('f-theme-emojis').value  = trip.theme_emojis || '';
 
   var sl = document.getElementById('sessions-list'); sl.innerHTML = '';
   (data.sessions || []).forEach(addSessionRow);
@@ -519,6 +538,8 @@ function readForm(){
     format:                document.getElementById('f-format').value.trim(),
     what_to_bring:         document.getElementById('f-bring').value.trim(),
     reflection_prompt:     document.getElementById('f-prompt').value.trim(),
+    hero_image_url:        document.getElementById('f-hero-image').value.trim(),
+    theme_emojis:          document.getElementById('f-theme-emojis').value.trim(),
     sessions:              sessions,
     prep:                  prep
   };

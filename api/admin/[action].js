@@ -246,7 +246,7 @@ async function handleTripGet(req, res) {
 
   try {
     const token = await getAccessToken();
-    const sheet = await batchGet(token, ['FT_Catalog!A:K', 'FT_Sessions!A:F', 'FT_Prep!A:F']);
+    const sheet = await batchGet(token, ['FT_Catalog!A:M', 'FT_Sessions!A:F', 'FT_Prep!A:F']);
     const ranges = (sheet && sheet.valueRanges) || [];
     const catalogRows = (ranges[0] && ranges[0].values) || [];
     const sessionRows = (ranges[1] && ranges[1].values) || [];
@@ -267,7 +267,9 @@ async function handleTripGet(req, res) {
           reflection_prompt:     (r[7]  || '').toString(),
           thumbnail_url:         (r[8]  || '').toString(),
           what_to_bring:         (r[9]  || '').toString(),
-          format:                (r[10] || '').toString()
+          format:                (r[10] || '').toString(),
+          hero_image_url:        (r[11] || '').toString(),
+          theme_emojis:          (r[12] || '').toString()
         };
         break;
       }
@@ -332,7 +334,9 @@ async function handleTripSave(req, res) {
     max_seats_per_session: (body.max_seats_per_session || '').toString(),
     reflection_prompt:     (body.reflection_prompt || '').toString(),
     what_to_bring:         (body.what_to_bring     || '').toString(),
-    format:                (body.format            || '').toString()
+    format:                (body.format            || '').toString(),
+    hero_image_url:        (body.hero_image_url    || '').toString().trim(),
+    theme_emojis:          (body.theme_emojis      || '').toString().trim()
   };
 
   const incomingSessions = Array.isArray(body.sessions) ? body.sessions : [];
@@ -349,7 +353,7 @@ async function handleTripSave(req, res) {
   // 1. Read existing data
   let catalogRows, sessionRows, prepRows;
   try {
-    const sheet = await batchGet(token, ['FT_Catalog!A:K', 'FT_Sessions!A:F', 'FT_Prep!A:F']);
+    const sheet = await batchGet(token, ['FT_Catalog!A:M', 'FT_Sessions!A:F', 'FT_Prep!A:F']);
     const ranges = (sheet && sheet.valueRanges) || [];
     catalogRows = (ranges[0] && ranges[0].values) || [];
     sessionRows = (ranges[1] && ranges[1].values) || [];
@@ -398,15 +402,17 @@ async function handleTripSave(req, res) {
     incoming.reflection_prompt,
     '',                       // thumbnail_url (col I) — unused for now
     incoming.what_to_bring,
-    incoming.format
+    incoming.format,
+    incoming.hero_image_url,
+    incoming.theme_emojis
   ];
 
   try {
     if (existingRowIndex >= 0) {
       const rowNum = existingRowIndex + 1; // 1-indexed
-      await sheetsUpdate(token, `FT_Catalog!A${rowNum}:K${rowNum}`, [catalogRow]);
+      await sheetsUpdate(token, `FT_Catalog!A${rowNum}:M${rowNum}`, [catalogRow]);
     } else {
-      await sheetsAppend(token, 'FT_Catalog!A:K', [catalogRow]);
+      await sheetsAppend(token, 'FT_Catalog!A:M', [catalogRow]);
     }
   } catch (err) {
     console.error('trip-save catalog write error:', err.message);
@@ -485,7 +491,7 @@ async function handleTripDelete(req, res) {
   let catalogRows, sessionRows, prepRows, purchaseRows;
   try {
     const sheet = await batchGet(token, [
-      'FT_Catalog!A:K', 'FT_Sessions!A:F', 'FT_Prep!A:F', 'FT_Purchases!A:I'
+      'FT_Catalog!A:M', 'FT_Sessions!A:F', 'FT_Prep!A:F', 'FT_Purchases!A:I'
     ]);
     const ranges = (sheet && sheet.valueRanges) || [];
     catalogRows  = (ranges[0] && ranges[0].values) || [];
@@ -520,7 +526,8 @@ async function handleTripDelete(req, res) {
   // Catalog: keep header + every row except this trip's
   const catalogHeader = catalogRows[0] || [
     'trip_id','title','description','emoji','trip_date','status',
-    'max_seats_per_session','reflection_prompt','thumbnail_url','what_to_bring','format'
+    'max_seats_per_session','reflection_prompt','thumbnail_url','what_to_bring','format',
+    'hero_image_url','theme_emojis'
   ];
   const remainingCatalog = catalogRows.slice(1).filter(r => (r[0] || '').toString().trim() !== tripId);
   const newCatalog = [catalogHeader].concat(remainingCatalog);
@@ -536,7 +543,7 @@ async function handleTripDelete(req, res) {
   const newPrep = [prepHeader].concat(remainingPrep);
 
   try {
-    await sheetsClear(token,  'FT_Catalog!A:K');
+    await sheetsClear(token,  'FT_Catalog!A:M');
     await sheetsUpdate(token, 'FT_Catalog!A1', newCatalog);
     await sheetsClear(token,  'FT_Sessions!A:F');
     await sheetsUpdate(token, 'FT_Sessions!A1', newSessions);

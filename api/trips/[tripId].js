@@ -24,7 +24,7 @@ const crypto = require('crypto');
 
 const SHEET_ID  = '1aQYysCOOR-mYG8Myrl1BSU2PF8wMl-si8pgNG89sRto';
 const TZ        = 'America/Chicago';
-const RANGES    = ['FT_Catalog!A:K', 'FT_Sessions!A:F', 'FT_Prep!A:F', 'FT_Purchases!A:I'];
+const RANGES    = ['FT_Catalog!A:M', 'FT_Sessions!A:F', 'FT_Prep!A:F', 'FT_Purchases!A:I'];
 // Unlock window: [start − UNLOCK_BEFORE_MS, end + GRACE_AFTER_MS].
 // If end_time is missing or unparseable we assume FALLBACK_LEN_MS after start.
 const UNLOCK_BEFORE_MS = 15 * 60 * 1000;       // open 15 min before start
@@ -169,7 +169,9 @@ module.exports = async (req, res) => {
         status:            (r[5] || '').toString().toLowerCase(),
         reflection_prompt: (r[7] || '').toString(),
         what_to_bring:     (r[9]  || '').toString().trim() || 'Notebook, pencil, curiosity',
-        format:            (r[10] || '').toString().trim() || 'Zoom + Nearpod'
+        format:            (r[10] || '').toString().trim() || 'Zoom + Nearpod',
+        hero_image_url:    (r[11] || '').toString().trim(),
+        theme_emojis:      (r[12] || '').toString().trim()
       };
       break;
     }

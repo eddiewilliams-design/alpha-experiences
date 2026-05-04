@@ -15,7 +15,7 @@
   --aa-med-grey:#DADFE7;--aa-dark-grey:#8291AA;--aa-light-grey:#EEF0F3;
   --aa-green:#2C8707;--aa-light-green:#EEFDE8;
 }
-body{font-family:'Nunito Sans',sans-serif;background:var(--aa-white);min-height:100vh;color:var(--aa-navy);}
+body{font-family:'Nunito Sans',sans-serif;background:var(--aa-white);min-height:100vh;color:var(--aa-navy);display:flex;flex-direction:column;}
 
 /* ── Header ── */
 .site-header{background:var(--aa-navy);padding:16px 32px;display:flex;align-items:center;justify-content:space-between;}
@@ -40,11 +40,13 @@ body{font-family:'Nunito Sans',sans-serif;background:var(--aa-white);min-height:
 .back-link:hover{text-decoration:underline;}
 
 /* ── Hero ── */
-.hero{background:var(--aa-navy);padding:36px 32px 0;text-align:center;}
-.hero-badge{display:inline-block;background:rgba(255,255,255,0.12);color:rgba(255,255,255,0.85);font-size:11px;font-weight:700;letter-spacing:0.07em;padding:5px 16px;border-radius:999px;margin-bottom:14px;}
-.hero-title{font-family:'Nunito',sans-serif;font-weight:900;font-size:clamp(24px,4vw,34px);color:#fff;line-height:1.12;margin-bottom:10px;}
-.hero-sub{font-size:13px;color:rgba(255,255,255,0.5);line-height:1.6;margin-bottom:0;}
-.hero-scallop{background:var(--aa-light-grey);height:28px;border-radius:28px 28px 0 0;margin:24px -32px 0;}
+.hero{background:var(--aa-navy);padding:36px 32px 0;text-align:center;position:relative;overflow:hidden;}
+.hero.has-image{background-color:var(--aa-navy);background-size:cover;background-position:center;background-repeat:no-repeat;}
+.hero-badge{display:inline-block;background:rgba(255,255,255,0.12);color:#fff;font-size:11px;font-weight:700;letter-spacing:0.07em;padding:5px 16px;border-radius:999px;margin-bottom:14px;position:relative;z-index:2;backdrop-filter:blur(2px);}
+.hero-title{font-family:'Nunito',sans-serif;font-weight:900;font-size:clamp(24px,4vw,34px);color:#fff;line-height:1.12;margin-bottom:10px;position:relative;z-index:2;text-shadow:0 2px 8px rgba(0,0,0,0.3);}
+.hero-sub{font-size:13px;color:rgba(255,255,255,0.7);line-height:1.6;margin-bottom:0;position:relative;z-index:2;text-shadow:0 1px 4px rgba(0,0,0,0.3);}
+.hero-scallop{background:var(--aa-light-grey);height:28px;border-radius:28px 28px 0 0;margin:24px -32px 0;position:relative;z-index:2;}
+.hero-deco{position:absolute;pointer-events:none;user-select:none;z-index:1;line-height:1;}
 
 /* ── Body ── */
 .page-body{background:var(--aa-light-grey);padding:24px 24px 56px;}
@@ -102,8 +104,8 @@ body{font-family:'Nunito Sans',sans-serif;background:var(--aa-white);min-height:
 .submit-sub{font-size:12px;color:rgba(255,255,255,0.5);}
 .submit-btn{background:var(--aa-yellow);color:#3a2000;font-size:13px;font-weight:700;padding:11px 22px;border-radius:999px;white-space:nowrap;cursor:pointer;text-decoration:none;display:inline-block;border:none;}
 
-/* ── Footer ── */
-.site-footer{background:var(--aa-navy);padding:20px 32px;text-align:center;border-top:3px solid var(--aa-blue);}
+/* ── Footer (sticky to bottom even on short pages) ── */
+.site-footer{background:var(--aa-navy);padding:20px 32px;text-align:center;border-top:3px solid var(--aa-blue);margin-top:auto;}
 .footer-text{font-size:11px;color:var(--aa-dark-grey);letter-spacing:0.05em;text-transform:uppercase;margin-top:8px;}
 
 /* ── Loading + Error ── */
@@ -289,6 +291,73 @@ function renderHero(trip, mySession){
     subBits.push([mySession.start_time, mySession.end_time].filter(Boolean).join(' – '));
   }
   document.getElementById('hero-sub').textContent = subBits.join('  ·  ');
+
+  applyHeroTheme(trip);
+}
+
+// Seeded RNG so emoji positions are stable per trip across reloads.
+function seededRand(seed){
+  var s = 0;
+  for (var i = 0; i < seed.length; i++) s = (s * 31 + seed.charCodeAt(i)) | 0;
+  return function(){
+    s = (s * 9301 + 49297) % 233280;
+    return s / 233280;
+  };
+}
+
+function applyHeroTheme(trip){
+  var hero = document.querySelector('.hero');
+  if (!hero) return;
+
+  // Clear any previous decorations (e.g. on poll-driven re-renders)
+  hero.querySelectorAll('.hero-deco').forEach(function(el){ el.remove(); });
+
+  // 1. Hero image (with dark overlay so white text stays readable)
+  var img = (trip.hero_image_url || '').trim();
+  if (img && /^https?:\/\//i.test(img)) {
+    hero.classList.add('has-image');
+    hero.style.backgroundImage =
+      'linear-gradient(rgba(7,34,86,0.62), rgba(7,34,86,0.78)), url("' + img.replace(/"/g, '%22') + '")';
+  } else {
+    hero.classList.remove('has-image');
+    hero.style.backgroundImage = '';
+  }
+
+  // 2. Scattered theme emojis
+  var raw = (trip.theme_emojis || '').trim();
+  if (!raw) return;
+
+  // Split on whitespace; preserve compound emojis (already non-space sequences)
+  var pieces = raw.split(/\s+/).filter(Boolean);
+  if (!pieces.length) return;
+
+  // Aim for ~12 decorations, repeating the input list as needed
+  var TARGET = 12;
+  var bag = [];
+  while (bag.length < TARGET) bag = bag.concat(pieces);
+  bag = bag.slice(0, TARGET);
+
+  var rand = seededRand(trip.trip_id || raw);
+
+  bag.forEach(function(em){
+    var span = document.createElement('span');
+    span.className = 'hero-deco';
+    span.textContent = em;
+
+    var size = Math.round(28 + rand() * 48);          // 28–76px
+    var top  = Math.round(rand() * 88);               // 0–88%
+    var left = Math.round(rand() * 92);               // 0–92%
+    var rot  = Math.round(rand() * 60 - 30);          // -30..+30 deg
+    var op   = (0.12 + rand() * 0.18).toFixed(2);     // 0.12–0.30
+
+    span.style.fontSize  = size + 'px';
+    span.style.top       = top + '%';
+    span.style.left      = left + '%';
+    span.style.transform = 'rotate(' + rot + 'deg)';
+    span.style.opacity   = op;
+
+    hero.appendChild(span);
+  });
 }
 
 function renderDetails(trip, mySession){
