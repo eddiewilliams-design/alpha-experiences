@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Admin — Field Trips Dashboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@700;800;900&family=Nunito+Sans:wght@300;400;600;700&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+:root{
+  --aa-navy:#072256;--aa-blue:#006FF9;--aa-yellow:#E59500;
+  --aa-white:#FAFAFA;--aa-light-blue:#E5F6FD;--aa-light-yellow:#FFF7E5;
+  --aa-med-grey:#DADFE7;--aa-dark-grey:#8291AA;--aa-light-grey:#EEF0F3;
+  --aa-green:#2C8707;--aa-light-green:#EEFDE8;
+}
+body{font-family:'Nunito Sans',sans-serif;background:var(--aa-white);min-height:100vh;color:var(--aa-navy);}
+
+/* ── Admin Header ── */
+.site-header{background:var(--aa-navy);padding:16px 32px;display:flex;align-items:center;justify-content:space-between;}
+.header-logo{display:flex;align-items:center;gap:12px;}
+.logo-divider{width:1px;height:28px;background:rgba(255,255,255,0.2);}
+.logo-text-top{font-family:'Nunito',sans-serif;font-weight:900;font-size:14px;color:#fff;line-height:1.1;}
+.logo-text-sub{font-size:10px;color:rgba(255,255,255,0.5);font-weight:600;letter-spacing:0.05em;text-transform:uppercase;}
+.header-right{display:flex;align-items:center;gap:10px;}
+.admin-badge{background:var(--aa-yellow);color:#3a2000;font-size:10px;font-weight:800;padding:4px 12px;border-radius:999px;letter-spacing:0.04em;text-transform:uppercase;}
+.user-wrap{position:relative;}
+.user-chip{display:flex;align-items:center;gap:8px;background:rgba(255,255,255,0.12);border:none;border-radius:999px;padding:6px 14px 6px 7px;cursor:pointer;font-family:inherit;}
+.user-chip:hover{background:rgba(255,255,255,0.18);}
+.avatar{width:26px;height:26px;border-radius:50%;background:var(--aa-blue);display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:#fff;}
+.user-name{font-size:13px;color:rgba(255,255,255,0.85);font-weight:600;}
+.user-menu{position:absolute;top:calc(100% + 8px);right:0;background:#fff;border:1px solid var(--aa-med-grey);border-radius:12px;box-shadow:0 8px 24px rgba(7,34,86,0.15);padding:6px;min-width:180px;display:none;z-index:50;}
+.user-menu.open{display:block;}
+.user-menu-email{font-size:11px;color:var(--aa-dark-grey);padding:8px 12px 10px;border-bottom:1px solid var(--aa-light-grey);margin-bottom:6px;word-break:break-all;}
+.user-menu a{display:block;padding:9px 12px;font-size:13px;font-weight:600;color:var(--aa-navy);text-decoration:none;border-radius:8px;}
+.user-menu a:hover{background:var(--aa-light-grey);}
+
+/* ── Admin Nav Tabs ── */
+.admin-nav{background:#fff;border-bottom:1.5px solid var(--aa-med-grey);padding:0 32px;display:flex;gap:4px;overflow-x:auto;}
+.admin-tab{font-size:13px;font-weight:600;color:var(--aa-dark-grey);padding:14px 16px;border-bottom:2.5px solid transparent;cursor:pointer;white-space:nowrap;text-decoration:none;}
+.admin-tab.active{color:var(--aa-blue);border-bottom-color:var(--aa-blue);}
+.admin-tab:hover:not(.active){color:var(--aa-navy);}
+
+/* ── Body ── */
+.page-body{background:var(--aa-light-grey);padding:28px 24px 56px;min-height:60vh;}
+.page-inner{max-width:900px;margin:0 auto;}
+
+/* ── Toolbar ── */
+.toolbar{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;gap:12px;flex-wrap:wrap;}
+.toolbar-title{font-family:'Nunito',sans-serif;font-weight:800;font-size:18px;color:var(--aa-navy);}
+.btn-blue{background:var(--aa-blue);color:#fff;font-size:13px;font-weight:700;padding:10px 20px;border-radius:999px;border:none;cursor:pointer;text-decoration:none;display:inline-block;}
+
+/* ── Trip Rows ── */
+.trip-row{background:#fff;border-radius:16px;border:1.5px solid var(--aa-med-grey);padding:18px 20px;margin-bottom:12px;display:flex;align-items:center;gap:18px;flex-wrap:wrap;}
+.trip-thumb{width:56px;height:56px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:28px;flex-shrink:0;}
+.trip-info{flex:1;min-width:160px;}
+.trip-name{font-family:'Nunito',sans-serif;font-weight:800;font-size:16px;color:var(--aa-navy);margin-bottom:3px;}
+.trip-meta{font-size:12px;color:var(--aa-dark-grey);}
+.trip-progress-wrap{display:flex;flex-direction:column;gap:4px;min-width:140px;}
+.trip-progress-label{font-size:11px;font-weight:700;color:var(--aa-dark-grey);}
+.progress-bar{height:6px;background:var(--aa-med-grey);border-radius:999px;overflow:hidden;}
+.progress-fill{height:100%;background:var(--aa-blue);border-radius:999px;transition:width 0.3s;}
+.status-badge{font-size:11px;font-weight:700;padding:4px 12px;border-radius:999px;white-space:nowrap;}
+.status-open{background:var(--aa-light-green);color:#1a5205;}
+.status-draft{background:var(--aa-light-yellow);color:#6b3a00;}
+.status-closed,.status-completed{background:var(--aa-light-grey);color:var(--aa-dark-grey);border:1px solid var(--aa-med-grey);}
+.trip-actions{display:flex;gap:8px;align-items:center;flex-shrink:0;}
+.btn-sm-outline{background:#fff;color:var(--aa-navy);font-size:12px;font-weight:700;padding:7px 14px;border-radius:999px;border:1.5px solid var(--aa-med-grey);cursor:pointer;text-decoration:none;display:inline-block;}
+.btn-sm-blue{background:var(--aa-blue);color:#fff;font-size:12px;font-weight:700;padding:7px 14px;border-radius:999px;border:none;cursor:pointer;text-decoration:none;display:inline-block;}
+
+/* ── Stats Row ── */
+.stats-row{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:24px;}
+@media(max-width:520px){.stats-row{grid-template-columns:1fr;}}
+.stat-card{background:#fff;border-radius:14px;border:1.5px solid var(--aa-med-grey);padding:16px 20px;}
+.stat-label{font-size:11px;font-weight:700;color:var(--aa-dark-grey);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:6px;}
+.stat-value{font-family:'Nunito',sans-serif;font-weight:900;font-size:24px;color:var(--aa-navy);}
+
+/* ── Empty state ── */
+.empty-state{background:#fff;border:1.5px solid var(--aa-med-grey);border-radius:20px;padding:40px 28px;text-align:center;}
+.empty-icon{font-size:38px;margin-bottom:10px;}
+.empty-title{font-family:'Nunito',sans-serif;font-weight:800;font-size:16px;color:var(--aa-navy);margin-bottom:6px;}
+.empty-sub{font-size:13px;color:var(--aa-dark-grey);line-height:1.55;max-width:380px;margin:0 auto 16px;}
+
+/* ── Loading + denied ── */
+.page-loading,.page-denied{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:80px 24px;background:var(--aa-light-grey);min-height:60vh;text-align:center;}
+.spinner{width:32px;height:32px;border:3px solid var(--aa-med-grey);border-top-color:var(--aa-blue);border-radius:50%;animation:spin 0.7s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg);}}
+.denied-icon{font-size:48px;margin-bottom:12px;}
+.denied-title{font-family:'Nunito',sans-serif;font-weight:900;font-size:22px;color:var(--aa-navy);margin-bottom:8px;}
+.denied-sub{font-size:14px;color:var(--aa-dark-grey);max-width:360px;line-height:1.55;margin-bottom:20px;}
+
+/* ── Footer ── */
+.site-footer{background:var(--aa-navy);padding:20px 32px;text-align:center;border-top:3px solid var(--aa-blue);}
+.footer-text{font-size:11px;color:var(--aa-dark-grey);letter-spacing:0.05em;text-transform:uppercase;margin-top:8px;}
+
+/* ── Tab placeholder card (for unbuilt tabs the user might click) ── */
+.placeholder-card{background:#fff;border:2px dashed var(--aa-med-grey);border-radius:20px;padding:40px 28px;text-align:center;}
+.placeholder-icon{font-size:36px;margin-bottom:10px;opacity:0.5;}
+.placeholder-title{font-family:'Nunito',sans-serif;font-weight:800;font-size:16px;color:var(--aa-dark-grey);margin-bottom:6px;}
+.placeholder-sub{font-size:13px;color:var(--aa-dark-grey);line-height:1.55;}
+</style>
+</head>
+<body>
+
+<header class="site-header">
+  <div class="header-logo">
+    <svg width="32" height="32" viewBox="0 0 67 55" fill="none"><path d="M66.3126 50.8822L48.3919 1.76245C48.0093 0.703285 46.9977 0 45.867 0H20.6096C19.479 0 18.4673 0.703285 18.0848 1.76245L0.164039 50.8822C-0.473557 52.6277 0.82714 54.4749 2.68892 54.4749H25.9059C27.0366 54.4749 28.0483 53.7716 28.4308 52.7125L33.2426 39.5365L38.0543 52.7125C38.4368 53.7716 39.4485 54.4749 40.5792 54.4749H63.7962C65.658 54.4749 66.9587 52.6277 66.3211 50.8822H66.3126ZM40.9532 51.255L34.9598 34.8253L45.9945 4.58406L63.0226 51.2635H40.9532V51.255Z" fill="white"/></svg>
+    <div class="logo-divider"></div>
+    <div>
+      <div class="logo-text-top">Alpha Experiences</div>
+      <div class="logo-text-sub">Admin Dashboard</div>
+    </div>
+  </div>
+  <div class="header-right">
+    <span class="admin-badge">Admin</span>
+    <div class="user-wrap">
+      <button class="user-chip" id="user-chip" aria-haspopup="true" aria-expanded="false">
+        <div class="avatar" id="user-avatar">··</div>
+        <span class="user-name" id="user-handle">…</span>
+      </button>
+      <div class="user-menu" id="user-menu" role="menu">
+        <div class="user-menu-email" id="user-menu-email"></div>
+        <a href="/trips" role="menuitem">Student view</a>
+        <a href="/gallery" role="menuitem">Gallery</a>
+        <a href="/auth/logout" role="menuitem">Sign out</a>
+      </div>
+    </div>
+  </div>
+</header>
+
+<nav class="admin-nav">
+  <a class="admin-tab active" href="/admin">Field Trips</a>
+  <a class="admin-tab" href="/admin/registrations">Registrations</a>
+  <a class="admin-tab" href="/admin/submissions">Submissions</a>
+  <a class="admin-tab" href="/admin/access">Admin Access</a>
+</nav>
+
+<div id="page-loading" class="page-loading">
+  <div class="spinner"></div>
+</div>
+
+<div id="page-denied" class="page-denied" style="display:none;">
+  <div class="denied-icon">🔒</div>
+  <p class="denied-title">Admins only</p>
+  <p class="denied-sub">This area is for Alpha Anywhere staff. If you should have access, ask Eddie to add your email to the admins list.</p>
+  <a href="/trips" class="btn-blue">← Back to my trips</a>
+</div>
+
+<div id="page-body" class="page-body" style="display:none;">
+  <div class="page-inner">
+
+    <div class="toolbar">
+      <span class="toolbar-title">All field trips</span>
+      <a class="btn-blue" href="/admin/trips/new">+ New trip</a>
+    </div>
+
+    <div id="trips-list"></div>
+
+    <div id="empty-state" class="empty-state" style="display:none;">
+      <div class="empty-icon">🗺️</div>
+      <p class="empty-title">No trips yet</p>
+      <p class="empty-sub">Create your first field trip to get started.</p>
+      <a href="/admin/trips/new" class="btn-blue">+ Create a trip</a>
+    </div>
+
+    <div class="stats-row">
+      <div class="stat-card">
+        <p class="stat-label">Total trips</p>
+        <p class="stat-value" id="stat-total">0</p>
+      </div>
+      <div class="stat-card">
+        <p class="stat-label">Open trips</p>
+        <p class="stat-value" id="stat-open">0</p>
+      </div>
+      <div class="stat-card">
+        <p class="stat-label">Total registrations</p>
+        <p class="stat-value" id="stat-regs">0</p>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<footer class="site-footer">
+  <svg width="24" height="20" viewBox="0 0 67 55" fill="none"><path d="M66.3126 50.8822L48.3919 1.76245C48.0093 0.703285 46.9977 0 45.867 0H20.6096C19.479 0 18.4673 0.703285 18.0848 1.76245L0.164039 50.8822C-0.473557 52.6277 0.82714 54.4749 2.68892 54.4749H25.9059C27.0366 54.4749 28.0483 53.7716 28.4308 52.7125L33.2426 39.5365L38.0543 52.7125C38.4368 53.7716 39.4485 54.4749 40.5792 54.4749H63.7962C65.658 54.4749 66.9587 52.6277 66.3211 50.8822H66.3126ZM40.9532 51.255L34.9598 34.8253L45.9945 4.58406L63.0226 51.2635H40.9532V51.255Z" fill="#FAFAFA" opacity="0.4"/></svg>
+  <p class="footer-text">Alpha Experiences · Admin</p>
+</footer>
+
+<script>
+// ── Helpers ──
+function emailHandle(e){ if(!e) return ''; var i=e.indexOf('@'); return i<0?e:e.slice(0,i); }
+function initialsFor(name, email){
+  var s = (name || emailHandle(email) || '').trim();
+  if (!s) return '··';
+  var parts = s.split(/[\s.]+/).filter(Boolean);
+  if (parts.length === 1) return (parts[0][0] || '·').toUpperCase();
+  return ((parts[0][0] || '·') + (parts[parts.length-1][0] || '')).toUpperCase();
+}
+function formatTripDate(iso){
+  if (!iso) return '';
+  var d = new Date(iso + 'T00:00:00');
+  if (isNaN(d.getTime())) return iso;
+  return d.toLocaleDateString('en-US', { year:'numeric', month:'long', day:'numeric' });
+}
+
+var THUMB_PALETTES = [
+  'linear-gradient(135deg,#0a1628,#1a3a6e)',
+  'linear-gradient(135deg,#003a3a,#006a6a)',
+  'linear-gradient(135deg,#7a2c00,#e06030)',
+  'linear-gradient(135deg,#0a3d1a,#1a7a38)',
+  'linear-gradient(135deg,#1a0a3d,#5b2d8e)',
+  'linear-gradient(135deg,#3a2800,#8a6000)'
+];
+function colorForTrip(id){
+  var h = 0, s = id || '';
+  for (var i=0;i<s.length;i++) h = ((h<<5)-h+s.charCodeAt(i)) | 0;
+  return THUMB_PALETTES[Math.abs(h) % THUMB_PALETTES.length];
+}
+
+function statusLabel(s){
+  if (s === 'open')      return 'Open';
+  if (s === 'draft')     return 'Draft';
+  if (s === 'closed')    return 'Closed';
+  if (s === 'completed') return 'Completed';
+  return s ? (s[0].toUpperCase() + s.slice(1)) : '—';
+}
+function statusClass(s){
+  if (s === 'open')      return 'status-badge status-open';
+  if (s === 'draft')     return 'status-badge status-draft';
+  if (s === 'closed')    return 'status-badge status-closed';
+  if (s === 'completed') return 'status-badge status-completed';
+  return 'status-badge status-draft';
+}
+
+// ── User menu ──
+function setupUserMenu(user){
+  document.getElementById('user-avatar').textContent     = initialsFor(user.name, user.email);
+  document.getElementById('user-handle').textContent     = emailHandle(user.email);
+  document.getElementById('user-menu-email').textContent = user.email;
+  var btn  = document.getElementById('user-chip');
+  var menu = document.getElementById('user-menu');
+  btn.addEventListener('click', function(e){
+    e.stopPropagation();
+    var open = menu.classList.toggle('open');
+    btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+  });
+  document.addEventListener('click', function(e){
+    if (!menu.contains(e.target) && e.target !== btn) {
+      menu.classList.remove('open');
+      btn.setAttribute('aria-expanded', 'false');
+    }
+  });
+}
+
+// ── Render ──
+function renderTrips(trips){
+  var list = document.getElementById('trips-list');
+  var empty = document.getElementById('empty-state');
+  list.innerHTML = '';
+
+  if (!trips.length) {
+    list.style.display = 'none';
+    empty.style.display = '';
+    return;
+  }
+  empty.style.display = 'none';
+  list.style.display = '';
+
+  trips.forEach(function(t){
+    var row = document.createElement('div');
+    row.className = 'trip-row';
+
+    var thumb = document.createElement('div');
+    thumb.className = 'trip-thumb';
+    thumb.style.background = colorForTrip(t.trip_id);
+    thumb.textContent = t.emoji || '📌';
+    row.appendChild(thumb);
+
+    var info = document.createElement('div');
+    info.className = 'trip-info';
+    var nm = document.createElement('p');
+    nm.className   = 'trip-name';
+    nm.textContent = t.title || t.trip_id;
+    info.appendChild(nm);
+    var meta = document.createElement('p');
+    meta.className = 'trip-meta';
+    var metaBits = [];
+    if (t.trip_date) metaBits.push(formatTripDate(t.trip_date));
+    metaBits.push(t.session_count + (t.session_count === 1 ? ' session' : ' sessions'));
+    metaBits.push(t.prep_count    + (t.prep_count    === 1 ? ' prep item' : ' prep items'));
+    meta.textContent = metaBits.join('  ·  ');
+    info.appendChild(meta);
+    row.appendChild(info);
+
+    // Progress only meaningful when there are seats configured
+    if (t.max_seats > 0) {
+      var prog = document.createElement('div');
+      prog.className = 'trip-progress-wrap';
+      var label = document.createElement('span');
+      label.className   = 'trip-progress-label';
+      label.textContent = t.registration_count + ' / ' + t.max_seats + ' registered';
+      prog.appendChild(label);
+      var bar = document.createElement('div');
+      bar.className = 'progress-bar';
+      var fill = document.createElement('div');
+      fill.className   = 'progress-fill';
+      var pct = Math.min(100, Math.round((t.registration_count / t.max_seats) * 100));
+      fill.style.width = pct + '%';
+      bar.appendChild(fill);
+      prog.appendChild(bar);
+      row.appendChild(prog);
+    } else {
+      var noSeats = document.createElement('div');
+      noSeats.className = 'trip-progress-wrap';
+      var label2 = document.createElement('span');
+      label2.className   = 'trip-progress-label';
+      label2.textContent = t.registration_count + ' registered';
+      noSeats.appendChild(label2);
+      row.appendChild(noSeats);
+    }
+
+    var status = document.createElement('span');
+    status.className   = statusClass(t.status);
+    status.textContent = statusLabel(t.status);
+    row.appendChild(status);
+
+    var actions = document.createElement('div');
+    actions.className = 'trip-actions';
+    var view = document.createElement('a');
+    view.className   = 'btn-sm-outline';
+    view.textContent = 'View regs';
+    view.href        = '/admin/registrations?trip=' + encodeURIComponent(t.trip_id);
+    actions.appendChild(view);
+    var edit = document.createElement('a');
+    edit.className   = 'btn-sm-blue';
+    edit.textContent = 'Edit';
+    edit.href        = '/admin/trips/' + encodeURIComponent(t.trip_id) + '/edit';
+    actions.appendChild(edit);
+    row.appendChild(actions);
+
+    list.appendChild(row);
+  });
+}
+
+function renderStats(stats){
+  document.getElementById('stat-total').textContent = stats.total_trips || 0;
+  document.getElementById('stat-open').textContent  = stats.open_trips  || 0;
+  document.getElementById('stat-regs').textContent  = stats.total_registrations || 0;
+}
+
+// ── Init ──
+async function init(){
+  // Auth gate
+  var meRes;
+  try { meRes = await fetch('/auth/me', { credentials:'same-origin' }); }
+  catch (e) { window.location.href = '/auth/login'; return; }
+  if (meRes.status !== 200) { window.location.href = '/auth/login'; return; }
+  var user = await meRes.json();
+
+  if (!user.isAdmin) {
+    document.getElementById('page-loading').style.display = 'none';
+    document.getElementById('page-denied').style.display = 'flex';
+    return;
+  }
+
+  setupUserMenu(user);
+
+  // Load trips
+  var trips = [], stats = {};
+  try {
+    var r = await fetch('/api/admin/trips/list', { credentials:'same-origin' });
+    if (r.status === 200) {
+      var data = await r.json();
+      trips = (data && data.trips) || [];
+      stats = (data && data.stats) || {};
+    }
+  } catch (e) { /* fall through */ }
+
+  renderTrips(trips);
+  renderStats(stats);
+
+  document.getElementById('page-loading').style.display = 'none';
+  document.getElementById('page-body').style.display    = '';
+}
+
+init();
+</script>
+
+</body>
+</html>
