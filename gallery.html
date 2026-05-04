@@ -34,6 +34,11 @@ body{font-family:'Nunito Sans',sans-serif;background:var(--aa-white);min-height:
 .user-menu a{display:block;padding:9px 12px;font-size:13px;font-weight:600;color:var(--aa-navy);text-decoration:none;border-radius:8px;}
 .user-menu a:hover{background:var(--aa-light-grey);}
 
+/* ── Back bar (consistent with /trips/[id]) ── */
+.back-bar{background:var(--aa-light-grey);border-bottom:1px solid var(--aa-med-grey);padding:12px 32px;}
+.back-link{font-size:13px;font-weight:700;color:var(--aa-blue);text-decoration:none;}
+.back-link:hover{text-decoration:underline;}
+
 /* ── Hero ── */
 .hero{background:var(--aa-navy);padding:36px 32px 0;text-align:center;}
 .hero-badge{display:inline-block;background:rgba(255,255,255,0.12);color:rgba(255,255,255,0.85);font-size:11px;font-weight:700;letter-spacing:0.07em;padding:5px 16px;border-radius:999px;margin-bottom:14px;}
@@ -113,6 +118,10 @@ body{font-family:'Nunito Sans',sans-serif;background:var(--aa-white);min-height:
     </div>
   </div>
 </header>
+
+<div class="back-bar">
+  <a class="back-link" href="/trips">← Back to my trips</a>
+</div>
 
 <div class="hero">
   <div class="hero-badge">Project Gallery</div>

@@ -84,8 +84,11 @@ body.has-bg-image .hero-scallop{background:transparent;}
   0%,100%{transform:translate3d(0,0,0) rotate(var(--rot,0deg));}
   50%{transform:translate3d(0,-22px,0) rotate(calc(var(--rot,0deg) + 8deg));}
 }
-/* Make sure interactive content sits above the page decoration layer */
-.site-header,.back-bar,.hero,.page-body,.site-footer{position:relative;z-index:1;}
+/* Make sure interactive content sits above the page decoration layer.
+   Header gets a higher z-index so the user-menu dropdown can extend down
+   over the back-bar without being clipped by it. */
+.site-header{position:relative;z-index:20;}
+.back-bar,.hero,.page-body,.site-footer{position:relative;z-index:1;}
 
 /* Card entrance animation — staggered fade-up on first paint */
 @keyframes card-rise{
