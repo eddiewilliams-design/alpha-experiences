@@ -982,6 +982,153 @@ async function handleRegAttendance(req, res) {
   return res.status(200).json({ ok: true, attended });
 }
 
+// ── handleSubsList: every submission, admin-info shape ─────
+async function handleSubsList(req, res) {
+  let submissions = [];
+  let trips = [];
+  try {
+    const token = await getAccessToken();
+    const sheet = await batchGet(token, ['FT_Submissions!A:G', 'FT_Catalog!A:E']);
+    const ranges = (sheet && sheet.valueRanges) || [];
+    const subRows  = (ranges[0] && ranges[0].values) || [];
+    const tripRows = (ranges[1] && ranges[1].values) || [];
+
+    const tripsById = {};
+    for (let i = 1; i < tripRows.length; i++) {
+      const r  = tripRows[i];
+      const id = (r[0] || '').toString().trim();
+      if (!id) continue;
+      tripsById[id] = { trip_id: id, title: (r[1] || '').toString(), emoji: (r[3] || '').toString() };
+    }
+
+    const seenTrips = new Set();
+    for (let i = 1; i < subRows.length; i++) {
+      const r = subRows[i];
+      const fileUrl = (r[4] || '').toString().trim();
+      if (!fileUrl) continue;
+      const tripId  = (r[1] || '').toString().trim();
+      const trip    = tripsById[tripId] || { trip_id: tripId, title: tripId, emoji: '' };
+      if (tripId) seenTrips.add(tripId);
+      submissions.push({
+        student_email: (r[0] || '').toString(),
+        trip_id:       tripId,
+        trip_title:    trip.title,
+        trip_emoji:    trip.emoji,
+        name:          (r[2] || '').toString(),
+        location:      (r[3] || '').toString(),
+        file_url:      fileUrl,
+        file_type:     ((r[5] || '').toString().toLowerCase() === 'video') ? 'video' : 'image',
+        submitted_at:  (r[6] || '').toString()
+      });
+    }
+    submissions.sort((a, b) => (b.submitted_at || '').localeCompare(a.submitted_at || ''));
+    trips = Array.from(seenTrips).map(id => tripsById[id] || { trip_id:id, title:id, emoji:'' });
+    trips.sort((a, b) => (a.title || '').localeCompare(b.title || ''));
+  } catch (err) {
+    console.error('subs-list error:', err.message);
+    submissions = []; trips = [];
+  }
+  return res.status(200).json({ submissions, trips });
+}
+
+// ── handleSubDelete: remove sheet row AND Supabase file ────
+async function handleSubDelete(req, res) {
+  if (req.method !== 'POST' && req.method !== 'DELETE') {
+    return res.status(405).json({ error: 'method_not_allowed' });
+  }
+
+  let body;
+  try { body = await readJsonBody(req); }
+  catch (e) { return res.status(400).json({ error: 'bad_json' }); }
+
+  const fileUrl = (body.file_url || '').toString().trim();
+  if (!fileUrl) return res.status(400).json({ error: 'bad_request', detail: 'file_url required' });
+
+  const SUPABASE_URL = (process.env.SUPABASE_URL || '').replace(/\/$/, '');
+  const SERVICE_KEY  = process.env.SUPABASE_SERVICE_KEY;
+  if (!SUPABASE_URL || !SERVICE_KEY) {
+    console.error('Supabase env vars missing for sub-delete');
+    return res.status(500).json({ error: 'server_config_error' });
+  }
+
+  // Parse the bucket path out of the public URL.
+  // Expected: {SUPABASE_URL}/storage/v1/object/public/vft-submissions/{path}
+  const prefix = `${SUPABASE_URL}/storage/v1/object/public/vft-submissions/`;
+  if (fileUrl.indexOf(prefix) !== 0) {
+    return res.status(400).json({ error: 'bad_file_url' });
+  }
+  const objectPath = fileUrl.slice(prefix.length);
+
+  // Sheets token (we'll need this regardless of storage outcome)
+  let sheetsToken;
+  try { sheetsToken = await getAccessToken('https://www.googleapis.com/auth/spreadsheets'); }
+  catch (err) {
+    console.error('sub-delete token error:', err.message);
+    return res.status(500).json({ error: 'server_error' });
+  }
+
+  // 1. Read FT_Submissions, find the row by file_url
+  let subRows;
+  try {
+    const sheet = await batchGet(sheetsToken, ['FT_Submissions!A:G']);
+    subRows = (sheet && sheet.valueRanges && sheet.valueRanges[0] && sheet.valueRanges[0].values) || [];
+  } catch (err) {
+    console.error('sub-delete read error:', err.message);
+    return res.status(500).json({ error: 'server_error' });
+  }
+
+  let foundIndex = -1;
+  for (let i = 1; i < subRows.length; i++) {
+    if ((subRows[i][4] || '').toString().trim() === fileUrl) { foundIndex = i; break; }
+  }
+  if (foundIndex < 0) return res.status(404).json({ error: 'submission_not_found' });
+
+  // 2. Delete the Supabase object (best effort — capture but don't abort)
+  let storageError = null;
+  try {
+    const delUrl = `${SUPABASE_URL}/storage/v1/object/vft-submissions/${objectPath}`;
+    const r = await httpsRequest('DELETE', delUrl, {
+      'Authorization': 'Bearer ' + SERVICE_KEY
+    }, null);
+    if (r.status < 200 || r.status >= 300 && r.status !== 404) {
+      // 404 is fine — file was already gone
+      storageError = `supabase ${r.status}: ${r.body}`;
+      console.error('sub-delete storage error:', storageError);
+    }
+  } catch (err) {
+    storageError = err.message;
+    console.error('sub-delete storage exception:', storageError);
+  }
+
+  // 3. Remove the sheet row (rebuild content without that row, clear + update)
+  try {
+    const header = subRows[0] || ['student_email','trip_id','student_name','location','file_url','file_type','submitted_at'];
+    const remaining = subRows.slice(1).filter((_, idx) => idx !== (foundIndex - 1));
+    const newContent = [header].concat(remaining);
+    await sheetsClear(sheetsToken,  'FT_Submissions!A:G');
+    await sheetsUpdate(sheetsToken, 'FT_Submissions!A1', newContent);
+  } catch (err) {
+    console.error('sub-delete sheet write error:', err.message);
+    return res.status(500).json({
+      error: 'sheet_delete_failed',
+      storage_error: storageError,
+      detail: 'File may have been deleted from storage but sheet row could not be removed.'
+    });
+  }
+
+  if (storageError) {
+    // Sheet row gone, but file delete had trouble
+    return res.status(207).json({
+      ok: false,
+      sheet_deleted: true,
+      storage_error: storageError,
+      detail: 'Sheet row deleted, but the file in Supabase storage may still be there. Check Storage and remove manually if needed.'
+    });
+  }
+
+  return res.status(200).json({ ok: true });
+}
+
 // ── Dispatch ────────────────────────────────────────────────
 module.exports = async (req, res) => {
   res.setHeader('Cache-Control', 'no-store');
@@ -1003,6 +1150,8 @@ module.exports = async (req, res) => {
     case 'reg-update':     return handleRegUpdate(req, res);
     case 'reg-cancel':     return handleRegCancel(req, res);
     case 'reg-attendance': return handleRegAttendance(req, res);
+    case 'subs-list':      return handleSubsList(req, res);
+    case 'sub-delete':     return handleSubDelete(req, res);
     default:               return res.status(404).json({ error: 'not_found', detail: action });
   }
 };

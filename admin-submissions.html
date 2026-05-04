@@ -1,0 +1,507 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Admin — Submissions</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@700;800;900&family=Nunito+Sans:wght@300;400;600;700&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+:root{
+  --aa-navy:#072256;--aa-blue:#006FF9;--aa-yellow:#E59500;
+  --aa-white:#FAFAFA;--aa-light-blue:#E5F6FD;--aa-light-yellow:#FFF7E5;
+  --aa-med-grey:#DADFE7;--aa-dark-grey:#8291AA;--aa-light-grey:#EEF0F3;
+  --aa-green:#2C8707;--aa-light-green:#EEFDE8;
+}
+body{font-family:'Nunito Sans',sans-serif;background:var(--aa-white);min-height:100vh;color:var(--aa-navy);}
+
+/* ── Admin shell (shared) ── */
+.site-header{background:var(--aa-navy);padding:16px 32px;display:flex;align-items:center;justify-content:space-between;}
+.header-logo{display:flex;align-items:center;gap:12px;}
+.logo-divider{width:1px;height:28px;background:rgba(255,255,255,0.2);}
+.logo-text-top{font-family:'Nunito',sans-serif;font-weight:900;font-size:14px;color:#fff;line-height:1.1;}
+.logo-text-sub{font-size:10px;color:rgba(255,255,255,0.5);font-weight:600;letter-spacing:0.05em;text-transform:uppercase;}
+.header-right{display:flex;align-items:center;gap:10px;}
+.admin-badge{background:var(--aa-yellow);color:#3a2000;font-size:10px;font-weight:800;padding:4px 12px;border-radius:999px;letter-spacing:0.04em;text-transform:uppercase;}
+.user-wrap{position:relative;}
+.user-chip{display:flex;align-items:center;gap:8px;background:rgba(255,255,255,0.12);border:none;border-radius:999px;padding:6px 14px 6px 7px;cursor:pointer;font-family:inherit;}
+.user-chip:hover{background:rgba(255,255,255,0.18);}
+.avatar{width:26px;height:26px;border-radius:50%;background:var(--aa-blue);display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:#fff;}
+.user-name{font-size:13px;color:rgba(255,255,255,0.85);font-weight:600;}
+.user-menu{position:absolute;top:calc(100% + 8px);right:0;background:#fff;border:1px solid var(--aa-med-grey);border-radius:12px;box-shadow:0 8px 24px rgba(7,34,86,0.15);padding:6px;min-width:180px;display:none;z-index:50;}
+.user-menu.open{display:block;}
+.user-menu-email{font-size:11px;color:var(--aa-dark-grey);padding:8px 12px 10px;border-bottom:1px solid var(--aa-light-grey);margin-bottom:6px;word-break:break-all;}
+.user-menu a{display:block;padding:9px 12px;font-size:13px;font-weight:600;color:var(--aa-navy);text-decoration:none;border-radius:8px;}
+.user-menu a:hover{background:var(--aa-light-grey);}
+
+.admin-nav{background:#fff;border-bottom:1.5px solid var(--aa-med-grey);padding:0 32px;display:flex;gap:4px;overflow-x:auto;}
+.admin-tab{font-size:13px;font-weight:600;color:var(--aa-dark-grey);padding:14px 16px;border-bottom:2.5px solid transparent;cursor:pointer;white-space:nowrap;text-decoration:none;}
+.admin-tab.active{color:var(--aa-blue);border-bottom-color:var(--aa-blue);}
+.admin-tab:hover:not(.active){color:var(--aa-navy);}
+
+.page-body{background:var(--aa-light-grey);padding:28px 24px 56px;min-height:60vh;}
+.page-inner{max-width:980px;margin:0 auto;}
+
+/* ── Toolbar ── */
+.toolbar{display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;gap:12px;flex-wrap:wrap;}
+.toolbar-title{font-family:'Nunito',sans-serif;font-weight:800;font-size:18px;color:var(--aa-navy);}
+.toolbar-count{font-size:12px;color:var(--aa-dark-grey);background:#fff;border:1px solid var(--aa-med-grey);border-radius:999px;padding:3px 12px;}
+
+/* ── Banners ── */
+.banner{font-size:13px;font-weight:600;padding:10px 14px;border-radius:10px;line-height:1.5;display:none;margin-bottom:14px;}
+.banner.visible{display:block;}
+.banner.error{background:#fde8e8;border:1px solid #f5b5b5;color:#8b1a1a;}
+.banner.success{background:var(--aa-light-green);border:1px solid #a3d291;color:#1a5205;}
+.banner.warn{background:var(--aa-light-yellow);border:1px solid #f0c060;color:#6b3a00;}
+
+/* ── Filter pills ── */
+.filter-row{display:flex;align-items:center;gap:10px;margin-bottom:20px;flex-wrap:wrap;}
+.filter-label{font-size:12px;font-weight:700;color:var(--aa-dark-grey);text-transform:uppercase;letter-spacing:0.05em;white-space:nowrap;}
+.pill{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:700;padding:7px 16px;border-radius:999px;cursor:pointer;border:1.5px solid var(--aa-med-grey);background:#fff;color:var(--aa-dark-grey);font-family:inherit;}
+.pill:hover{border-color:var(--aa-blue);}
+.pill.active{background:var(--aa-blue);color:#fff;border-color:var(--aa-blue);}
+
+/* ── Grid ── */
+.sub-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;}
+@media(max-width:760px){.sub-grid{grid-template-columns:repeat(2,1fr);}}
+@media(max-width:460px){.sub-grid{grid-template-columns:1fr;}}
+
+.sub-card{background:#fff;border-radius:16px;overflow:hidden;border:1.5px solid var(--aa-med-grey);display:flex;flex-direction:column;}
+.thumb-wrap{position:relative;height:160px;background:linear-gradient(135deg,#0a1628,#1a3a8c);overflow:hidden;}
+.thumb-wrap a{display:block;width:100%;height:100%;}
+.thumb-wrap img{width:100%;height:100%;object-fit:cover;display:block;}
+.thumb-wrap video{width:100%;height:100%;object-fit:cover;display:block;background:#000;}
+.video-badge{position:absolute;top:10px;left:10px;background:rgba(0,0,0,0.55);color:#fff;font-size:10px;font-weight:700;padding:3px 8px;border-radius:999px;display:flex;align-items:center;gap:4px;pointer-events:none;}
+
+.sub-body{padding:14px 16px;display:flex;flex-direction:column;gap:6px;flex:1;}
+.sub-name{font-family:'Nunito',sans-serif;font-weight:800;font-size:14px;color:var(--aa-navy);}
+.sub-email{font-size:11px;color:var(--aa-dark-grey);word-break:break-all;}
+.sub-loc{font-size:11px;color:var(--aa-dark-grey);}
+.trip-pill{display:inline-block;background:var(--aa-navy);color:#fff;font-size:10px;font-weight:700;padding:3px 10px;border-radius:999px;align-self:flex-start;}
+.trip-pill .em{margin-right:4px;}
+.sub-date{font-size:10px;color:var(--aa-dark-grey);font-family:monospace;margin-top:auto;}
+
+.sub-actions{display:flex;gap:8px;padding:0 16px 14px;}
+.btn-open,.btn-delete{flex:1;font-size:12px;font-weight:700;padding:7px 10px;border-radius:999px;border:1.5px solid var(--aa-med-grey);background:#fff;color:var(--aa-navy);cursor:pointer;text-decoration:none;text-align:center;font-family:inherit;}
+.btn-open:hover{border-color:var(--aa-blue);color:var(--aa-blue);}
+.btn-delete{color:#8b1a1a;border-color:#f5b5b5;}
+.btn-delete:hover{background:#fde8e8;border-color:#c0392b;color:#c0392b;}
+.btn-delete:disabled,.btn-open:disabled{opacity:0.5;cursor:not-allowed;}
+
+/* ── Empty + loading + denied ── */
+.empty-state{background:#fff;border:1.5px solid var(--aa-med-grey);border-radius:20px;padding:44px 28px;text-align:center;}
+.empty-icon{font-size:38px;margin-bottom:10px;}
+.empty-title{font-family:'Nunito',sans-serif;font-weight:800;font-size:16px;color:var(--aa-navy);margin-bottom:6px;}
+.empty-sub{font-size:13px;color:var(--aa-dark-grey);line-height:1.55;max-width:380px;margin:0 auto;}
+
+.page-loading,.page-denied{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:80px 24px;background:var(--aa-light-grey);min-height:60vh;text-align:center;}
+.spinner{width:32px;height:32px;border:3px solid var(--aa-med-grey);border-top-color:var(--aa-blue);border-radius:50%;animation:spin 0.7s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg);}}
+.denied-icon{font-size:48px;margin-bottom:12px;}
+.denied-title{font-family:'Nunito',sans-serif;font-weight:900;font-size:22px;color:var(--aa-navy);margin-bottom:8px;}
+.denied-sub{font-size:14px;color:var(--aa-dark-grey);max-width:360px;line-height:1.55;margin-bottom:20px;}
+.btn-blue{background:var(--aa-blue);color:#fff;font-size:13px;font-weight:700;padding:10px 22px;border-radius:999px;text-decoration:none;display:inline-block;border:none;cursor:pointer;font-family:inherit;}
+
+.site-footer{background:var(--aa-navy);padding:20px 32px;text-align:center;border-top:3px solid var(--aa-blue);}
+.footer-text{font-size:11px;color:var(--aa-dark-grey);letter-spacing:0.05em;text-transform:uppercase;margin-top:8px;}
+</style>
+</head>
+<body>
+
+<header class="site-header">
+  <div class="header-logo">
+    <svg width="32" height="32" viewBox="0 0 67 55" fill="none"><path d="M66.3126 50.8822L48.3919 1.76245C48.0093 0.703285 46.9977 0 45.867 0H20.6096C19.479 0 18.4673 0.703285 18.0848 1.76245L0.164039 50.8822C-0.473557 52.6277 0.82714 54.4749 2.68892 54.4749H25.9059C27.0366 54.4749 28.0483 53.7716 28.4308 52.7125L33.2426 39.5365L38.0543 52.7125C38.4368 53.7716 39.4485 54.4749 40.5792 54.4749H63.7962C65.658 54.4749 66.9587 52.6277 66.3211 50.8822H66.3126ZM40.9532 51.255L34.9598 34.8253L45.9945 4.58406L63.0226 51.2635H40.9532V51.255Z" fill="white"/></svg>
+    <div class="logo-divider"></div>
+    <div>
+      <div class="logo-text-top">Alpha Experiences</div>
+      <div class="logo-text-sub">Admin Dashboard</div>
+    </div>
+  </div>
+  <div class="header-right">
+    <span class="admin-badge">Admin</span>
+    <div class="user-wrap">
+      <button class="user-chip" id="user-chip" aria-haspopup="true" aria-expanded="false">
+        <div class="avatar" id="user-avatar">··</div>
+        <span class="user-name" id="user-handle">…</span>
+      </button>
+      <div class="user-menu" id="user-menu" role="menu">
+        <div class="user-menu-email" id="user-menu-email"></div>
+        <a href="/admin" role="menuitem">Admin dashboard</a>
+        <a href="/gallery" role="menuitem">Public gallery</a>
+        <a href="/auth/logout" role="menuitem">Sign out</a>
+      </div>
+    </div>
+  </div>
+</header>
+
+<nav class="admin-nav">
+  <a class="admin-tab" href="/admin">Field Trips</a>
+  <a class="admin-tab" href="/admin/registrations">Registrations</a>
+  <a class="admin-tab active" href="/admin/submissions">Submissions</a>
+  <a class="admin-tab" href="/admin/access">Admin Access</a>
+</nav>
+
+<div id="page-loading" class="page-loading">
+  <div class="spinner"></div>
+</div>
+
+<div id="page-denied" class="page-denied" style="display:none;">
+  <div class="denied-icon">🔒</div>
+  <p class="denied-title">Admins only</p>
+  <p class="denied-sub">This area is for Alpha Anywhere staff.</p>
+  <a href="/trips" class="btn-blue">← Back to my trips</a>
+</div>
+
+<div id="page-content" class="page-body" style="display:none;">
+  <div class="page-inner">
+
+    <div id="banner-error"   class="banner error"></div>
+    <div id="banner-success" class="banner success"></div>
+    <div id="banner-warn"    class="banner warn"></div>
+
+    <div class="toolbar">
+      <span class="toolbar-title">All submissions</span>
+      <span class="toolbar-count" id="sub-count">0 submissions</span>
+    </div>
+
+    <div id="filter-row" class="filter-row" style="display:none;">
+      <span class="filter-label">Filter by trip:</span>
+      <div id="filter-pills" style="display:flex;gap:8px;flex-wrap:wrap;"></div>
+    </div>
+
+    <div id="sub-grid" class="sub-grid"></div>
+
+    <div id="empty-state" class="empty-state" style="display:none;">
+      <div class="empty-icon">📭</div>
+      <p class="empty-title">No submissions yet</p>
+      <p class="empty-sub">When students submit projects from a trip's submit page, they'll show up here.</p>
+    </div>
+
+  </div>
+</div>
+
+<footer class="site-footer">
+  <svg width="24" height="20" viewBox="0 0 67 55" fill="none"><path d="M66.3126 50.8822L48.3919 1.76245C48.0093 0.703285 46.9977 0 45.867 0H20.6096C19.479 0 18.4673 0.703285 18.0848 1.76245L0.164039 50.8822C-0.473557 52.6277 0.82714 54.4749 2.68892 54.4749H25.9059C27.0366 54.4749 28.0483 53.7716 28.4308 52.7125L33.2426 39.5365L38.0543 52.7125C38.4368 53.7716 39.4485 54.4749 40.5792 54.4749H63.7962C65.658 54.4749 66.9587 52.6277 66.3211 50.8822H66.3126ZM40.9532 51.255L34.9598 34.8253L45.9945 4.58406L63.0226 51.2635H40.9532V51.255Z" fill="#FAFAFA" opacity="0.4"/></svg>
+  <p class="footer-text">Alpha Experiences · Admin</p>
+</footer>
+
+<script>
+// ── State ────────────────────────────────────────────────
+var SUBMISSIONS = [];
+var TRIP_PILLS  = [];
+var ACTIVE_TRIP = null;
+
+// ── Helpers ──────────────────────────────────────────────
+function emailHandle(e){ if(!e) return ''; var i=e.indexOf('@'); return i<0?e:e.slice(0,i); }
+function initialsFor(name, email){
+  var s = (name || emailHandle(email) || '').trim();
+  if (!s) return '··';
+  var parts = s.split(/[\s.]+/).filter(Boolean);
+  if (parts.length === 1) return (parts[0][0] || '·').toUpperCase();
+  return ((parts[0][0] || '·') + (parts[parts.length-1][0] || '')).toUpperCase();
+}
+function firstName(name){
+  if (!name) return '';
+  var p = String(name).trim().split(/\s+/)[0];
+  return p || '';
+}
+function formatTimestamp(iso){
+  if (!iso) return '';
+  var d = new Date(iso);
+  if (isNaN(d.getTime())) return iso;
+  return d.toLocaleString('en-US', { year:'numeric', month:'short', day:'numeric', hour:'numeric', minute:'2-digit' });
+}
+function fileNameFromUrl(url){
+  if (!url) return '';
+  try { return decodeURIComponent(url.split('/').pop().split('?')[0] || ''); }
+  catch (e) { return url; }
+}
+function safeHttpsUrl(u){
+  if (!u) return '';
+  var s = String(u).trim();
+  return /^https?:\/\//i.test(s) ? s : '';
+}
+
+var THUMB_PALETTES = [
+  'linear-gradient(135deg,#0a1628,#1a3a6e)',
+  'linear-gradient(135deg,#003a3a,#006a6a)',
+  'linear-gradient(135deg,#7a2c00,#e06030)',
+  'linear-gradient(135deg,#0a3d1a,#1a7a38)',
+  'linear-gradient(135deg,#1a0a3d,#5b2d8e)',
+  'linear-gradient(135deg,#3a2800,#8a6000)'
+];
+function colorForTrip(id){
+  var h = 0, s = id || '';
+  for (var i=0;i<s.length;i++) h = ((h<<5)-h+s.charCodeAt(i)) | 0;
+  return THUMB_PALETTES[Math.abs(h) % THUMB_PALETTES.length];
+}
+
+function showError(msg){
+  var e = document.getElementById('banner-error');
+  e.textContent = msg; e.classList.add('visible');
+  document.getElementById('banner-success').classList.remove('visible');
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+function showSuccess(msg){
+  var s = document.getElementById('banner-success');
+  s.textContent = msg; s.classList.add('visible');
+  document.getElementById('banner-error').classList.remove('visible');
+  setTimeout(function(){ s.classList.remove('visible'); }, 4500);
+}
+function showWarn(msg){
+  var w = document.getElementById('banner-warn');
+  w.textContent = msg; w.classList.add('visible');
+}
+function clearBanners(){
+  document.getElementById('banner-error').classList.remove('visible');
+  document.getElementById('banner-success').classList.remove('visible');
+  document.getElementById('banner-warn').classList.remove('visible');
+}
+
+// ── User menu ────────────────────────────────────────────
+function setupUserMenu(user){
+  document.getElementById('user-avatar').textContent     = initialsFor(user.name, user.email);
+  document.getElementById('user-handle').textContent     = emailHandle(user.email);
+  document.getElementById('user-menu-email').textContent = user.email;
+  var btn  = document.getElementById('user-chip');
+  var menu = document.getElementById('user-menu');
+  btn.addEventListener('click', function(e){
+    e.stopPropagation();
+    var open = menu.classList.toggle('open');
+    btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+  });
+  document.addEventListener('click', function(e){
+    if (!menu.contains(e.target) && e.target !== btn) {
+      menu.classList.remove('open');
+      btn.setAttribute('aria-expanded', 'false');
+    }
+  });
+}
+
+// ── Render ──────────────────────────────────────────────
+function renderFilter(){
+  var row = document.getElementById('filter-row');
+  var box = document.getElementById('filter-pills');
+  box.innerHTML = '';
+  if (!TRIP_PILLS.length) { row.style.display = 'none'; return; }
+  row.style.display = '';
+  function makePill(id, label){
+    var p = document.createElement('button');
+    p.type = 'button';
+    p.className = 'pill' + ((ACTIVE_TRIP === id) ? ' active' : '');
+    p.textContent = label;
+    p.addEventListener('click', function(){
+      ACTIVE_TRIP = id;
+      renderFilter();
+      renderGrid();
+    });
+    return p;
+  }
+  box.appendChild(makePill(null, 'All trips'));
+  TRIP_PILLS.forEach(function(t){
+    box.appendChild(makePill(t.trip_id, (t.emoji ? t.emoji + ' ' : '') + (t.title || t.trip_id)));
+  });
+}
+
+function renderGrid(){
+  var grid  = document.getElementById('sub-grid');
+  var empty = document.getElementById('empty-state');
+  grid.innerHTML = '';
+
+  var filtered = ACTIVE_TRIP
+    ? SUBMISSIONS.filter(function(s){ return s.trip_id === ACTIVE_TRIP; })
+    : SUBMISSIONS;
+
+  document.getElementById('sub-count').textContent =
+    filtered.length + (filtered.length === 1 ? ' submission' : ' submissions');
+
+  if (!SUBMISSIONS.length) {
+    grid.style.display = 'none';
+    empty.style.display = '';
+    return;
+  }
+  empty.style.display = 'none';
+  grid.style.display = '';
+
+  filtered.forEach(function(s){
+    var card = document.createElement('div');
+    card.className = 'sub-card';
+    card.dataset.fileUrl = s.file_url;
+
+    var thumb = document.createElement('div');
+    thumb.className = 'thumb-wrap';
+    thumb.style.background = colorForTrip(s.trip_id);
+
+    var url = safeHttpsUrl(s.file_url);
+    if (s.file_type === 'video' && url) {
+      var v = document.createElement('video');
+      v.src         = url;
+      v.controls    = true;
+      v.preload     = 'metadata';
+      v.playsInline = true;
+      v.setAttribute('playsinline', '');
+      thumb.appendChild(v);
+      var b = document.createElement('span');
+      b.className   = 'video-badge';
+      b.textContent = '▶  Video';
+      thumb.appendChild(b);
+    } else if (url) {
+      var a = document.createElement('a');
+      a.href = url; a.target = '_blank'; a.rel = 'noopener noreferrer';
+      var img = document.createElement('img');
+      img.src = url; img.alt = (firstName(s.name) || 'Student') + '’s submission'; img.loading = 'lazy';
+      a.appendChild(img);
+      thumb.appendChild(a);
+    }
+    card.appendChild(thumb);
+
+    var body = document.createElement('div');
+    body.className = 'sub-body';
+
+    var nm = document.createElement('p');
+    nm.className   = 'sub-name';
+    nm.textContent = s.name || '—';
+    body.appendChild(nm);
+
+    var em = document.createElement('p');
+    em.className   = 'sub-email';
+    em.textContent = s.student_email || '';
+    body.appendChild(em);
+
+    if (s.location) {
+      var loc = document.createElement('p');
+      loc.className   = 'sub-loc';
+      loc.textContent = s.location;
+      body.appendChild(loc);
+    }
+
+    var trip = document.createElement('span');
+    trip.className = 'trip-pill';
+    if (s.trip_emoji) {
+      var tem = document.createElement('span');
+      tem.className   = 'em';
+      tem.textContent = s.trip_emoji;
+      trip.appendChild(tem);
+    }
+    trip.appendChild(document.createTextNode(s.trip_title || s.trip_id || 'Trip'));
+    body.appendChild(trip);
+
+    var d = document.createElement('p');
+    d.className   = 'sub-date';
+    d.textContent = formatTimestamp(s.submitted_at);
+    body.appendChild(d);
+
+    card.appendChild(body);
+
+    var actions = document.createElement('div');
+    actions.className = 'sub-actions';
+
+    var open = document.createElement('a');
+    open.className   = 'btn-open';
+    open.textContent = 'Open file ↗';
+    open.href        = url || '#';
+    open.target      = '_blank';
+    open.rel         = 'noopener noreferrer';
+    actions.appendChild(open);
+
+    var del = document.createElement('button');
+    del.type = 'button';
+    del.className   = 'btn-delete';
+    del.textContent = 'Delete';
+    del.addEventListener('click', function(){ deleteSubmission(s, card, del, open); });
+    actions.appendChild(del);
+
+    card.appendChild(actions);
+    grid.appendChild(card);
+  });
+
+  if (!filtered.length) {
+    var msg = document.createElement('div');
+    msg.style.gridColumn = '1 / -1';
+    msg.style.textAlign  = 'center';
+    msg.style.color      = 'var(--aa-dark-grey)';
+    msg.style.fontSize   = '13px';
+    msg.style.padding    = '16px 0';
+    msg.textContent = 'No submissions for this trip.';
+    grid.appendChild(msg);
+  }
+}
+
+// ── Delete ──────────────────────────────────────────────
+async function deleteSubmission(sub, cardEl, delBtn, openBtn){
+  var who = (sub.name || sub.student_email || 'this student');
+  var trip = (sub.trip_title || sub.trip_id || 'trip');
+  var fname = fileNameFromUrl(sub.file_url) || 'the file';
+  if (!confirm('Delete this submission?\n\nStudent: ' + who + '\nTrip: ' + trip + '\nFile: ' + fname + '\n\nThis removes both the row in FT_Submissions AND the file in Supabase Storage. It can\'t be undone.')) {
+    return;
+  }
+  clearBanners();
+  delBtn.disabled = true; openBtn.disabled = true;
+  try {
+    var r = await fetch('/api/admin/sub-delete', {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ file_url: sub.file_url })
+    });
+    var data = await r.json().catch(function(){ return {}; });
+
+    if (r.status === 200) {
+      // Remove from local state and re-render
+      SUBMISSIONS = SUBMISSIONS.filter(function(x){ return x.file_url !== sub.file_url; });
+      renderGrid();
+      showSuccess('Deleted.');
+      return;
+    }
+    if (r.status === 207 && data.sheet_deleted) {
+      // Sheet row gone, file may not be — still remove from UI but warn
+      SUBMISSIONS = SUBMISSIONS.filter(function(x){ return x.file_url !== sub.file_url; });
+      renderGrid();
+      showWarn('Sheet row deleted, but the Supabase file may still exist. Check Storage and remove manually if needed.');
+      return;
+    }
+    throw new Error(data.error || ('delete failed: ' + r.status));
+  } catch (err) {
+    console.error(err);
+    showError('Couldn\'t delete: ' + (err.message || err));
+    delBtn.disabled = false; openBtn.disabled = false;
+  }
+}
+
+// ── Init ────────────────────────────────────────────────
+async function init(){
+  var meRes;
+  try { meRes = await fetch('/auth/me', { credentials:'same-origin' }); }
+  catch (e) { window.location.href = '/auth/login'; return; }
+  if (meRes.status !== 200) { window.location.href = '/auth/login'; return; }
+  var user = await meRes.json();
+  if (!user.isAdmin) {
+    document.getElementById('page-loading').style.display = 'none';
+    document.getElementById('page-denied').style.display  = 'flex';
+    return;
+  }
+  setupUserMenu(user);
+
+  try {
+    var r = await fetch('/api/admin/subs-list', { credentials: 'same-origin' });
+    if (r.status === 200) {
+      var data = await r.json();
+      SUBMISSIONS = (data && data.submissions) || [];
+      TRIP_PILLS  = (data && data.trips)       || [];
+    }
+  } catch (e) { /* fall through */ }
+
+  renderFilter();
+  renderGrid();
+
+  document.getElementById('page-loading').style.display = 'none';
+  document.getElementById('page-content').style.display = '';
+}
+
+init();
+</script>
+
+</body>
+</html>
