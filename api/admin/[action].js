@@ -9,9 +9,10 @@
 // keeps us comfortably under the limit forever.
 //
 // URL pattern: /api/admin/<single-segment-action>
-// Vercel's [...path] catch-all on API routes only reliably matches
-// ONE segment, so we use dash-joined names like "trips-list" instead
-// of nested paths like "trips/list".
+// File is api/admin/[action].js — Vercel's single-segment dynamic
+// route. We tried [...path].js (catch-all) first but it doesn't
+// reliably bind req.query for single-segment URLs. We use dash-joined
+// names like "trips-list" / "trips-create" instead of nested paths.
 //
 // Adds a new endpoint = new case in the switch below.
 //
@@ -178,12 +179,11 @@ module.exports = async (req, res) => {
   if (!session) return res.status(401).json({ error: 'not_authenticated' });
   if (!session.isAdmin) return res.status(403).json({ error: 'forbidden' });
 
-  // Vercel sets req.query.path to a string for single segment, array for multiple.
-  const raw = req.query.path;
-  const path = Array.isArray(raw) ? raw.join('/') : (raw || '');
+  // Single-segment dynamic route: [action].js gives req.query.action
+  const action = (req.query.action || '').toString();
 
-  switch (path) {
+  switch (action) {
     case 'trips-list': return handleTripsList(req, res);
-    default:           return res.status(404).json({ error: 'not_found', detail: path });
+    default:           return res.status(404).json({ error: 'not_found', detail: action });
   }
 };
