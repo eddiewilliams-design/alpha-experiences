@@ -1,0 +1,541 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Submit Your Project — Alpha Experiences</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@700;800;900&family=Nunito+Sans:wght@300;400;600;700&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+:root{
+  --aa-navy:#072256;--aa-blue:#006FF9;--aa-yellow:#E59500;
+  --aa-white:#FAFAFA;--aa-light-blue:#E5F6FD;--aa-light-yellow:#FFF7E5;
+  --aa-med-grey:#DADFE7;--aa-dark-grey:#8291AA;--aa-light-grey:#EEF0F3;
+  --aa-green:#2C8707;--aa-light-green:#EEFDE8;
+}
+body{font-family:'Nunito Sans',sans-serif;background:var(--aa-white);min-height:100vh;color:var(--aa-navy);}
+
+/* ── Header ── */
+.site-header{background:var(--aa-navy);padding:16px 32px;display:flex;align-items:center;justify-content:space-between;}
+.header-logo{display:flex;align-items:center;gap:12px;}
+.logo-divider{width:1px;height:28px;background:rgba(255,255,255,0.2);}
+.logo-text-top{font-family:'Nunito',sans-serif;font-weight:900;font-size:14px;color:#fff;line-height:1.1;}
+.logo-text-sub{font-size:10px;color:rgba(255,255,255,0.5);font-weight:600;letter-spacing:0.05em;text-transform:uppercase;}
+.user-wrap{position:relative;}
+.user-chip{display:flex;align-items:center;gap:8px;background:rgba(255,255,255,0.12);border:none;border-radius:999px;padding:6px 14px 6px 7px;cursor:pointer;font-family:inherit;}
+.user-chip:hover{background:rgba(255,255,255,0.18);}
+.avatar{width:26px;height:26px;border-radius:50%;background:var(--aa-blue);display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:#fff;}
+.user-name{font-size:13px;color:rgba(255,255,255,0.85);font-weight:600;}
+.user-menu{position:absolute;top:calc(100% + 8px);right:0;background:#fff;border:1px solid var(--aa-med-grey);border-radius:12px;box-shadow:0 8px 24px rgba(7,34,86,0.15);padding:6px;min-width:180px;display:none;z-index:50;}
+.user-menu.open{display:block;}
+.user-menu-email{font-size:11px;color:var(--aa-dark-grey);padding:8px 12px 10px;border-bottom:1px solid var(--aa-light-grey);margin-bottom:6px;word-break:break-all;}
+.user-menu a{display:block;padding:9px 12px;font-size:13px;font-weight:600;color:var(--aa-navy);text-decoration:none;border-radius:8px;}
+.user-menu a:hover{background:var(--aa-light-grey);}
+
+/* ── Back link ── */
+.back-bar{background:var(--aa-white);padding:12px 32px;}
+.back-link{font-size:13px;font-weight:700;color:var(--aa-blue);text-decoration:none;}
+.back-link:hover{text-decoration:underline;}
+
+/* ── Hero ── */
+.hero{background:var(--aa-navy);padding:36px 32px 0;text-align:center;}
+.hero-badge{display:inline-block;background:rgba(255,255,255,0.12);color:rgba(255,255,255,0.85);font-size:11px;font-weight:700;letter-spacing:0.07em;padding:5px 16px;border-radius:999px;margin-bottom:14px;}
+.hero-title{font-family:'Nunito',sans-serif;font-weight:900;font-size:clamp(22px,4vw,32px);color:#fff;line-height:1.12;margin-bottom:10px;}
+.hero-sub{font-size:13px;color:rgba(255,255,255,0.5);line-height:1.6;}
+.hero-scallop{background:var(--aa-light-grey);height:28px;border-radius:28px 28px 0 0;margin:24px -32px 0;}
+
+/* ── Body ── */
+.page-body{background:var(--aa-light-grey);padding:24px 24px 56px;}
+.page-inner{max-width:560px;margin:0 auto;}
+
+.card{background:#fff;border-radius:20px;padding:28px 32px;border:1.5px solid var(--aa-med-grey);}
+
+.prompt-box{background:var(--aa-light-blue);border-radius:12px;padding:16px 18px;margin-bottom:24px;font-size:13px;color:var(--aa-navy);line-height:1.65;font-weight:600;}
+
+/* ── Upload Area ── */
+.upload-area{border:2px dashed var(--aa-med-grey);border-radius:14px;padding:32px 24px;text-align:center;margin-bottom:20px;background:var(--aa-light-grey);transition:all 0.15s;cursor:pointer;}
+.upload-area.dragover{border-color:var(--aa-blue);background:var(--aa-light-blue);}
+.upload-area.has-file{border-style:solid;border-color:var(--aa-blue);background:var(--aa-light-blue);text-align:left;display:flex;align-items:center;gap:14px;}
+.upload-icon{width:48px;height:48px;background:#fff;border-radius:14px;border:1.5px solid var(--aa-med-grey);display:flex;align-items:center;justify-content:center;margin:0 auto 12px;font-size:22px;flex-shrink:0;}
+.upload-area.has-file .upload-icon{margin:0;border-color:var(--aa-blue);}
+.upload-title{font-size:14px;font-weight:700;color:var(--aa-navy);margin-bottom:4px;}
+.upload-meta{font-size:12px;color:var(--aa-dark-grey);margin-bottom:14px;}
+.upload-area.has-file .upload-meta{margin-bottom:0;}
+.upload-btn{background:var(--aa-blue);color:#fff;font-size:13px;font-weight:700;padding:10px 22px;border-radius:999px;border:none;cursor:pointer;}
+.file-info{flex:1;min-width:0;}
+.file-info .upload-title{margin-bottom:2px;word-break:break-all;}
+.file-clear{background:transparent;border:none;color:var(--aa-dark-grey);cursor:pointer;font-weight:600;font-size:18px;padding:4px 8px;}
+.file-clear:hover{color:#c0392b;}
+
+.field-group{margin-bottom:16px;}
+label{display:block;font-size:12px;font-weight:700;color:var(--aa-dark-grey);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:6px;}
+input[type="text"]{width:100%;padding:12px 16px;border:1.5px solid var(--aa-med-grey);border-radius:10px;font-family:'Nunito Sans',sans-serif;font-size:14px;color:var(--aa-navy);background:#fff;outline:none;transition:border-color 0.15s;}
+input[type="text"]:focus{border-color:var(--aa-blue);}
+input[type="text"]::placeholder{color:var(--aa-dark-grey);}
+
+.submit-btn{width:100%;padding:14px;background:var(--aa-blue);color:#fff;border:none;border-radius:999px;font-family:'Nunito',sans-serif;font-weight:800;font-size:16px;cursor:pointer;margin-top:8px;transition:opacity 0.15s;}
+.submit-btn:disabled{opacity:0.4;cursor:not-allowed;}
+.submit-btn:not(:disabled):hover{opacity:0.9;}
+.submit-note{text-align:center;font-size:11px;color:var(--aa-dark-grey);margin-top:12px;line-height:1.5;}
+
+/* ── Progress + status ── */
+.progress-wrap{display:none;margin-top:14px;}
+.progress-wrap.visible{display:block;}
+.progress-bar{height:8px;background:var(--aa-med-grey);border-radius:999px;overflow:hidden;}
+.progress-fill{height:100%;background:var(--aa-blue);border-radius:999px;transition:width 0.2s;width:0%;}
+.progress-label{font-size:12px;font-weight:600;color:var(--aa-dark-grey);text-align:center;margin-top:6px;}
+
+.error-banner{display:none;background:#fde8e8;border:1px solid #f5b5b5;color:#8b1a1a;font-size:13px;font-weight:600;padding:10px 14px;border-radius:10px;margin-bottom:16px;line-height:1.5;}
+.error-banner.visible{display:block;}
+
+/* ── Success state ── */
+.success-card{background:#fff;border:2px solid var(--aa-green);border-radius:20px;padding:36px 32px;text-align:center;}
+.success-icon{font-size:42px;margin-bottom:8px;}
+.success-title{font-family:'Nunito',sans-serif;font-weight:900;font-size:22px;color:var(--aa-navy);margin-bottom:8px;}
+.success-sub{font-size:14px;color:var(--aa-dark-grey);line-height:1.6;margin-bottom:24px;max-width:380px;margin-left:auto;margin-right:auto;}
+.success-actions{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;}
+.btn-primary{background:var(--aa-yellow);color:#3a2000;font-size:13px;font-weight:700;padding:11px 22px;border-radius:999px;text-decoration:none;display:inline-block;border:none;cursor:pointer;}
+.btn-secondary{background:#fff;color:var(--aa-navy);font-size:13px;font-weight:700;padding:11px 22px;border-radius:999px;text-decoration:none;display:inline-block;border:1.5px solid var(--aa-med-grey);cursor:pointer;}
+
+/* ── Footer ── */
+.site-footer{background:var(--aa-navy);padding:20px 32px;text-align:center;border-top:3px solid var(--aa-blue);}
+.footer-text{font-size:11px;color:var(--aa-dark-grey);letter-spacing:0.05em;text-transform:uppercase;margin-top:8px;}
+
+/* ── Loading + error pages ── */
+.page-loading,.page-error{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:80px 24px;background:var(--aa-light-grey);min-height:60vh;text-align:center;}
+.spinner{width:32px;height:32px;border:3px solid var(--aa-med-grey);border-top-color:var(--aa-blue);border-radius:50%;animation:spin 0.7s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg);}}
+.error-icon{font-size:48px;margin-bottom:12px;}
+.error-title{font-family:'Nunito',sans-serif;font-weight:900;font-size:22px;color:var(--aa-navy);margin-bottom:8px;}
+.error-sub{font-size:14px;color:var(--aa-dark-grey);max-width:360px;line-height:1.55;margin-bottom:20px;}
+</style>
+</head>
+<body>
+
+<header class="site-header">
+  <div class="header-logo">
+    <svg width="32" height="32" viewBox="0 0 67 55" fill="none"><path d="M66.3126 50.8822L48.3919 1.76245C48.0093 0.703285 46.9977 0 45.867 0H20.6096C19.479 0 18.4673 0.703285 18.0848 1.76245L0.164039 50.8822C-0.473557 52.6277 0.82714 54.4749 2.68892 54.4749H25.9059C27.0366 54.4749 28.0483 53.7716 28.4308 52.7125L33.2426 39.5365L38.0543 52.7125C38.4368 53.7716 39.4485 54.4749 40.5792 54.4749H63.7962C65.658 54.4749 66.9587 52.6277 66.3211 50.8822H66.3126ZM40.9532 51.255L34.9598 34.8253L45.9945 4.58406L63.0226 51.2635H40.9532V51.255Z" fill="white"/></svg>
+    <div class="logo-divider"></div>
+    <div>
+      <div class="logo-text-top">Alpha Experiences</div>
+      <div class="logo-text-sub">Student Portal</div>
+    </div>
+  </div>
+  <div class="user-wrap">
+    <button class="user-chip" id="user-chip" aria-haspopup="true" aria-expanded="false">
+      <div class="avatar" id="user-avatar">··</div>
+      <span class="user-name" id="user-handle">…</span>
+    </button>
+    <div class="user-menu" id="user-menu" role="menu">
+      <div class="user-menu-email" id="user-menu-email"></div>
+      <a href="/auth/logout" role="menuitem">Sign out</a>
+    </div>
+  </div>
+</header>
+
+<div id="page-loading" class="page-loading">
+  <div class="spinner"></div>
+</div>
+
+<div id="page-error" class="page-error" style="display:none;">
+  <div class="error-icon">🔒</div>
+  <p class="error-title" id="error-title">Trip not found</p>
+  <p class="error-sub" id="error-sub">We couldn't find this trip in your registered experiences.</p>
+  <a href="/trips" class="btn-secondary">← Back to my trips</a>
+</div>
+
+<div id="page-content" style="display:none;">
+  <div class="back-bar">
+    <a id="back-link" class="back-link" href="/trips">← Back to my trips</a>
+  </div>
+
+  <div class="hero">
+    <div class="hero-badge">📸 Project Submission</div>
+    <h1 class="hero-title">Submit Your Project</h1>
+    <p class="hero-sub" id="hero-sub">…</p>
+    <div class="hero-scallop"></div>
+  </div>
+
+  <div class="page-body">
+    <div class="page-inner">
+
+      <div id="form-card" class="card">
+        <div id="prompt-box" class="prompt-box">…</div>
+        <div id="error-banner" class="error-banner"></div>
+
+        <div id="upload-area" class="upload-area">
+          <div class="upload-icon">📁</div>
+          <p class="upload-title">Drag &amp; drop or click to upload</p>
+          <p class="upload-meta">Accepts JPG, PNG, MP4 &nbsp;·&nbsp; Max 50MB</p>
+          <button type="button" class="upload-btn" id="choose-btn">Choose File</button>
+          <input type="file" id="file-input" accept=".jpg,.jpeg,.png,.mp4,image/jpeg,image/png,video/mp4" hidden>
+        </div>
+
+        <div class="field-group">
+          <label for="display-name">Your display name</label>
+          <input type="text" id="display-name" maxlength="80">
+        </div>
+
+        <div class="field-group">
+          <label for="location">Your location</label>
+          <input type="text" id="location" placeholder="e.g. Austin, TX" maxlength="80">
+        </div>
+
+        <button type="button" class="submit-btn" id="submit-btn" disabled>Submit My Project 🚀</button>
+        <div id="progress" class="progress-wrap">
+          <div class="progress-bar"><div class="progress-fill" id="progress-fill"></div></div>
+          <p class="progress-label" id="progress-label">Uploading…</p>
+        </div>
+        <p class="submit-note">Your project will be visible to the Alpha Anywhere community in the gallery.</p>
+      </div>
+
+      <div id="success-card" class="success-card" style="display:none;">
+        <div class="success-icon">🎉</div>
+        <p class="success-title">Submitted!</p>
+        <p class="success-sub">Thanks for sharing your work. It'll appear in the gallery shortly for the Alpha Anywhere community to see.</p>
+        <div class="success-actions">
+          <a href="/gallery" class="btn-primary">Browse the gallery →</a>
+          <a id="back-trip" href="#" class="btn-secondary">Back to trip</a>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<footer class="site-footer">
+  <svg width="24" height="20" viewBox="0 0 67 55" fill="none"><path d="M66.3126 50.8822L48.3919 1.76245C48.0093 0.703285 46.9977 0 45.867 0H20.6096C19.479 0 18.4673 0.703285 18.0848 1.76245L0.164039 50.8822C-0.473557 52.6277 0.82714 54.4749 2.68892 54.4749H25.9059C27.0366 54.4749 28.0483 53.7716 28.4308 52.7125L33.2426 39.5365L38.0543 52.7125C38.4368 53.7716 39.4485 54.4749 40.5792 54.4749H63.7962C65.658 54.4749 66.9587 52.6277 66.3211 50.8822H66.3126ZM40.9532 51.255L34.9598 34.8253L45.9945 4.58406L63.0226 51.2635H40.9532V51.255Z" fill="#FAFAFA" opacity="0.4"/></svg>
+  <p class="footer-text">Alpha Experiences · Alpha Anywhere</p>
+</footer>
+
+<script>
+var MAX_BYTES = 50 * 1024 * 1024;
+var ALLOWED_EXT = ['jpg','jpeg','png','mp4'];
+var ALLOWED_MIME = { 'image/jpeg':'image','image/png':'image','video/mp4':'video' };
+
+// ── State ──
+var TRIP_ID = '';
+var SELECTED_FILE = null;
+
+// ── Helpers ──
+function tripIdFromPath() {
+  var m = window.location.pathname.match(/^\/trips\/([^\/]+)\/submit\/?$/);
+  return m ? decodeURIComponent(m[1]) : '';
+}
+function emailHandle(e){ if(!e) return ''; var i=e.indexOf('@'); return i<0?e:e.slice(0,i); }
+function initialsFor(name, email){
+  var s = (name || emailHandle(email) || '').trim();
+  if (!s) return '··';
+  var parts = s.split(/[\s.]+/).filter(Boolean);
+  if (parts.length === 1) return (parts[0][0] || '·').toUpperCase();
+  return ((parts[0][0] || '·') + (parts[parts.length-1][0] || '')).toUpperCase();
+}
+function formatTripDate(iso){
+  if (!iso) return '';
+  var d = new Date(iso + 'T00:00:00');
+  if (isNaN(d.getTime())) return iso;
+  return d.toLocaleDateString('en-US', { year:'numeric', month:'long', day:'numeric' });
+}
+function extOf(name){
+  var m = String(name||'').toLowerCase().match(/\.([a-z0-9]+)$/);
+  return m ? m[1] : '';
+}
+function fmtBytes(n){
+  if (n < 1024) return n + ' B';
+  if (n < 1024*1024) return (n/1024).toFixed(0) + ' KB';
+  return (n/(1024*1024)).toFixed(1) + ' MB';
+}
+function fileTypeFor(file){
+  if (file.type && ALLOWED_MIME[file.type]) return ALLOWED_MIME[file.type];
+  var ext = extOf(file.name);
+  if (ext === 'mp4') return 'video';
+  if (['jpg','jpeg','png'].indexOf(ext) !== -1) return 'image';
+  return null;
+}
+function showError(msg){
+  var el = document.getElementById('error-banner');
+  el.textContent = msg;
+  el.classList.add('visible');
+}
+function clearError(){
+  document.getElementById('error-banner').classList.remove('visible');
+}
+
+// ── User menu ──
+function setupUserMenu(user){
+  document.getElementById('user-avatar').textContent     = initialsFor(user.name, user.email);
+  document.getElementById('user-handle').textContent     = emailHandle(user.email);
+  document.getElementById('user-menu-email').textContent = user.email;
+  var btn  = document.getElementById('user-chip');
+  var menu = document.getElementById('user-menu');
+  btn.addEventListener('click', function(e){
+    e.stopPropagation();
+    var open = menu.classList.toggle('open');
+    btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+  });
+  document.addEventListener('click', function(e){
+    if (!menu.contains(e.target) && e.target !== btn) {
+      menu.classList.remove('open');
+      btn.setAttribute('aria-expanded', 'false');
+    }
+  });
+}
+
+// ── File handling ──
+function setFile(file){
+  clearError();
+  if (!file) {
+    SELECTED_FILE = null;
+    renderUploadArea();
+    updateSubmitState();
+    return;
+  }
+  var ext = extOf(file.name);
+  if (ALLOWED_EXT.indexOf(ext) === -1) {
+    showError('That file type isn\'t supported. Please choose a JPG, PNG, or MP4.');
+    return;
+  }
+  if (file.size > MAX_BYTES) {
+    showError('That file is too large (' + fmtBytes(file.size) + '). The max size is 50 MB.');
+    return;
+  }
+  SELECTED_FILE = file;
+  renderUploadArea();
+  updateSubmitState();
+}
+
+function renderUploadArea(){
+  var area = document.getElementById('upload-area');
+  if (SELECTED_FILE) {
+    area.classList.add('has-file');
+    area.innerHTML = '';
+    var icon = document.createElement('div');
+    icon.className = 'upload-icon';
+    icon.textContent = fileTypeFor(SELECTED_FILE) === 'video' ? '🎬' : '🖼️';
+    area.appendChild(icon);
+    var info = document.createElement('div');
+    info.className = 'file-info';
+    var t = document.createElement('p');
+    t.className = 'upload-title';
+    t.textContent = SELECTED_FILE.name;
+    info.appendChild(t);
+    var m = document.createElement('p');
+    m.className = 'upload-meta';
+    m.textContent = fmtBytes(SELECTED_FILE.size);
+    info.appendChild(m);
+    area.appendChild(info);
+    var x = document.createElement('button');
+    x.type = 'button';
+    x.className = 'file-clear';
+    x.title = 'Remove file';
+    x.textContent = '✕';
+    x.addEventListener('click', function(e){ e.stopPropagation(); setFile(null); });
+    area.appendChild(x);
+  } else {
+    area.classList.remove('has-file');
+    area.innerHTML =
+      '<div class="upload-icon">📁</div>' +
+      '<p class="upload-title">Drag &amp; drop or click to upload</p>' +
+      '<p class="upload-meta">Accepts JPG, PNG, MP4 &nbsp;·&nbsp; Max 50MB</p>' +
+      '<button type="button" class="upload-btn" id="choose-btn">Choose File</button>';
+  }
+}
+
+function setupUpload(){
+  var area  = document.getElementById('upload-area');
+  var input = document.getElementById('file-input');
+
+  area.addEventListener('click', function(e){
+    if (e.target.classList && e.target.classList.contains('file-clear')) return;
+    input.click();
+  });
+  input.addEventListener('change', function(){
+    if (input.files && input.files[0]) setFile(input.files[0]);
+  });
+
+  // Drag & drop
+  ['dragenter','dragover'].forEach(function(ev){
+    area.addEventListener(ev, function(e){ e.preventDefault(); area.classList.add('dragover'); });
+  });
+  ['dragleave','drop'].forEach(function(ev){
+    area.addEventListener(ev, function(e){ e.preventDefault(); area.classList.remove('dragover'); });
+  });
+  area.addEventListener('drop', function(e){
+    if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0]) {
+      setFile(e.dataTransfer.files[0]);
+    }
+  });
+}
+
+// ── Submit ──
+function updateSubmitState(){
+  var ok = !!SELECTED_FILE
+    && document.getElementById('display-name').value.trim().length > 0
+    && document.getElementById('location').value.trim().length > 0;
+  document.getElementById('submit-btn').disabled = !ok;
+}
+
+function setProgress(pct, label){
+  document.getElementById('progress').classList.add('visible');
+  document.getElementById('progress-fill').style.width = pct + '%';
+  document.getElementById('progress-label').textContent = label || ('Uploading… ' + pct + '%');
+}
+function hideProgress(){ document.getElementById('progress').classList.remove('visible'); }
+
+function uploadToSupabase(uploadUrl, file){
+  return new Promise(function(resolve, reject){
+    var xhr = new XMLHttpRequest();
+    xhr.open('PUT', uploadUrl, true);
+    if (file.type) xhr.setRequestHeader('Content-Type', file.type);
+    xhr.upload.addEventListener('progress', function(e){
+      if (e.lengthComputable) {
+        var pct = Math.round((e.loaded / e.total) * 100);
+        setProgress(Math.min(pct, 99), 'Uploading… ' + pct + '%');
+      }
+    });
+    xhr.onload = function(){
+      if (xhr.status >= 200 && xhr.status < 300) resolve();
+      else reject(new Error('upload failed: ' + xhr.status + ' ' + xhr.responseText));
+    };
+    xhr.onerror = function(){ reject(new Error('upload network error')); };
+    xhr.send(file);
+  });
+}
+
+async function submitProject(){
+  clearError();
+  var btn = document.getElementById('submit-btn');
+  btn.disabled = true;
+  setProgress(0, 'Preparing upload…');
+
+  var displayName = document.getElementById('display-name').value.trim();
+  var location    = document.getElementById('location').value.trim();
+  var fileType    = fileTypeFor(SELECTED_FILE);
+
+  try {
+    // 1. Get signed upload URL from our server
+    var s = await fetch('/api/submissions/upload-url', {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ trip_id: TRIP_ID, filename: SELECTED_FILE.name })
+    });
+    if (s.status !== 200) {
+      var err = await s.json().catch(function(){ return {}; });
+      throw new Error(err.error || ('upload-url failed: ' + s.status));
+    }
+    var sd = await s.json();
+
+    // 2. PUT the file to Supabase
+    setProgress(0, 'Uploading…');
+    await uploadToSupabase(sd.upload_url, SELECTED_FILE);
+
+    // 3. Tell our server to record the submission
+    setProgress(99, 'Finalising…');
+    var c = await fetch('/api/submissions/create', {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        trip_id:      TRIP_ID,
+        display_name: displayName,
+        location:     location,
+        file_url:     sd.public_url,
+        file_type:    fileType
+      })
+    });
+    if (c.status !== 200) {
+      var ce = await c.json().catch(function(){ return {}; });
+      throw new Error(ce.error || ('create failed: ' + c.status));
+    }
+
+    // 4. Show success state
+    setProgress(100, 'Done!');
+    setTimeout(function(){
+      document.getElementById('form-card').style.display    = 'none';
+      document.getElementById('success-card').style.display = '';
+    }, 250);
+  } catch (err) {
+    console.error(err);
+    hideProgress();
+    btn.disabled = false;
+    var msg = String(err.message || err);
+    if (msg === 'not_purchased') {
+      showError('You\'re not registered for this trip. Reach out to your coach if you think this is wrong.');
+    } else if (msg === 'not_authenticated') {
+      window.location.href = '/auth/login';
+    } else {
+      showError('Something went wrong while submitting. Please try again, or refresh the page if it keeps failing.');
+    }
+  }
+}
+
+// ── Init ──
+async function init(){
+  // Auth gate
+  var meRes;
+  try { meRes = await fetch('/auth/me', { credentials: 'same-origin' }); }
+  catch (e) { window.location.href = '/auth/login'; return; }
+  if (meRes.status !== 200) { window.location.href = '/auth/login'; return; }
+  var user = await meRes.json();
+  setupUserMenu(user);
+
+  TRIP_ID = tripIdFromPath();
+  if (!TRIP_ID) {
+    document.getElementById('page-loading').style.display = 'none';
+    document.getElementById('error-title').textContent = 'No trip in URL';
+    document.getElementById('error-sub').textContent   = 'This link is missing a trip ID.';
+    document.getElementById('page-error').style.display = 'flex';
+    return;
+  }
+
+  // Load trip to get reflection prompt + verify ownership (404 if not purchased)
+  var tr;
+  try { tr = await fetch('/api/trips/' + encodeURIComponent(TRIP_ID), { credentials: 'same-origin' }); }
+  catch (e) {
+    document.getElementById('page-loading').style.display = 'none';
+    document.getElementById('error-title').textContent = 'Connection error';
+    document.getElementById('error-sub').textContent   = 'We had trouble loading this trip. Please refresh the page.';
+    document.getElementById('page-error').style.display = 'flex';
+    return;
+  }
+  if (tr.status === 401) { window.location.href = '/auth/login'; return; }
+  if (tr.status !== 200) {
+    document.getElementById('page-loading').style.display = 'none';
+    document.getElementById('error-title').textContent = 'Trip not found';
+    document.getElementById('error-sub').textContent   = 'We couldn\'t find this trip in your registered experiences.';
+    document.getElementById('page-error').style.display = 'flex';
+    return;
+  }
+  var data = await tr.json();
+  var trip = data.trip || {};
+
+  // Populate page
+  var subBits = [];
+  if (trip.title)     subBits.push(trip.title);
+  if (trip.trip_date) subBits.push(formatTripDate(trip.trip_date));
+  document.getElementById('hero-sub').textContent = subBits.join('  ·  ');
+  document.getElementById('prompt-box').textContent =
+    trip.reflection_prompt ||
+    'Share a photo or short video of your finished project.';
+  document.getElementById('display-name').value = user.name || '';
+  document.getElementById('back-link').href     = '/trips/' + encodeURIComponent(TRIP_ID);
+  document.getElementById('back-trip').href     = '/trips/' + encodeURIComponent(TRIP_ID);
+
+  setupUpload();
+
+  document.getElementById('display-name').addEventListener('input', updateSubmitState);
+  document.getElementById('location').addEventListener('input',     updateSubmitState);
+  document.getElementById('submit-btn').addEventListener('click',   submitProject);
+
+  document.getElementById('page-loading').style.display = 'none';
+  document.getElementById('page-content').style.display = '';
+}
+
+init();
+</script>
+
+</body>
+</html>
