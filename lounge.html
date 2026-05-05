@@ -74,7 +74,11 @@ body{font-family:'Nunito Sans',sans-serif;background:var(--aa-white);min-height:
 .pass-cta.disabled{background:var(--aa-med-grey);color:var(--aa-dark-grey);pointer-events:none;cursor:not-allowed;}
 .pass-saved{width:100%;margin-top:8px;padding-top:14px;border-top:1px solid var(--aa-light-grey);font-size:12px;color:var(--aa-dark-grey);}
 .pass-saved strong{color:var(--aa-navy);}
-.session-pill{display:inline-block;background:var(--aa-light-blue);color:var(--aa-navy);font-size:11px;font-weight:600;padding:3px 10px;border-radius:999px;margin:3px 4px 0 0;}
+.session-pill{display:inline-block;background:var(--aa-light-blue);color:var(--aa-navy);font-size:11px;font-weight:600;padding:3px 10px;border-radius:999px;margin:3px 4px 0 0;max-width:260px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;vertical-align:bottom;}
+
+/* Pass-card disclaimer — one-time-use + expiry + coach availability */
+.pass-disclaimer{width:100%;margin-top:14px;padding:10px 14px;background:var(--aa-light-yellow);border:1px solid #f0c060;border-radius:10px;font-size:11px;color:#6b3a00;line-height:1.55;font-weight:600;}
+.pass-disclaimer strong{font-weight:800;}
 
 /* ── Explainer ── */
 .explainer-card{background:#fff;border-radius:18px;border:1.5px solid var(--aa-med-grey);padding:24px 28px;}
@@ -84,7 +88,7 @@ body{font-family:'Nunito Sans',sans-serif;background:var(--aa-white);min-height:
 /* ── This week's sessions grid ── */
 .session-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px;}
 .session-card{background:#fff;border-radius:14px;border:1.5px solid var(--aa-med-grey);padding:14px 16px;display:flex;align-items:center;gap:12px;}
-.session-emoji{font-size:24px;width:42px;height:42px;background:var(--aa-light-grey);border-radius:10px;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.session-emoji{font-size:24px;width:42px;height:42px;background:var(--aa-light-grey);border-radius:10px;display:flex;align-items:center;justify-content:center;flex-shrink:0;overflow:hidden;}
 .session-info{flex:1;min-width:0;}
 .session-name{font-family:'Nunito',sans-serif;font-weight:800;font-size:13px;color:var(--aa-navy);margin-bottom:2px;}
 .session-meta{font-size:11px;color:var(--aa-dark-grey);}
@@ -346,7 +350,9 @@ function renderPasses(passes){
     }
     card.appendChild(cta);
 
-    // Saved selections (if any)
+    // Saved selections (if any) — pills clamp emoji to a single grapheme to
+    // avoid the case where a misconfigured Sessions tab puts long text in
+    // col F. Pills are also CSS-clamped (max-width + ellipsis) for safety.
     if (p.saved_selections && p.saved_selections.length) {
       var saved = document.createElement('div');
       saved.className = 'pass-saved';
@@ -356,14 +362,42 @@ function renderPasses(passes){
       p.saved_selections.forEach(function(s){
         var pill = document.createElement('span');
         pill.className = 'session-pill';
-        pill.textContent = (s.emoji ? s.emoji + ' ' : '') + (s.name || s.session_id);
+        var em = firstGrapheme(s.emoji);
+        pill.textContent = (em ? em + ' ' : '') + (s.name || s.session_id);
         saved.appendChild(pill);
       });
       card.appendChild(saved);
     }
 
+    // Standard disclaimer — appears on every pass card
+    if (!p.expired) {
+      var note = document.createElement('p');
+      note.className = 'pass-disclaimer';
+      note.innerHTML = '⚠️ <strong>Click the Zoom link only when you\'re ready to enter</strong> — each link is one-time use and expires 30 days from when the pass was issued. All sessions are subject to coach availability.';
+      card.appendChild(note);
+    }
+
     list.appendChild(card);
   });
+}
+
+// Return only the first visible character of a string, treating
+// extended grapheme clusters (like flag/family emojis) as one. Falls
+// back to .charAt(0) on browsers without Intl.Segmenter (older Safari).
+function firstGrapheme(s){
+  if (!s) return '';
+  var str = String(s);
+  if (typeof Intl !== 'undefined' && Intl.Segmenter) {
+    try {
+      var seg = new Intl.Segmenter(undefined, { granularity: 'grapheme' });
+      var it  = seg.segment(str)[Symbol.iterator]();
+      var first = it.next();
+      if (!first.done) return first.value.segment;
+    } catch (e) { /* fall through */ }
+  }
+  // Fallback: surrogate-pair-aware first code point
+  var cp = str.codePointAt(0);
+  return cp ? String.fromCodePoint(cp) : '';
 }
 
 function renderSessions(sessions, hasPass){
@@ -387,7 +421,7 @@ function renderSessions(sessions, hasPass){
 
     var em = document.createElement('div');
     em.className   = 'session-emoji';
-    em.textContent = s.emoji || '🎮';
+    em.textContent = firstGrapheme(s.emoji) || '🎮';
     card.appendChild(em);
 
     var info = document.createElement('div');
@@ -432,8 +466,16 @@ async function init(){
       var data = await r.json();
       passes   = (data && data.passes)   || [];
       sessions = (data && data.sessions) || [];
+      // Debug: helps diagnose "missing pass" reports.
+      // Open DevTools → Console to see how many rows the server matched.
+      console.log('[lounge] API returned ' + passes.length + ' pass(es), ' + sessions.length + ' session(s) for', user.email);
+      if (passes.length) console.log('[lounge] passes:', passes);
+    } else {
+      console.warn('[lounge] /api/lul/lounge-data returned status', r.status);
     }
-  } catch (e) { /* fall through */ }
+  } catch (e) {
+    console.warn('[lounge] fetch failed:', e);
+  }
 
   renderPasses(passes);
   // hasPass = at least one non-expired pass
