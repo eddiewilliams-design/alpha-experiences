@@ -17,6 +17,9 @@
 // Required tab: LUL_Attendance with header row in row 1:
 //   A: clicked_at | B: student_email | C: student_name
 //   D: session_id | E: session_name  | F: zoom_url | G: token
+//   H: in_picks   (YES if this session was one the student had
+//                  locked in via Sheet1 col K; NO if outside their
+//                  picks; blank if they had no saved selections)
 // If the tab doesn't exist yet, the append fails silently and is
 // logged to Vercel — the student is still redirected normally.
 // ============================================================
@@ -175,9 +178,12 @@ module.exports = async (req, res) => {
     }
 
     if (matched) {
-      const studentName  = (matched.row[1] || '').toString();   // col B
-      const studentEmail = (matched.row[2] || '').toString();   // col C
-      const alreadySet   = (matched.row[12] || '').toString().trim(); // col M
+      const studentName    = (matched.row[1] || '').toString();   // col B
+      const studentEmail   = (matched.row[2] || '').toString();   // col C
+      const alreadySet     = (matched.row[12] || '').toString().trim(); // col M
+      // col K = comma-separated locked-in session slugs
+      const savedSelections = (matched.row[10] || '').toString().trim()
+        .split(',').map(s => s.trim()).filter(Boolean);
 
       // Existing behavior: write Date First Clicked to col M (once only)
       if (!alreadySet) {
@@ -208,14 +214,23 @@ module.exports = async (req, res) => {
         }
       }
 
+      // in_picks: was this clicked session one the student locked in?
+      // YES if their saved selections include this session slug.
+      // NO if they have selections but this isn't one of them.
+      // Blank if they have no saved selections at all (e.g. unconfirmed pass).
+      let inPicks = '';
+      if (savedSelections.length) {
+        inPicks = (sessionId && savedSelections.indexOf(sessionId) !== -1) ? 'YES' : 'NO';
+      }
+
       const clickedAtIso = new Date().toISOString();
       const appendUrl =
         `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/` +
-        `${encodeURIComponent('LUL_Attendance!A:G')}` +
+        `${encodeURIComponent('LUL_Attendance!A:H')}` +
         `:append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS`;
       try {
         await postSheet(appendUrl, {
-          range: 'LUL_Attendance!A:G',
+          range: 'LUL_Attendance!A:H',
           majorDimension: 'ROWS',
           values: [[
             clickedAtIso,
@@ -224,7 +239,8 @@ module.exports = async (req, res) => {
             sessionId,
             sessionName,
             redirectTo,
-            token
+            token,
+            inPicks
           ]]
         }, accessToken);
       } catch (err) {
