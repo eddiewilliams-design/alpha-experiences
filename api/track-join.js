@@ -2,15 +2,28 @@
 // ALPHA EXPERIENCES — TRACK JOIN API
 // Vercel Serverless Function — Service Account Auth
 // GET /api/track-join?token=XXXXXXXX&dest=ENCODED_ZOOM_URL
-// Writes "Date First Clicked" to col M in Sheet1 (once only),
-// then redirects the student to the Zoom link.
-// Always redirects — a write failure never blocks the student.
+//
+// What it does:
+//   1. Resolves token → student row in Sheet1.
+//   2. Writes "Date First Clicked" to col M (once only — preserved
+//      for backward compat with existing reports).
+//   3. NEW: Appends a row to LUL_Attendance for EVERY click — so
+//      admins can see exactly which sessions each student joined,
+//      and how often. Matches the dest URL against the Sessions
+//      tab to resolve session_id + session_name when possible.
+//   4. Always redirects to the Zoom link — a logging failure never
+//      blocks the student.
+//
+// Required tab: LUL_Attendance with header row in row 1:
+//   A: clicked_at | B: student_email | C: student_name
+//   D: session_id | E: session_name  | F: zoom_url | G: token
+// If the tab doesn't exist yet, the append fails silently and is
+// logged to Vercel — the student is still redirected normally.
 // ============================================================
 const https = require('https');
 const crypto = require('crypto');
 
 const SHEET_ID = '1aQYysCOOR-mYG8Myrl1BSU2PF8wMl-si8pgNG89sRto';
-const READ_RANGE = 'Sheet1!A:M';
 
 function b64url(str) {
   return Buffer.from(str).toString('base64')
@@ -86,6 +99,34 @@ function putSheet(url, body, token) {
   });
 }
 
+function postSheet(url, body, token) {
+  return new Promise((resolve, reject) => {
+    const buf = Buffer.from(JSON.stringify(body));
+    const opts = {
+      method: 'POST',
+      headers: {
+        Authorization: 'Bearer ' + token,
+        'Content-Type': 'application/json',
+        'Content-Length': buf.length
+      }
+    };
+    const req = https.request(url, opts, res => {
+      let d = '';
+      res.on('data', c => d += c);
+      res.on('end', () => {
+        // Surface non-2xx so the outer try/catch can log a useful message
+        if (res.statusCode < 200 || res.statusCode >= 300) {
+          return reject(new Error('append HTTP ' + res.statusCode + ': ' + d));
+        }
+        try { resolve(JSON.parse(d)); } catch(e) { reject(e); }
+      });
+    });
+    req.on('error', reject);
+    req.write(buf);
+    req.end();
+  });
+}
+
 module.exports = async (req, res) => {
   res.setHeader('Cache-Control', 'no-store');
 
@@ -113,30 +154,83 @@ module.exports = async (req, res) => {
     const accessToken = tokenRes.access_token;
     if (!accessToken) return res.redirect(302, redirectTo);
 
-    // Fetch the sheet to find the token row
-    const sheetUrl = `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/${encodeURIComponent(READ_RANGE)}`;
-    const data = await getSheet(sheetUrl, accessToken);
-    const rows = data.values || [];
+    // batchGet: pull Sheet1 (token row) AND Sessions (URL → session match)
+    // in one round trip.
+    const ranges = ['Sheet1!A:M', 'Sessions!A:K'];
+    const params = ranges.map(r => 'ranges=' + encodeURIComponent(r)).join('&');
+    const batchUrl = `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values:batchGet?${params}`;
+    const batch = await getSheet(batchUrl, accessToken);
+    const valueRanges = (batch && batch.valueRanges) || [];
+    const passRows    = (valueRanges[0] && valueRanges[0].values) || [];
+    const sessionRows = (valueRanges[1] && valueRanges[1].values) || [];
 
-    for (let i = 1; i < rows.length; i++) {
-      const rowToken = (rows[i][6] || '').trim(); // col G = Token
+    // Find the token row in Sheet1
+    let matched = null;
+    for (let i = 1; i < passRows.length; i++) {
+      const rowToken = (passRows[i][6] || '').toString().trim(); // col G
       if (rowToken === token) {
-        const rowIndex   = i + 1; // 1-indexed for Sheets API
-        const alreadySet = (rows[i][12] || '').trim(); // col M = Date First Clicked
+        matched = { row: passRows[i], rowIndex: i + 1 };
+        break;
+      }
+    }
 
-        // Only write on the very first click
-        if (!alreadySet) {
-          const clickedAt  = new Date().toLocaleString('en-US', { timeZone: 'America/Chicago' });
-          const writeRange = `Sheet1!M${rowIndex}`;
-          const writeUrl   = `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/${encodeURIComponent(writeRange)}?valueInputOption=RAW`;
+    if (matched) {
+      const studentName  = (matched.row[1] || '').toString();   // col B
+      const studentEmail = (matched.row[2] || '').toString();   // col C
+      const alreadySet   = (matched.row[12] || '').toString().trim(); // col M
 
+      // Existing behavior: write Date First Clicked to col M (once only)
+      if (!alreadySet) {
+        const clickedAt  = new Date().toLocaleString('en-US', { timeZone: 'America/Chicago' });
+        const writeRange = `Sheet1!M${matched.rowIndex}`;
+        const writeUrl   = `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/${encodeURIComponent(writeRange)}?valueInputOption=RAW`;
+        try {
           await putSheet(writeUrl, {
             range: writeRange,
             majorDimension: 'ROWS',
             values: [[clickedAt]]
           }, accessToken);
+        } catch (err) {
+          console.error('track-join: col M write failed:', err.message);
         }
-        break;
+      }
+
+      // NEW: append every click to LUL_Attendance
+      // Match the dest URL against Sessions col G to resolve session_id + name.
+      let sessionId = '';
+      let sessionName = '';
+      for (let i = 1; i < sessionRows.length; i++) {
+        const link = (sessionRows[i][6] || '').toString().trim(); // col G
+        if (link && link === redirectTo) {
+          sessionName = (sessionRows[i][0] || '').toString(); // col A
+          sessionId   = (sessionRows[i][7] || '').toString(); // col H
+          break;
+        }
+      }
+
+      const clickedAtIso = new Date().toISOString();
+      const appendUrl =
+        `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/` +
+        `${encodeURIComponent('LUL_Attendance!A:G')}` +
+        `:append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS`;
+      try {
+        await postSheet(appendUrl, {
+          range: 'LUL_Attendance!A:G',
+          majorDimension: 'ROWS',
+          values: [[
+            clickedAtIso,
+            studentEmail,
+            studentName,
+            sessionId,
+            sessionName,
+            redirectTo,
+            token
+          ]]
+        }, accessToken);
+      } catch (err) {
+        // Most likely cause: the LUL_Attendance tab doesn't exist yet.
+        // Don't block the student — just log so admin sees it in Vercel logs.
+        console.error('track-join: LUL_Attendance append failed (does the tab exist?):', err.message);
       }
     }
   } catch(err) {
