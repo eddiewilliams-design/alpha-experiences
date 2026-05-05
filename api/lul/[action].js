@@ -1,0 +1,262 @@
+// ============================================================
+// ALPHA EXPERIENCES — LEVEL UP LOUNGE (student-facing dispatcher)
+// One Vercel function for all student-facing /api/lul/* endpoints.
+// Same single-segment dynamic-route pattern as api/admin/[action].js.
+//
+// Reads the existing LUL Sheet1 + Sessions tabs by signed-in EMAIL
+// (not by token). The legacy token-based flow at /lul?token=... keeps
+// working in parallel — these endpoints add a Google-sign-in path.
+//
+// Sheet1 columns (per validate-token.js + email-sender.gs):
+//   A: experience_type ("2 Sessions Pass" / "Full Week" / "Friday Coaching Celebration")
+//   B: name
+//   C: student email
+//   D: parent email
+//   E: email_sent
+//   F: fulfilled
+//   G: token
+//   H: active (boolean checkbox; Apps Script flips to FALSE after 30 days)
+//   I: date_sent
+//   J: locked ("YES" once student saves selections)
+//   K: saved_selections (comma-separated session slugs)
+//   M: date_first_clicked (written by api/track-join.js)
+//
+// Sessions tab columns (per apps-script-migration.gs):
+//   A: name             B: description       C: coach
+//   D: day              E: time              F: emoji
+//   G: zoom_link        H: session_id (slug) I: active (YES/NO)
+//   J: blackout_start   K: blackout_end
+// ============================================================
+
+const https  = require('https');
+const crypto = require('crypto');
+const { getSession, httpsGet } = require('../_lib/session.js');
+
+const SHEET_ID    = '1aQYysCOOR-mYG8Myrl1BSU2PF8wMl-si8pgNG89sRto';
+const PASS_RANGE  = 'Sheet1!A:M';
+const SESSIONS_RANGE = 'Sessions!A:K';
+
+// ── Sheets access (same JWT pattern as the rest of the app) ──
+function b64url(str) {
+  return Buffer.from(str).toString('base64').replace(/=/g, '').replace(/\+/g, '-').replace(/\//g, '_');
+}
+function makeJWT(sa, scope) {
+  const now = Math.floor(Date.now() / 1000);
+  const hdr = b64url(JSON.stringify({ alg: 'RS256', typ: 'JWT' }));
+  const pay = b64url(JSON.stringify({
+    iss: sa.client_email,
+    scope: scope,
+    aud: 'https://oauth2.googleapis.com/token',
+    iat: now, exp: now + 3600
+  }));
+  const data = hdr + '.' + pay;
+  const sig  = crypto.createSign('RSA-SHA256').update(data).sign(sa.private_key, 'base64')
+    .replace(/=/g, '').replace(/\+/g, '-').replace(/\//g, '_');
+  return data + '.' + sig;
+}
+function postForm(url, body) {
+  return new Promise((resolve, reject) => {
+    const buf = Buffer.from(body);
+    const req = https.request(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'Content-Length': buf.length }
+    }, res => {
+      let d = ''; res.on('data', c => d += c);
+      res.on('end',  () => { try { resolve(JSON.parse(d)); } catch (e) { reject(e); } });
+    });
+    req.on('error', reject); req.write(buf); req.end();
+  });
+}
+async function getAccessToken(scope) {
+  const saJson = process.env.GOOGLE_SERVICE_ACCOUNT_JSON;
+  if (!saJson) throw new Error('GOOGLE_SERVICE_ACCOUNT_JSON not set');
+  const sa  = JSON.parse(saJson);
+  const jwt = makeJWT(sa, scope || 'https://www.googleapis.com/auth/spreadsheets.readonly');
+  const r = await postForm(
+    'https://oauth2.googleapis.com/token',
+    'grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Ajwt-bearer&assertion=' + jwt
+  );
+  if (!r.access_token) throw new Error('no access token from Google');
+  return r.access_token;
+}
+async function batchGet(token, ranges) {
+  const params = ranges.map(r => 'ranges=' + encodeURIComponent(r)).join('&');
+  const url = `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values:batchGet?${params}`;
+  return httpsGet(url, { Authorization: 'Bearer ' + token });
+}
+
+// ── Helpers ────────────────────────────────────────────────
+// Pass mode derived from col A's text — same logic as validate-token.js
+function passModeFromExpType(expType) {
+  const t = (expType || '').toLowerCase();
+  if (t.indexOf('2 sessions') !== -1)                return 'two';
+  if (t.indexOf('friday coaching celebration') !== -1) return 'celebration';
+  return 'full';
+}
+
+function passLabelFromMode(mode) {
+  if (mode === 'two')         return '2-Session Pass';
+  if (mode === 'celebration') return 'Friday Coaching Celebration';
+  return 'Full Week Pass';
+}
+
+// Expects sheet date strings like "5/15/2026" or ISO. Returns Date or null.
+function parseSheetDate(s) {
+  if (!s) return null;
+  const v = String(s).trim();
+  if (!v) return null;
+  const d = new Date(v);
+  if (!isNaN(d.getTime())) return d;
+  // Try M/D/YYYY explicitly
+  const m = v.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  if (m) {
+    const dd = new Date(parseInt(m[3],10), parseInt(m[1],10) - 1, parseInt(m[2],10));
+    if (!isNaN(dd.getTime())) return dd;
+  }
+  return null;
+}
+
+// 30-day expiry window matching apps-script-email-sender.gs expireOldTokens()
+const EXPIRY_DAYS = 30;
+function daysRemainingFromSent(dateSent) {
+  const d = parseSheetDate(dateSent);
+  if (!d) return null;
+  const ms = (d.getTime() + EXPIRY_DAYS * 24 * 60 * 60 * 1000) - Date.now();
+  return Math.ceil(ms / (24 * 60 * 60 * 1000));
+}
+
+// True if today falls between blackout_start and blackout_end (inclusive)
+function inBlackoutWindow(start, end) {
+  const s = parseSheetDate(start);
+  const e = parseSheetDate(end);
+  if (!s && !e) return false;
+  const now = new Date();
+  // Normalize "today" to midnight local for date-only comparison
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  if (s && today < s) return false;
+  if (e && today > e) return false;
+  return !!(s || e);
+}
+
+// ── handleLoungeData ──────────────────────────────────────
+// Returns the signed-in user's pass(es) + this week's session catalog.
+// Multiple passes possible — Eddie confirmed students can hold more
+// than one (e.g. a 2-Session pass + a Celebration pass). Each renders
+// as its own card on the /lounge page.
+async function handleLoungeData(req, res) {
+  const session = getSession(req);
+  if (!session) return res.status(401).json({ error: 'not_authenticated' });
+
+  const myEmail = (session.email || '').toLowerCase().trim();
+  if (!myEmail) return res.status(401).json({ error: 'not_authenticated' });
+
+  let passes = [];
+  let sessions = [];
+  try {
+    const token = await getAccessToken();
+    const sheet = await batchGet(token, [PASS_RANGE, SESSIONS_RANGE]);
+    const ranges = (sheet && sheet.valueRanges) || [];
+    const passRows    = (ranges[0] && ranges[0].values) || [];
+    const sessionRows = (ranges[1] && ranges[1].values) || [];
+
+    // Build session list (filtered to active + not in blackout for the lounge page)
+    for (let i = 1; i < sessionRows.length; i++) {
+      const r = sessionRows[i];
+      const sid = (r[7] || '').toString().trim();
+      if (!sid) continue;
+      const active = (r[8] || '').toString().toUpperCase().trim();
+      if (active && active !== 'YES') continue;
+      if (inBlackoutWindow(r[9], r[10])) continue;
+      sessions.push({
+        session_id:  sid,
+        name:        (r[0] || '').toString(),
+        description: (r[1] || '').toString(),
+        coach:       (r[2] || '').toString(),
+        day:         (r[3] || '').toString(),
+        time:        (r[4] || '').toString(),
+        emoji:       (r[5] || '').toString()
+      });
+    }
+    // Stable order: by day-of-week then by time. Best effort with string sort.
+    const dayOrder = { 'mon':1,'monday':1,'tue':2,'tuesday':2,'wed':3,'wednesday':3,'thu':4,'thursday':4,'fri':5,'friday':5,'sat':6,'saturday':6,'sun':7,'sunday':7 };
+    sessions.sort((a, b) => {
+      const ao = dayOrder[a.day.toLowerCase()] || 9;
+      const bo = dayOrder[b.day.toLowerCase()] || 9;
+      if (ao !== bo) return ao - bo;
+      return (a.time || '').localeCompare(b.time || '');
+    });
+
+    // Sessions index for resolving saved selections (slug → display)
+    const byId = {};
+    sessions.forEach(s => { byId[s.session_id] = s; });
+
+    // Build passes for this email — INCLUDE expired (Eddie wants to show them)
+    for (let i = 1; i < passRows.length; i++) {
+      const r = passRows[i];
+      const rowEmail = (r[2] || '').toString().toLowerCase().trim();
+      if (rowEmail !== myEmail) continue;
+
+      const expType  = (r[0] || '').toString();
+      const name     = (r[1] || '').toString();
+      const token    = (r[6] || '').toString().trim();
+      const activeRaw = r[7];
+      const dateSent = (r[8] || '').toString();
+      const locked   = (r[9] || '').toString().toUpperCase().trim() === 'YES';
+      const savedRaw = (r[10] || '').toString().trim();
+      const firstClicked = (r[12] || '').toString().trim();
+
+      const isActive = activeRaw === true || activeRaw === 'TRUE' || activeRaw === 'true' || activeRaw === 1 || activeRaw === '1';
+      const daysLeft = daysRemainingFromSent(dateSent);
+      const expired  = !isActive || (daysLeft !== null && daysLeft < 0);
+
+      const savedIds = savedRaw ? savedRaw.split(',').map(s => s.trim()).filter(Boolean) : [];
+
+      passes.push({
+        // Identifiers
+        token:           token,                 // used for the bridge link to /lul?token=
+        // Pass info
+        experience_type: expType,
+        pass_mode:       passModeFromExpType(expType),
+        pass_label:      passLabelFromMode(passModeFromExpType(expType)),
+        // Person
+        name:            name,
+        first_name:      (name.split(/\s+/)[0] || '').trim(),
+        // Status
+        active:          isActive,
+        expired:         expired,
+        date_sent:       dateSent,
+        days_remaining:  daysLeft,
+        // Session selection state
+        locked:          locked,
+        saved_selections: savedIds.map(id => {
+          const s = byId[id];
+          return s ? { session_id: id, name: s.name, day: s.day, time: s.time, emoji: s.emoji } : { session_id: id, name: id };
+        }),
+        first_clicked_at: firstClicked
+      });
+    }
+
+    // Newest pass first (by date_sent desc)
+    passes.sort((a, b) => {
+      const da = parseSheetDate(a.date_sent); const db = parseSheetDate(b.date_sent);
+      const ta = da ? da.getTime() : 0;
+      const tb = db ? db.getTime() : 0;
+      return tb - ta;
+    });
+  } catch (err) {
+    console.error('lul lounge-data error:', err.message);
+    passes = []; sessions = [];
+  }
+
+  return res.status(200).json({ passes, sessions });
+}
+
+// ── Dispatch ────────────────────────────────────────────────
+module.exports = async (req, res) => {
+  res.setHeader('Cache-Control', 'no-store');
+  const action = (req.query.action || '').toString();
+  switch (action) {
+    case 'lounge-data': return handleLoungeData(req, res);
+    default:            return res.status(404).json({ error: 'not_found', detail: action });
+  }
+};

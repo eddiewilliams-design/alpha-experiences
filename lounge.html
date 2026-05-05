@@ -1,0 +1,462 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Level Up Lounge — Alpha Experiences</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@700;800;900&family=Nunito+Sans:wght@300;400;600;700&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+:root{
+  --aa-navy:#072256;--aa-blue:#006FF9;--aa-yellow:#E59500;
+  --aa-white:#FAFAFA;--aa-light-blue:#E5F6FD;--aa-light-yellow:#FFF7E5;
+  --aa-med-grey:#DADFE7;--aa-dark-grey:#8291AA;--aa-light-grey:#EEF0F3;
+  --aa-green:#2C8707;--aa-light-green:#EEFDE8;
+}
+body{font-family:'Nunito Sans',sans-serif;background:var(--aa-white);min-height:100vh;color:var(--aa-navy);display:flex;flex-direction:column;}
+
+/* ── Header ── */
+.site-header{background:var(--aa-navy);padding:16px 32px;display:flex;align-items:center;justify-content:space-between;}
+.header-logo{display:flex;align-items:center;gap:12px;}
+.logo-divider{width:1px;height:28px;background:rgba(255,255,255,0.2);}
+.logo-text-top{font-family:'Nunito',sans-serif;font-weight:900;font-size:14px;color:#fff;line-height:1.1;}
+.logo-text-sub{font-size:10px;color:rgba(255,255,255,0.5);font-weight:600;letter-spacing:0.05em;text-transform:uppercase;}
+.user-wrap{position:relative;}
+.user-chip{display:flex;align-items:center;gap:8px;background:rgba(255,255,255,0.12);border:none;border-radius:999px;padding:6px 14px 6px 7px;cursor:pointer;font-family:inherit;}
+.user-chip:hover{background:rgba(255,255,255,0.18);}
+.avatar{width:26px;height:26px;border-radius:50%;background:var(--aa-blue);display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:#fff;}
+.user-name{font-size:13px;color:rgba(255,255,255,0.85);font-weight:600;}
+.user-menu{position:absolute;top:calc(100% + 8px);right:0;background:#fff;border:1px solid var(--aa-med-grey);border-radius:12px;box-shadow:0 8px 24px rgba(7,34,86,0.15);padding:6px;min-width:180px;display:none;z-index:50;}
+.user-menu.open{display:block;}
+.user-menu-email{font-size:11px;color:var(--aa-dark-grey);padding:8px 12px 10px;border-bottom:1px solid var(--aa-light-grey);margin-bottom:6px;word-break:break-all;}
+.user-menu a{display:block;padding:9px 12px;font-size:13px;font-weight:600;color:var(--aa-navy);text-decoration:none;border-radius:8px;}
+.user-menu a:hover{background:var(--aa-light-grey);}
+
+/* ── Back bar ── */
+.back-bar{background:var(--aa-light-grey);border-bottom:1px solid var(--aa-med-grey);padding:12px 32px;}
+.back-link{font-size:13px;font-weight:700;color:var(--aa-blue);text-decoration:none;}
+.back-link:hover{text-decoration:underline;}
+
+/* ── Hero ── */
+.hero{background:var(--aa-navy);padding:36px 32px 0;text-align:center;}
+.hero-badge{display:inline-block;background:var(--aa-blue);color:#fff;font-size:11px;font-weight:700;letter-spacing:0.07em;text-transform:uppercase;padding:5px 16px;border-radius:999px;margin-bottom:14px;}
+.hero-title{font-family:'Nunito',sans-serif;font-weight:900;font-size:clamp(26px,4.5vw,36px);color:#fff;line-height:1.12;margin-bottom:10px;}
+.hero-title span{color:var(--aa-yellow);}
+.hero-sub{font-size:14px;color:var(--aa-dark-grey);line-height:1.65;max-width:480px;margin:0 auto;}
+.hero-scallop{background:var(--aa-light-grey);height:28px;border-radius:28px 28px 0 0;margin:24px -32px 0;}
+
+/* ── Body ── */
+.page-body{background:var(--aa-light-grey);padding:24px 24px 56px;min-height:50vh;}
+.page-inner{max-width:780px;margin:0 auto;display:flex;flex-direction:column;gap:28px;}
+
+.section-heading{font-family:'Nunito',sans-serif;font-weight:800;font-size:18px;color:var(--aa-navy);margin-bottom:14px;}
+.section-sub{font-size:13px;color:var(--aa-dark-grey);line-height:1.6;margin-bottom:16px;}
+
+/* ── Pass cards ── */
+.passes-grid{display:flex;flex-direction:column;gap:14px;}
+.pass-card{background:#fff;border-radius:18px;border:1.5px solid var(--aa-med-grey);padding:22px 24px;display:flex;align-items:center;gap:18px;flex-wrap:wrap;}
+.pass-card.expired{opacity:0.65;background:var(--aa-light-grey);border-style:dashed;}
+.pass-icon{width:56px;height:56px;border-radius:14px;background:linear-gradient(135deg,#1a3a8c,#3a5fbf);display:flex;align-items:center;justify-content:center;font-size:28px;flex-shrink:0;}
+.pass-icon.full{background:linear-gradient(135deg,#072256,#1a3a8c);}
+.pass-icon.two{background:linear-gradient(135deg,#006FF9,#3a8ffd);}
+.pass-icon.celebration{background:linear-gradient(135deg,#E59500,#ffb83d);}
+.pass-info{flex:1;min-width:200px;}
+.pass-label{font-family:'Nunito',sans-serif;font-weight:800;font-size:16px;color:var(--aa-navy);margin-bottom:3px;}
+.pass-meta{font-size:12px;color:var(--aa-dark-grey);}
+.pass-status{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:700;padding:3px 10px;border-radius:999px;margin-top:6px;}
+.pass-status.active{background:var(--aa-light-green);color:#1a5205;}
+.pass-status.expired{background:#fde8e8;color:#8b1a1a;}
+.pass-status.locked{background:var(--aa-light-blue);color:var(--aa-blue);}
+.pass-cta{display:inline-block;background:var(--aa-blue);color:#fff;font-size:13px;font-weight:700;padding:11px 22px;border-radius:999px;text-decoration:none;white-space:nowrap;}
+.pass-cta:hover{opacity:0.9;}
+.pass-cta.disabled{background:var(--aa-med-grey);color:var(--aa-dark-grey);pointer-events:none;cursor:not-allowed;}
+.pass-saved{width:100%;margin-top:8px;padding-top:14px;border-top:1px solid var(--aa-light-grey);font-size:12px;color:var(--aa-dark-grey);}
+.pass-saved strong{color:var(--aa-navy);}
+.session-pill{display:inline-block;background:var(--aa-light-blue);color:var(--aa-navy);font-size:11px;font-weight:600;padding:3px 10px;border-radius:999px;margin:3px 4px 0 0;}
+
+/* ── Explainer ── */
+.explainer-card{background:#fff;border-radius:18px;border:1.5px solid var(--aa-med-grey);padding:24px 28px;}
+.explainer-card p{font-size:14px;color:var(--aa-navy);line-height:1.65;}
+.explainer-card p + p{margin-top:10px;}
+
+/* ── This week's sessions grid ── */
+.session-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px;}
+.session-card{background:#fff;border-radius:14px;border:1.5px solid var(--aa-med-grey);padding:14px 16px;display:flex;align-items:center;gap:12px;}
+.session-emoji{font-size:24px;width:42px;height:42px;background:var(--aa-light-grey);border-radius:10px;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.session-info{flex:1;min-width:0;}
+.session-name{font-family:'Nunito',sans-serif;font-weight:800;font-size:13px;color:var(--aa-navy);margin-bottom:2px;}
+.session-meta{font-size:11px;color:var(--aa-dark-grey);}
+.day-chip{display:inline-block;background:var(--aa-navy);color:#fff;font-size:9px;font-weight:700;padding:2px 6px;border-radius:4px;margin-right:5px;text-transform:uppercase;letter-spacing:0.05em;}
+
+/* ── Marketplace CTA ── */
+.market-card{background:var(--aa-navy);border-radius:18px;padding:24px 28px;color:#fff;display:flex;align-items:center;gap:18px;flex-wrap:wrap;}
+.market-icon{width:48px;height:48px;background:rgba(255,255,255,0.1);border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0;}
+.market-info{flex:1;min-width:200px;}
+.market-title{font-family:'Nunito',sans-serif;font-weight:800;font-size:16px;color:#fff;margin-bottom:4px;}
+.market-sub{font-size:12px;color:rgba(255,255,255,0.6);line-height:1.55;}
+.market-btn{background:var(--aa-yellow);color:#3a2000;font-size:13px;font-weight:700;padding:11px 22px;border-radius:999px;text-decoration:none;white-space:nowrap;}
+
+/* ── Empty / loading / denied ── */
+.no-passes-card{background:#fff;border:2px dashed var(--aa-med-grey);border-radius:18px;padding:28px 24px;text-align:center;}
+.no-passes-icon{font-size:36px;margin-bottom:8px;}
+.no-passes-title{font-family:'Nunito',sans-serif;font-weight:800;font-size:15px;color:var(--aa-navy);margin-bottom:6px;}
+.no-passes-sub{font-size:13px;color:var(--aa-dark-grey);line-height:1.6;max-width:400px;margin:0 auto;}
+
+.page-loading{display:flex;align-items:center;justify-content:center;padding:80px 24px;background:var(--aa-light-grey);min-height:60vh;}
+.spinner{width:32px;height:32px;border:3px solid var(--aa-med-grey);border-top-color:var(--aa-blue);border-radius:50%;animation:spin 0.7s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg);}}
+
+/* ── Footer ── */
+.site-footer{background:var(--aa-navy);padding:20px 32px;text-align:center;border-top:3px solid var(--aa-blue);margin-top:auto;}
+.footer-text{font-size:11px;color:var(--aa-dark-grey);letter-spacing:0.05em;text-transform:uppercase;margin-top:8px;}
+</style>
+</head>
+<body>
+
+<header class="site-header">
+  <div class="header-logo">
+    <svg width="32" height="32" viewBox="0 0 67 55" fill="none"><path d="M66.3126 50.8822L48.3919 1.76245C48.0093 0.703285 46.9977 0 45.867 0H20.6096C19.479 0 18.4673 0.703285 18.0848 1.76245L0.164039 50.8822C-0.473557 52.6277 0.82714 54.4749 2.68892 54.4749H25.9059C27.0366 54.4749 28.0483 53.7716 28.4308 52.7125L33.2426 39.5365L38.0543 52.7125C38.4368 53.7716 39.4485 54.4749 40.5792 54.4749H63.7962C65.658 54.4749 66.9587 52.6277 66.3211 50.8822H66.3126ZM40.9532 51.255L34.9598 34.8253L45.9945 4.58406L63.0226 51.2635H40.9532V51.255Z" fill="white"/></svg>
+    <div class="logo-divider"></div>
+    <div>
+      <div class="logo-text-top">Alpha Experiences</div>
+      <div class="logo-text-sub">Level Up Lounge</div>
+    </div>
+  </div>
+  <div class="user-wrap">
+    <button class="user-chip" id="user-chip" aria-haspopup="true" aria-expanded="false">
+      <div class="avatar" id="user-avatar">··</div>
+      <span class="user-name" id="user-handle">…</span>
+    </button>
+    <div class="user-menu" id="user-menu" role="menu">
+      <div class="user-menu-email" id="user-menu-email"></div>
+      <a href="/trips" role="menuitem">My experiences</a>
+      <a href="/gallery" role="menuitem">Gallery</a>
+      <a href="/auth/logout" role="menuitem">Sign out</a>
+    </div>
+  </div>
+</header>
+
+<div class="back-bar">
+  <a class="back-link" href="/trips">← Back to my experiences</a>
+</div>
+
+<div class="hero">
+  <div class="hero-badge">🎮 Level Up Lounge</div>
+  <h1 class="hero-title">Live coaching games &<br><span>good company.</span></h1>
+  <p class="hero-sub">Themed game sessions hosted by your Alpha coaches each week. Earn a pass and pick the ones you want to join.</p>
+  <div class="hero-scallop"></div>
+</div>
+
+<div id="page-loading" class="page-loading">
+  <div class="spinner"></div>
+</div>
+
+<div id="page-content" class="page-body" style="display:none;">
+  <div class="page-inner">
+
+    <!-- Your passes (or empty state) -->
+    <section>
+      <p class="section-heading">Your passes</p>
+      <div id="passes-list" class="passes-grid"></div>
+      <div id="no-passes" class="no-passes-card" style="display:none;">
+        <div class="no-passes-icon">🎟️</div>
+        <p class="no-passes-title">No active passes yet</p>
+        <p class="no-passes-sub">Earn a Level Up Lounge pass on the Alpha Anywhere Marketplace, then come back here to pick your sessions.</p>
+      </div>
+    </section>
+
+    <!-- What is Level Up Lounge -->
+    <section>
+      <p class="section-heading">What is Level Up Lounge?</p>
+      <div class="explainer-card">
+        <p>Live, themed game sessions over Zoom — Blooket battles, Jeopardy, Improv, Drawing, and more — hosted by your Alpha Anywhere coaches every week.</p>
+        <p>Pick the ones that look fun, show up at the time, and bring your energy. It's the easiest way to connect with your crew between trips.</p>
+      </div>
+    </section>
+
+    <!-- This week's sessions -->
+    <section>
+      <p class="section-heading">This week's sessions</p>
+      <p class="section-sub">A peek at what's on this week. <strong id="needs-pass-note" style="display:none;color:var(--aa-navy);">Earn a pass to join.</strong></p>
+      <div id="session-grid" class="session-grid"></div>
+      <div id="session-empty" style="display:none;color:var(--aa-dark-grey);font-size:13px;padding:8px 0;">No sessions scheduled this week — check back soon!</div>
+    </section>
+
+    <!-- Earn a pass -->
+    <section>
+      <div class="market-card">
+        <div class="market-icon">🛒</div>
+        <div class="market-info">
+          <p class="market-title">Want to earn a pass?</p>
+          <p class="market-sub">Pass options unlock through the Alpha Anywhere Marketplace.</p>
+        </div>
+        <a id="market-link" href="#" target="_blank" rel="noopener" class="market-btn">Browse Marketplace →</a>
+      </div>
+    </section>
+
+  </div>
+</div>
+
+<footer class="site-footer">
+  <svg width="24" height="20" viewBox="0 0 67 55" fill="none"><path d="M66.3126 50.8822L48.3919 1.76245C48.0093 0.703285 46.9977 0 45.867 0H20.6096C19.479 0 18.4673 0.703285 18.0848 1.76245L0.164039 50.8822C-0.473557 52.6277 0.82714 54.4749 2.68892 54.4749H25.9059C27.0366 54.4749 28.0483 53.7716 28.4308 52.7125L33.2426 39.5365L38.0543 52.7125C38.4368 53.7716 39.4485 54.4749 40.5792 54.4749H63.7962C65.658 54.4749 66.9587 52.6277 66.3211 50.8822H66.3126ZM40.9532 51.255L34.9598 34.8253L45.9945 4.58406L63.0226 51.2635H40.9532V51.255Z" fill="#FAFAFA" opacity="0.4"/></svg>
+  <p class="footer-text" style="margin-top:8px;">Alpha Experiences · Level Up Lounge</p>
+</footer>
+
+<script>
+// Marketplace URL — TBD. Update this constant when Eddie provides the real link.
+// For now, falls back to '#' (no-op) — the button still renders so the section
+// has its visual weight, but the click does nothing.
+var MARKETPLACE_URL = '';
+
+// ── Helpers ────────────────────────────────────────────────
+function emailHandle(e){ if(!e) return ''; var i=e.indexOf('@'); return i<0?e:e.slice(0,i); }
+function initialsFor(name, email){
+  var s = (name || emailHandle(email) || '').trim();
+  if (!s) return '··';
+  var parts = s.split(/[\s.]+/).filter(Boolean);
+  if (parts.length === 1) return (parts[0][0] || '·').toUpperCase();
+  return ((parts[0][0] || '·') + (parts[parts.length-1][0] || '')).toUpperCase();
+}
+function formatDate(iso){
+  if (!iso) return '';
+  var d = new Date(iso);
+  if (isNaN(d.getTime())) return iso;
+  return d.toLocaleDateString('en-US', { year:'numeric', month:'short', day:'numeric' });
+}
+function escapeHtml(s){
+  return String(s || '').replace(/[&<>"']/g, function(c){
+    return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];
+  });
+}
+
+// ── User menu ──
+function setupUserMenu(user){
+  document.getElementById('user-avatar').textContent     = initialsFor(user.name, user.email);
+  document.getElementById('user-handle').textContent     = emailHandle(user.email);
+  document.getElementById('user-menu-email').textContent = user.email;
+  var btn  = document.getElementById('user-chip');
+  var menu = document.getElementById('user-menu');
+  btn.addEventListener('click', function(e){
+    e.stopPropagation();
+    var open = menu.classList.toggle('open');
+    btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+  });
+  document.addEventListener('click', function(e){
+    if (!menu.contains(e.target) && e.target !== btn) {
+      menu.classList.remove('open');
+      btn.setAttribute('aria-expanded', 'false');
+    }
+  });
+}
+
+// ── Render passes ──
+function passIconClass(mode){
+  if (mode === 'two')         return 'pass-icon two';
+  if (mode === 'celebration') return 'pass-icon celebration';
+  return 'pass-icon full';
+}
+function passIconEmoji(mode){
+  if (mode === 'two')         return '🎟️';
+  if (mode === 'celebration') return '🎊';
+  return '🎟️';
+}
+
+function renderPasses(passes){
+  var list = document.getElementById('passes-list');
+  var empty = document.getElementById('no-passes');
+  list.innerHTML = '';
+
+  if (!passes.length) {
+    list.style.display = 'none';
+    empty.style.display = '';
+    return;
+  }
+  empty.style.display = 'none';
+  list.style.display = '';
+
+  passes.forEach(function(p){
+    var card = document.createElement('div');
+    card.className = 'pass-card' + (p.expired ? ' expired' : '');
+
+    var icon = document.createElement('div');
+    icon.className   = passIconClass(p.pass_mode);
+    icon.textContent = passIconEmoji(p.pass_mode);
+    card.appendChild(icon);
+
+    var info = document.createElement('div');
+    info.className = 'pass-info';
+
+    var label = document.createElement('p');
+    label.className   = 'pass-label';
+    label.textContent = p.pass_label || 'Level Up Lounge Pass';
+    info.appendChild(label);
+
+    var meta = document.createElement('p');
+    meta.className = 'pass-meta';
+    if (p.expired) {
+      var expDate = '';
+      if (p.date_sent) {
+        var d = new Date(p.date_sent);
+        if (!isNaN(d.getTime())) {
+          d.setDate(d.getDate() + 30);
+          expDate = ' on ' + d.toLocaleDateString('en-US', { month:'short', day:'numeric' });
+        }
+      }
+      meta.textContent = 'Expired' + expDate;
+    } else if (p.days_remaining !== null && p.days_remaining !== undefined) {
+      var d = p.days_remaining;
+      meta.textContent = (d <= 0 ? 'Expires today' : d + ' day' + (d === 1 ? '' : 's') + ' remaining');
+    } else if (p.date_sent) {
+      meta.textContent = 'Issued ' + formatDate(p.date_sent);
+    }
+    info.appendChild(meta);
+
+    // Status pill
+    var status = document.createElement('span');
+    if (p.expired) {
+      status.className   = 'pass-status expired';
+      status.textContent = 'Expired';
+    } else if (p.locked) {
+      status.className   = 'pass-status locked';
+      status.textContent = 'Sessions locked in';
+    } else {
+      status.className   = 'pass-status active';
+      status.textContent = 'Active';
+    }
+    info.appendChild(status);
+
+    card.appendChild(info);
+
+    // CTA: bridge to existing token-based picker (parallel-run during migration)
+    var cta = document.createElement('a');
+    if (p.expired || !p.token) {
+      cta.className   = 'pass-cta disabled';
+      cta.textContent = 'Expired';
+      cta.href        = '#';
+    } else if (p.locked) {
+      cta.className   = 'pass-cta';
+      cta.textContent = 'View my sessions →';
+      cta.href        = '/lul?token=' + encodeURIComponent(p.token);
+    } else {
+      cta.className   = 'pass-cta';
+      cta.textContent = (p.pass_mode === 'celebration' ? 'Lock in my spot →' : 'Choose my sessions →');
+      cta.href        = '/lul?token=' + encodeURIComponent(p.token);
+    }
+    card.appendChild(cta);
+
+    // Saved selections (if any)
+    if (p.saved_selections && p.saved_selections.length) {
+      var saved = document.createElement('div');
+      saved.className = 'pass-saved';
+      var label2 = document.createElement('span');
+      label2.innerHTML = '<strong>Your sessions:</strong> ';
+      saved.appendChild(label2);
+      p.saved_selections.forEach(function(s){
+        var pill = document.createElement('span');
+        pill.className = 'session-pill';
+        pill.textContent = (s.emoji ? s.emoji + ' ' : '') + (s.name || s.session_id);
+        saved.appendChild(pill);
+      });
+      card.appendChild(saved);
+    }
+
+    list.appendChild(card);
+  });
+}
+
+function renderSessions(sessions, hasPass){
+  var grid = document.getElementById('session-grid');
+  var empty = document.getElementById('session-empty');
+  var note  = document.getElementById('needs-pass-note');
+  grid.innerHTML = '';
+
+  if (!sessions.length) {
+    grid.style.display = 'none';
+    empty.style.display = '';
+    return;
+  }
+  empty.style.display = 'none';
+  grid.style.display = '';
+  if (!hasPass) note.style.display = '';
+
+  sessions.forEach(function(s){
+    var card = document.createElement('div');
+    card.className = 'session-card';
+
+    var em = document.createElement('div');
+    em.className   = 'session-emoji';
+    em.textContent = s.emoji || '🎮';
+    card.appendChild(em);
+
+    var info = document.createElement('div');
+    info.className = 'session-info';
+
+    var nm = document.createElement('p');
+    nm.className   = 'session-name';
+    nm.textContent = s.name || 'Session';
+    info.appendChild(nm);
+
+    var meta = document.createElement('p');
+    meta.className = 'session-meta';
+    if (s.day) {
+      var chip = document.createElement('span');
+      chip.className   = 'day-chip';
+      chip.textContent = s.day;
+      meta.appendChild(chip);
+    }
+    var t = document.createElement('span');
+    t.textContent = (s.time || '') + (s.coach ? ' · ' + s.coach : '');
+    meta.appendChild(t);
+    info.appendChild(meta);
+
+    card.appendChild(info);
+    grid.appendChild(card);
+  });
+}
+
+// ── Init ──
+async function init(){
+  var meRes;
+  try { meRes = await fetch('/auth/me', { credentials:'same-origin' }); }
+  catch (e) { window.location.href = '/auth/login?return_to=' + encodeURIComponent(window.location.pathname + window.location.search); return; }
+  if (meRes.status !== 200) { window.location.href = '/auth/login?return_to=' + encodeURIComponent(window.location.pathname + window.location.search); return; }
+  var user = await meRes.json();
+  setupUserMenu(user);
+
+  var passes = [], sessions = [];
+  try {
+    var r = await fetch('/api/lul/lounge-data', { credentials:'same-origin' });
+    if (r.status === 200) {
+      var data = await r.json();
+      passes   = (data && data.passes)   || [];
+      sessions = (data && data.sessions) || [];
+    }
+  } catch (e) { /* fall through */ }
+
+  renderPasses(passes);
+  // hasPass = at least one non-expired pass
+  var hasPass = passes.some(function(p){ return !p.expired; });
+  renderSessions(sessions, hasPass);
+
+  // Marketplace link
+  var mb = document.getElementById('market-link');
+  if (MARKETPLACE_URL) {
+    mb.href = MARKETPLACE_URL;
+  } else {
+    mb.addEventListener('click', function(e){
+      e.preventDefault();
+      alert('Marketplace link coming soon — ask your coach for now.');
+    });
+  }
+
+  document.getElementById('page-loading').style.display = 'none';
+  document.getElementById('page-content').style.display = '';
+}
+
+init();
+</script>
+
+</body>
+</html>
