@@ -1812,16 +1812,13 @@ async function handleLoungePassCreate(req, res) {
     const msg = err.message || String(err);
     console.error('pass-create email:', msg);
 
-    // Best-effort: append failure note so admin sees it. Find the row we
-    // just appended (by token) and patch the Notes column.
+    // Best-effort: stamp Email Sent = FAILED so admin sees it in the sheet
+    // even after refresh. (We deliberately don't append to Notes — that
+    // column is now reserved for admin's free-form notes.)
     try {
       const { row: foundRow, rowIndex } = await findRowByToken(accessToken, newToken);
       if (foundRow && rowIndex >= 0) {
-        const rowNum   = rowIndex + 1;
-        const existing = (foundRow[13] || '').toString();
-        const noteLine = `Welcome email failed ${chicagoYMD()}: ${msg}`;
-        const updated  = existing + (existing ? '\n' : '') + noteLine;
-        await sheetsUpdate(accessToken, `Sheet1!N${rowNum}`, [[updated]]);
+        await sheetsUpdate(accessToken, `Sheet1!E${rowIndex + 1}`, [['FAILED']]);
       }
     } catch (_) { /* swallow secondary failure */ }
 
@@ -1871,13 +1868,10 @@ async function handleLoungePassExtend(req, res) {
 
   const rowNum = rowIndex + 1;
   try {
-    // Reactivate (in case it was previously expired) AND bump Date Sent
+    // Reactivate (in case it was previously expired) AND bump Date Sent.
+    // Date Sent column already records the new expiry baseline, so no
+    // separate Notes-column audit line is written.
     await sheetsUpdate(accessToken, `Sheet1!H${rowNum}:I${rowNum}`, [[true, newSent]]);
-
-    const existing = (foundRow[13] || '').toString();
-    const noteLine = `Extended ${chicagoYMD()} → expires ${newExpiry}`;
-    const updated  = existing + (existing ? '\n' : '') + noteLine;
-    await sheetsUpdate(accessToken, `Sheet1!N${rowNum}`, [[updated]]);
   } catch (err) {
     console.error('pass-extend write:', err.message);
     return res.status(500).json({ error: 'server_error' });
@@ -1926,14 +1920,9 @@ async function handleLoungePassResend(req, res) {
     return res.status(502).json({ error: 'email_failed', detail: err.message });
   }
 
-  // Stamp Email Sent='Yes' (in case it was 'FAILED' or empty) and append note
+  // Stamp Email Sent='Yes' (in case it was 'FAILED' or empty)
   try {
-    const rowNum   = rowIndex + 1;
-    await sheetsUpdate(accessToken, `Sheet1!E${rowNum}`, [['Yes']]);
-    const existing = (foundRow[13] || '').toString();
-    const noteLine = `Resent ${chicagoYMD()}`;
-    const updated  = existing + (existing ? '\n' : '') + noteLine;
-    await sheetsUpdate(accessToken, `Sheet1!N${rowNum}`, [[updated]]);
+    await sheetsUpdate(accessToken, `Sheet1!E${rowIndex + 1}`, [['Yes']]);
   } catch (_) { /* secondary; ignore */ }
 
   return res.status(200).json({ ok: true });
@@ -2111,9 +2100,6 @@ async function handleLoungePassCancel(req, res) {
   const passToken = (body.token || '').toString().trim();
   if (!passToken) return res.status(400).json({ error: 'bad_request', detail: 'token required' });
 
-  const session = getSession(req);
-  const adminEmail = (session && session.email) || 'admin';
-
   let accessToken;
   try { accessToken = await getAccessToken('https://www.googleapis.com/auth/spreadsheets'); }
   catch (err) { console.error('pass-cancel token:', err.message); return res.status(500).json({ error: 'server_error' }); }
@@ -2121,15 +2107,12 @@ async function handleLoungePassCancel(req, res) {
   const { row: foundRow, rowIndex } = await findRowByToken(accessToken, passToken);
   if (!foundRow) return res.status(404).json({ error: 'not_found' });
 
-  const rowNum   = rowIndex + 1;
-  const existing = (foundRow[13] || '').toString();
-  const noteLine = `Cancelled ${chicagoYMD()} by ${adminEmail}`;
-  const updated  = existing + (existing ? '\n' : '') + noteLine;
-
+  const rowNum = rowIndex + 1;
   try {
+    // Active=FALSE + Fulfilled=No together communicate the cancelled state.
+    // Notes column is reserved for admin's free-form notes (no audit line).
     await sheetsUpdate(accessToken, `Sheet1!F${rowNum}`, [['No']]);
     await sheetsUpdate(accessToken, `Sheet1!H${rowNum}`, [[false]]);
-    await sheetsUpdate(accessToken, `Sheet1!N${rowNum}`, [[updated]]);
   } catch (err) {
     console.error('pass-cancel write:', err.message);
     return res.status(500).json({ error: 'server_error' });

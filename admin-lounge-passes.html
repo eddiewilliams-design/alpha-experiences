@@ -88,20 +88,20 @@ body{font-family:'Nunito Sans',sans-serif;background:var(--aa-white);min-height:
 /* Inline notes editor (auto-save, sits below each pass row) */
 .pass-notes{
   grid-column: 1 / -1;
-  margin-top:10px;
-  display:flex;flex-direction:column;gap:4px;
+  margin-top:6px;
+  display:flex;align-items:center;gap:8px;
 }
 .pass-notes textarea{
-  width:100%;font-family:inherit;font-size:12px;color:var(--aa-navy);
-  border:1.5px solid var(--aa-light-grey);border-radius:8px;
-  padding:7px 10px;
+  flex:1;font-family:inherit;font-size:11px;color:var(--aa-navy);
+  border:1.5px solid var(--aa-light-grey);border-radius:7px;
+  padding:4px 8px;
   background:var(--aa-light-grey);
-  resize:none;line-height:1.5;
+  resize:none;line-height:1.35;
   transition:background 0.15s, border-color 0.15s;
 }
 .pass-notes textarea::placeholder{color:var(--aa-dark-grey);font-style:italic;}
 .pass-notes textarea:focus{outline:none;background:#fff;border-color:var(--aa-blue);}
-.pass-notes-status{font-size:9px;font-weight:800;color:var(--aa-dark-grey);min-height:11px;letter-spacing:0.05em;text-transform:uppercase;}
+.pass-notes-status{font-size:9px;font-weight:800;color:var(--aa-dark-grey);min-height:11px;letter-spacing:0.05em;text-transform:uppercase;flex-shrink:0;width:70px;text-align:right;}
 .pass-notes-status.saving{color:var(--aa-dark-grey);}
 .pass-notes-status.saved{color:#1a5205;}
 .pass-notes-status.err{color:#b91c1c;}
@@ -675,7 +675,7 @@ function renderPasses(){
 // ── Inline notes (auto-saves on blur + 700ms debounce) ──
 function autoResize(ta){
   ta.style.height = 'auto';
-  ta.style.height = Math.max(34, ta.scrollHeight + 2) + 'px';
+  ta.style.height = Math.max(24, ta.scrollHeight + 2) + 'px';
 }
 function buildNotesField(p){
   var wrap = document.createElement('div');
