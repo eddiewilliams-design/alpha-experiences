@@ -131,9 +131,9 @@ body{font-family:'Nunito Sans',sans-serif;background:var(--aa-white);min-height:
 
 <div class="exp-tabs">
   <div class="exp-tab-inner">
-    <a class="exp-tab" href="/trips#vft">Virtual Field Trips</a>
-    <a class="exp-tab" href="/lounge">Level Up Lounge</a>
-    <a class="exp-tab active" href="/trips">All Experiences</a>
+    <a id="tab-all"    class="exp-tab" href="/trips">All Experiences</a>
+    <a id="tab-vft"    class="exp-tab" href="/trips?view=vft">Virtual Field Trips</a>
+    <a id="tab-lounge" class="exp-tab" href="/lounge">Level Up Lounge</a>
   </div>
 </div>
 
@@ -144,7 +144,7 @@ body{font-family:'Nunito Sans',sans-serif;background:var(--aa-white);min-height:
 <div id="page-body" class="page-body" style="display:none;">
   <div class="page-inner">
 
-    <div class="section-label" id="vft" style="scroll-margin-top:24px;">
+    <div class="section-label">
       <p class="section-heading">Virtual Field Trips</p>
       <span class="section-count" id="trip-count">0 registered</span>
     </div>
@@ -156,16 +156,18 @@ body{font-family:'Nunito Sans',sans-serif;background:var(--aa-white);min-height:
       <p class="empty-sub">Ask your coach about upcoming experiences — we'll list your registered trips here as soon as you're signed up.</p>
     </div>
 
-    <div class="section-label" style="margin-top:8px;">
-      <p class="section-heading">Level Up Lounge</p>
-    </div>
-    <a href="/lounge" class="gallery-cta" style="text-decoration:none;color:inherit;margin-bottom:32px;">
-      <div class="gallery-cta-text">
-        <p class="title">🎮 Level Up Lounge</p>
-        <p class="sub">View your passes, see this week's sessions, and pick what to join</p>
+    <div id="lul-section">
+      <div class="section-label" style="margin-top:8px;">
+        <p class="section-heading">Level Up Lounge</p>
       </div>
-      <span class="gallery-cta-btn">Open Lounge →</span>
-    </a>
+      <a href="/lounge" class="gallery-cta" style="text-decoration:none;color:inherit;margin-bottom:32px;">
+        <div class="gallery-cta-text">
+          <p class="title">🎮 Level Up Lounge</p>
+          <p class="sub">View your passes, see this week's sessions, and pick what to join</p>
+        </div>
+        <span class="gallery-cta-btn">Open Lounge →</span>
+      </a>
+    </div>
 
     <div class="section-label" style="margin-top:8px;">
       <p class="section-heading">Project Gallery</p>
@@ -400,6 +402,22 @@ async function init() {
 }
 
 init();
+
+// ── Tab view filter ───────────────────────────────────────
+// /trips           → All Experiences (default — show everything)
+// /trips?view=vft  → Virtual Field Trips only (hide LUL section)
+// /lounge          → handled on its own page
+(function applyViewFilter(){
+  var view = (new URLSearchParams(window.location.search)).get('view') || 'all';
+  var lul  = document.getElementById('lul-section');
+  if (lul) lul.style.display = (view === 'vft') ? 'none' : '';
+
+  var activeId = (view === 'vft') ? 'tab-vft' : 'tab-all';
+  ['tab-all','tab-vft','tab-lounge'].forEach(function(id){
+    var t = document.getElementById(id);
+    if (t) t.classList.toggle('active', id === activeId);
+  });
+})();
 </script>
 
 </body>
