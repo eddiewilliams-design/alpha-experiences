@@ -1,0 +1,636 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Admin — Lounge Sessions</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@700;800;900&family=Nunito+Sans:wght@300;400;600;700&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+:root{
+  --aa-navy:#072256;--aa-blue:#006FF9;--aa-yellow:#E59500;
+  --aa-white:#FAFAFA;--aa-light-blue:#E5F6FD;--aa-light-yellow:#FFF7E5;
+  --aa-med-grey:#DADFE7;--aa-dark-grey:#8291AA;--aa-light-grey:#EEF0F3;
+  --aa-green:#2C8707;--aa-light-green:#EEFDE8;--aa-red:#B91C1C;--aa-light-red:#FEE2E2;
+}
+body{font-family:'Nunito Sans',sans-serif;background:var(--aa-white);min-height:100vh;color:var(--aa-navy);display:flex;flex-direction:column;}
+
+/* ── Admin Header ── */
+.site-header{background:var(--aa-navy);padding:16px 32px;display:flex;align-items:center;justify-content:space-between;}
+.header-logo{display:flex;align-items:center;gap:12px;}
+.logo-divider{width:1px;height:28px;background:rgba(255,255,255,0.2);}
+.logo-text-top{font-family:'Nunito',sans-serif;font-weight:900;font-size:14px;color:#fff;line-height:1.1;}
+.logo-text-sub{font-size:10px;color:rgba(255,255,255,0.5);font-weight:600;letter-spacing:0.05em;text-transform:uppercase;}
+.header-right{display:flex;align-items:center;gap:10px;}
+.admin-badge{background:var(--aa-yellow);color:#3a2000;font-size:10px;font-weight:800;padding:4px 12px;border-radius:999px;letter-spacing:0.04em;text-transform:uppercase;}
+.user-wrap{position:relative;}
+.user-chip{display:flex;align-items:center;gap:8px;background:rgba(255,255,255,0.12);border:none;border-radius:999px;padding:6px 14px 6px 7px;cursor:pointer;font-family:inherit;}
+.user-chip:hover{background:rgba(255,255,255,0.18);}
+.avatar{width:26px;height:26px;border-radius:50%;background:var(--aa-blue);display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:#fff;}
+.user-name{font-size:13px;color:rgba(255,255,255,0.85);font-weight:600;}
+.user-menu{position:absolute;top:calc(100% + 8px);right:0;background:#fff;border:1px solid var(--aa-med-grey);border-radius:12px;box-shadow:0 8px 24px rgba(7,34,86,0.15);padding:6px;min-width:180px;display:none;z-index:50;}
+.user-menu.open{display:block;}
+.user-menu-email{font-size:11px;color:var(--aa-dark-grey);padding:8px 12px 10px;border-bottom:1px solid var(--aa-light-grey);margin-bottom:6px;word-break:break-all;}
+.user-menu a{display:block;padding:9px 12px;font-size:13px;font-weight:600;color:var(--aa-navy);text-decoration:none;border-radius:8px;}
+.user-menu a:hover{background:var(--aa-light-grey);}
+
+/* ── Admin Nav Tabs ── */
+.admin-nav{background:#fff;border-bottom:1.5px solid var(--aa-med-grey);padding:0 32px;display:flex;gap:4px;overflow-x:auto;}
+.admin-tab{font-size:13px;font-weight:600;color:var(--aa-dark-grey);padding:14px 16px;border-bottom:2.5px solid transparent;cursor:pointer;white-space:nowrap;text-decoration:none;}
+.admin-tab.active{color:var(--aa-blue);border-bottom-color:var(--aa-blue);}
+.admin-tab:hover:not(.active){color:var(--aa-navy);}
+
+/* ── Sub-Nav inside Lounge ── */
+.sub-nav{background:var(--aa-light-grey);padding:14px 32px 0;display:flex;gap:6px;flex-wrap:wrap;border-bottom:1px solid var(--aa-med-grey);}
+.sub-tab{font-size:12px;font-weight:700;color:var(--aa-dark-grey);background:#fff;border:1.5px solid var(--aa-med-grey);border-bottom:none;border-radius:10px 10px 0 0;padding:8px 16px;cursor:pointer;text-decoration:none;letter-spacing:0.02em;}
+.sub-tab.active{color:var(--aa-blue);border-color:var(--aa-blue);}
+.sub-tab.disabled{color:var(--aa-dark-grey);opacity:0.55;cursor:not-allowed;}
+
+/* ── Body ── */
+.page-body{background:var(--aa-light-grey);padding:24px 24px 56px;min-height:60vh;}
+.page-inner{max-width:1100px;margin:0 auto;}
+
+/* ── Toolbar ── */
+.toolbar{display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;gap:12px;flex-wrap:wrap;}
+.toolbar-title{font-family:'Nunito',sans-serif;font-weight:800;font-size:18px;color:var(--aa-navy);}
+.toolbar-sub{font-size:12px;color:var(--aa-dark-grey);margin-top:3px;}
+.btn-blue{background:var(--aa-blue);color:#fff;font-size:13px;font-weight:700;padding:10px 20px;border-radius:999px;border:none;cursor:pointer;text-decoration:none;display:inline-block;}
+.btn-blue:hover{background:#0257c4;}
+.btn-blue:disabled{opacity:0.6;cursor:wait;}
+
+/* ── Sessions Table ── */
+.sessions-table{background:#fff;border-radius:14px;border:1.5px solid var(--aa-med-grey);overflow:hidden;}
+.sess-row{display:grid;grid-template-columns:46px minmax(140px,1.6fr) minmax(110px,1fr) minmax(130px,1fr) 90px 130px 80px;gap:12px;padding:14px 16px;border-bottom:1px solid var(--aa-light-grey);align-items:center;}
+.sess-row:last-child{border-bottom:none;}
+.sess-row.header{background:var(--aa-light-grey);font-size:11px;font-weight:800;color:var(--aa-dark-grey);text-transform:uppercase;letter-spacing:0.05em;}
+.sess-row.inactive{opacity:0.6;background:var(--aa-light-grey);}
+.sess-emoji{width:36px;height:36px;border-radius:10px;background:var(--aa-light-yellow);display:flex;align-items:center;justify-content:center;font-size:20px;line-height:1;}
+.sess-name{font-family:'Nunito',sans-serif;font-weight:800;font-size:14px;color:var(--aa-navy);overflow-wrap:anywhere;}
+.sess-coach{font-size:13px;color:var(--aa-navy);}
+.sess-when{font-size:13px;color:var(--aa-navy);}
+.sess-blackout{font-size:11px;color:var(--aa-dark-grey);font-weight:600;}
+.sess-blackout.has-dates{color:var(--aa-yellow);}
+
+/* Toggle pill */
+.toggle-pill{display:inline-flex;align-items:center;gap:6px;border:1.5px solid var(--aa-med-grey);background:#fff;border-radius:999px;padding:5px 12px;font-size:11px;font-weight:800;color:var(--aa-dark-grey);cursor:pointer;font-family:inherit;letter-spacing:0.04em;text-transform:uppercase;}
+.toggle-pill.on{background:var(--aa-light-green);border-color:#a3d291;color:#1a5205;}
+.toggle-pill.off{background:var(--aa-light-grey);}
+.toggle-pill:disabled{opacity:0.6;cursor:wait;}
+
+/* Edit button */
+.btn-sm-blue{background:var(--aa-blue);color:#fff;font-size:12px;font-weight:700;padding:7px 14px;border-radius:999px;border:none;cursor:pointer;font-family:inherit;}
+.btn-sm-blue:hover{background:#0257c4;}
+
+/* ── Empty state ── */
+.empty-state{background:#fff;border:1.5px solid var(--aa-med-grey);border-radius:18px;padding:36px 24px;text-align:center;}
+.empty-icon{font-size:34px;margin-bottom:8px;}
+.empty-title{font-family:'Nunito',sans-serif;font-weight:800;font-size:16px;color:var(--aa-navy);margin-bottom:6px;}
+.empty-sub{font-size:13px;color:var(--aa-dark-grey);max-width:380px;margin:0 auto 16px;line-height:1.55;}
+
+/* ── Loading + denied ── */
+.page-loading,.page-denied{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:80px 24px;background:var(--aa-light-grey);min-height:60vh;text-align:center;}
+.spinner{width:32px;height:32px;border:3px solid var(--aa-med-grey);border-top-color:var(--aa-blue);border-radius:50%;animation:spin 0.7s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg);}}
+.denied-icon{font-size:48px;margin-bottom:12px;}
+.denied-title{font-family:'Nunito',sans-serif;font-weight:900;font-size:22px;color:var(--aa-navy);margin-bottom:8px;}
+.denied-sub{font-size:14px;color:var(--aa-dark-grey);max-width:360px;line-height:1.55;margin-bottom:20px;}
+
+/* ── Modal ── */
+.modal-backdrop{position:fixed;inset:0;background:rgba(7,34,86,0.5);display:none;align-items:flex-start;justify-content:center;padding:40px 16px;overflow-y:auto;z-index:200;}
+.modal-backdrop.open{display:flex;}
+.modal{background:#fff;border-radius:18px;width:100%;max-width:560px;box-shadow:0 12px 40px rgba(7,34,86,0.25);overflow:hidden;}
+.modal-head{padding:20px 24px;border-bottom:1px solid var(--aa-light-grey);display:flex;align-items:center;justify-content:space-between;gap:12px;}
+.modal-title{font-family:'Nunito',sans-serif;font-weight:900;font-size:18px;color:var(--aa-navy);}
+.modal-close{background:none;border:none;font-size:22px;color:var(--aa-dark-grey);cursor:pointer;line-height:1;padding:4px 8px;}
+.modal-body{padding:20px 24px;}
+.modal-foot{padding:16px 24px;border-top:1px solid var(--aa-light-grey);display:flex;justify-content:flex-end;gap:10px;background:var(--aa-light-grey);}
+.btn-grey{background:#fff;color:var(--aa-navy);font-size:13px;font-weight:700;padding:9px 18px;border-radius:999px;border:1.5px solid var(--aa-med-grey);cursor:pointer;font-family:inherit;}
+
+/* Form fields */
+.field{margin-bottom:14px;}
+.field-row{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+.field-row-3{display:grid;grid-template-columns:90px 1fr 1fr;gap:12px;}
+.field label{display:block;font-size:11px;font-weight:800;color:var(--aa-dark-grey);text-transform:uppercase;letter-spacing:0.04em;margin-bottom:5px;}
+.field input,.field select,.field textarea{width:100%;padding:10px 12px;border:1.5px solid var(--aa-med-grey);border-radius:10px;font-family:inherit;font-size:14px;color:var(--aa-navy);background:#fff;}
+.field input:focus,.field select:focus,.field textarea:focus{outline:none;border-color:var(--aa-blue);}
+.field textarea{min-height:70px;resize:vertical;}
+.field-help{font-size:11px;color:var(--aa-dark-grey);margin-top:4px;line-height:1.45;}
+.field-help.warn{color:#6b3a00;background:var(--aa-light-yellow);border:1px solid #f0d39b;border-radius:8px;padding:7px 10px;margin-top:6px;}
+
+/* Inline error/success banners */
+.banner{font-size:13px;font-weight:600;padding:10px 14px;border-radius:10px;line-height:1.5;margin-bottom:14px;}
+.banner.error{background:var(--aa-light-red);border:1px solid #f3a3a3;color:#7c0d0d;}
+.banner.success{background:var(--aa-light-green);border:1px solid #a3d291;color:#1a5205;}
+
+/* ── Footer ── */
+.site-footer{background:var(--aa-navy);padding:20px 32px;text-align:center;border-top:3px solid var(--aa-blue);margin-top:auto;}
+.footer-text{font-size:11px;color:var(--aa-dark-grey);letter-spacing:0.05em;text-transform:uppercase;margin-top:8px;}
+
+@media (max-width:760px){
+  .sess-row{grid-template-columns:46px 1fr 90px;gap:10px;}
+  .sess-row .col-coach,.sess-row .col-when,.sess-row .col-blackout{display:none;}
+  .sess-row.header .col-coach,.sess-row.header .col-when,.sess-row.header .col-blackout{display:none;}
+  .field-row,.field-row-3{grid-template-columns:1fr;}
+}
+</style>
+</head>
+<body>
+
+<header class="site-header">
+  <div class="header-logo">
+    <svg width="32" height="32" viewBox="0 0 67 55" fill="none"><path d="M66.3126 50.8822L48.3919 1.76245C48.0093 0.703285 46.9977 0 45.867 0H20.6096C19.479 0 18.4673 0.703285 18.0848 1.76245L0.164039 50.8822C-0.473557 52.6277 0.82714 54.4749 2.68892 54.4749H25.9059C27.0366 54.4749 28.0483 53.7716 28.4308 52.7125L33.2426 39.5365L38.0543 52.7125C38.4368 53.7716 39.4485 54.4749 40.5792 54.4749H63.7962C65.658 54.4749 66.9587 52.6277 66.3211 50.8822H66.3126ZM40.9532 51.255L34.9598 34.8253L45.9945 4.58406L63.0226 51.2635H40.9532V51.255Z" fill="white"/></svg>
+    <div class="logo-divider"></div>
+    <div>
+      <div class="logo-text-top">Alpha Experiences</div>
+      <div class="logo-text-sub">Admin Dashboard</div>
+    </div>
+  </div>
+  <div class="header-right">
+    <span class="admin-badge">Admin</span>
+    <div class="user-wrap">
+      <button class="user-chip" id="user-chip" aria-haspopup="true" aria-expanded="false">
+        <div class="avatar" id="user-avatar">··</div>
+        <span class="user-name" id="user-handle">…</span>
+      </button>
+      <div class="user-menu" id="user-menu" role="menu">
+        <div class="user-menu-email" id="user-menu-email"></div>
+        <a href="/trips" role="menuitem">Student view</a>
+        <a href="/gallery" role="menuitem">Gallery</a>
+        <a href="/auth/logout" role="menuitem">Sign out</a>
+      </div>
+    </div>
+  </div>
+</header>
+
+<nav class="admin-nav">
+  <a class="admin-tab" href="/admin">Field Trips</a>
+  <a class="admin-tab" href="/admin/registrations">Registrations</a>
+  <a class="admin-tab" href="/admin/submissions">Submissions</a>
+  <a class="admin-tab active" href="/admin/lounge">Lounge</a>
+  <a class="admin-tab" href="/admin/access">Admin Access</a>
+</nav>
+
+<nav class="sub-nav">
+  <a class="sub-tab active" href="/admin/lounge">Sessions</a>
+  <a class="sub-tab disabled" href="#" onclick="event.preventDefault();alert('Coming in Phase 2b');return false;">Pass Holders</a>
+  <a class="sub-tab disabled" href="#" onclick="event.preventDefault();alert('Coming in Phase 2c');return false;">Attendance</a>
+</nav>
+
+<div id="page-loading" class="page-loading">
+  <div class="spinner"></div>
+</div>
+
+<div id="page-denied" class="page-denied" style="display:none;">
+  <div class="denied-icon">🔒</div>
+  <p class="denied-title">Admins only</p>
+  <p class="denied-sub">This area is for Alpha Anywhere staff. If you should have access, ask Eddie to add your email to the admins list.</p>
+  <a href="/trips" class="btn-blue">← Back to my trips</a>
+</div>
+
+<div id="page-body" class="page-body" style="display:none;">
+  <div class="page-inner">
+
+    <div id="flash-banner" class="banner success" style="display:none;"></div>
+
+    <div class="toolbar">
+      <div>
+        <div class="toolbar-title">Lounge sessions</div>
+        <div class="toolbar-sub" id="toolbar-sub">Loading…</div>
+      </div>
+      <button class="btn-blue" id="btn-new-session">+ Add session</button>
+    </div>
+
+    <div id="sessions-list"></div>
+
+    <div id="empty-state" class="empty-state" style="display:none;">
+      <div class="empty-icon">🎮</div>
+      <p class="empty-title">No sessions yet</p>
+      <p class="empty-sub">Add your first weekly Level Up Lounge session to get started.</p>
+      <button class="btn-blue" id="btn-new-session-empty">+ Add session</button>
+    </div>
+
+  </div>
+</div>
+
+<!-- ── Edit / Add Session Modal ── -->
+<div class="modal-backdrop" id="modal-backdrop">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+    <div class="modal-head">
+      <div class="modal-title" id="modal-title">New session</div>
+      <button class="modal-close" id="modal-close" aria-label="Close">×</button>
+    </div>
+    <div class="modal-body">
+      <div id="modal-error" class="banner error" style="display:none;"></div>
+
+      <div class="field">
+        <label for="f-name">Session name</label>
+        <input id="f-name" type="text" placeholder="e.g. Blooket Battle" />
+      </div>
+
+      <div class="field-row-3">
+        <div class="field">
+          <label for="f-emoji">Emoji</label>
+          <input id="f-emoji" type="text" placeholder="🎮" maxlength="6" />
+        </div>
+        <div class="field">
+          <label for="f-coach">Coach</label>
+          <input id="f-coach" type="text" placeholder="Coach Eddie" />
+        </div>
+        <div class="field">
+          <label for="f-active">Status</label>
+          <select id="f-active">
+            <option value="YES">Active</option>
+            <option value="NO">Inactive</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="field-row">
+        <div class="field">
+          <label for="f-day">Day of week</label>
+          <select id="f-day">
+            <option value="">— pick a day —</option>
+            <option value="MON">Monday</option>
+            <option value="TUE">Tuesday</option>
+            <option value="WED">Wednesday</option>
+            <option value="THU">Thursday</option>
+            <option value="FRI">Friday</option>
+            <option value="SAT">Saturday</option>
+            <option value="SUN">Sunday</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="f-time">Time (Central Time)</label>
+          <input id="f-time" type="text" placeholder="12:00 PM CT" />
+          <div class="field-help">Format like "12:00 PM CT" or "3:30 PM CT". The "CT" suffix is optional.</div>
+        </div>
+      </div>
+
+      <div class="field">
+        <label for="f-description">Description</label>
+        <textarea id="f-description" placeholder="What happens in this session?"></textarea>
+      </div>
+
+      <div class="field">
+        <label for="f-link">Zoom link</label>
+        <input id="f-link" type="url" placeholder="https://us06web.zoom.us/j/…" />
+        <div class="field-help">Students see this only during the unlock window (15 min before → 45 min after start).</div>
+      </div>
+
+      <div class="field-row">
+        <div class="field">
+          <label for="f-blackout-start">Blackout start</label>
+          <input id="f-blackout-start" type="date" />
+        </div>
+        <div class="field">
+          <label for="f-blackout-end">Blackout end</label>
+          <input id="f-blackout-end" type="date" />
+        </div>
+      </div>
+      <div class="field-help warn">
+        Tip: set <b>blackout start</b> to the day after the previous session before the gap, so students
+        looking ahead can't lock in dates inside the blackout. End on the last day the coach is unavailable.
+        Leave both blank if there's no break coming up.
+      </div>
+
+      <input type="hidden" id="f-session-id" />
+    </div>
+    <div class="modal-foot">
+      <button type="button" class="btn-grey" id="btn-cancel">Cancel</button>
+      <button type="button" class="btn-blue" id="btn-save">Save session</button>
+    </div>
+  </div>
+</div>
+
+<footer class="site-footer">
+  <svg width="24" height="20" viewBox="0 0 67 55" fill="none"><path d="M66.3126 50.8822L48.3919 1.76245C48.0093 0.703285 46.9977 0 45.867 0H20.6096C19.479 0 18.4673 0.703285 18.0848 1.76245L0.164039 50.8822C-0.473557 52.6277 0.82714 54.4749 2.68892 54.4749H25.9059C27.0366 54.4749 28.0483 53.7716 28.4308 52.7125L33.2426 39.5365L38.0543 52.7125C38.4368 53.7716 39.4485 54.4749 40.5792 54.4749H63.7962C65.658 54.4749 66.9587 52.6277 66.3211 50.8822H66.3126ZM40.9532 51.255L34.9598 34.8253L45.9945 4.58406L63.0226 51.2635H40.9532V51.255Z" fill="#FAFAFA" opacity="0.4"/></svg>
+  <p class="footer-text">Alpha Experiences · Admin</p>
+</footer>
+
+<script>
+// ── Helpers ──
+function emailHandle(e){ if(!e) return ''; var i=e.indexOf('@'); return i<0?e:e.slice(0,i); }
+function initialsFor(name, email){
+  var s = (name || emailHandle(email) || '').trim();
+  if (!s) return '··';
+  var parts = s.split(/[\s.]+/).filter(Boolean);
+  if (parts.length === 1) return (parts[0][0] || '·').toUpperCase();
+  return ((parts[0][0] || '·') + (parts[parts.length-1][0] || '')).toUpperCase();
+}
+function decodeHtmlEntities(s){
+  if (!s) return '';
+  var t = document.createElement('textarea');
+  t.innerHTML = s;
+  return t.value;
+}
+function firstGrapheme(s){
+  if (!s) return '';
+  if (typeof Intl !== 'undefined' && Intl.Segmenter){
+    var seg = new Intl.Segmenter(undefined, { granularity:'grapheme' });
+    var it = seg.segment(s)[Symbol.iterator]();
+    var first = it.next();
+    return first.done ? '' : first.value.segment;
+  }
+  return Array.from(s)[0] || '';
+}
+function dayLabel(d){
+  var m = { MON:'Mon', TUE:'Tue', WED:'Wed', THU:'Thu', FRI:'Fri', SAT:'Sat', SUN:'Sun' };
+  return m[(d || '').toUpperCase()] || d || '';
+}
+function setBanner(el, msg, type){
+  el.textContent = msg;
+  el.className = 'banner ' + (type || 'success');
+  el.style.display = '';
+}
+function flashSuccess(msg){
+  var fb = document.getElementById('flash-banner');
+  setBanner(fb, msg, 'success');
+  setTimeout(function(){ fb.style.display = 'none'; }, 5000);
+}
+
+// ── User menu ──
+function setupUserMenu(user){
+  document.getElementById('user-avatar').textContent     = initialsFor(user.name, user.email);
+  document.getElementById('user-handle').textContent     = emailHandle(user.email);
+  document.getElementById('user-menu-email').textContent = user.email;
+  var btn  = document.getElementById('user-chip');
+  var menu = document.getElementById('user-menu');
+  btn.addEventListener('click', function(e){
+    e.stopPropagation();
+    var open = menu.classList.toggle('open');
+    btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+  });
+  document.addEventListener('click', function(e){
+    if (!menu.contains(e.target) && e.target !== btn) {
+      menu.classList.remove('open');
+      btn.setAttribute('aria-expanded', 'false');
+    }
+  });
+}
+
+// ── State ──
+var STATE = { sessions: [] };
+
+// ── Render ──
+function renderSessions(sessions){
+  var list  = document.getElementById('sessions-list');
+  var empty = document.getElementById('empty-state');
+  list.innerHTML = '';
+
+  if (!sessions.length){
+    list.style.display = 'none';
+    empty.style.display = '';
+    document.getElementById('toolbar-sub').textContent = 'No sessions yet';
+    return;
+  }
+  empty.style.display = 'none';
+  list.style.display = '';
+
+  // Counts
+  var active = sessions.filter(function(s){ return s.active; }).length;
+  document.getElementById('toolbar-sub').textContent =
+    sessions.length + ' total · ' + active + ' active';
+
+  // Header row
+  var table = document.createElement('div');
+  table.className = 'sessions-table';
+
+  var hdr = document.createElement('div');
+  hdr.className = 'sess-row header';
+  hdr.innerHTML =
+    '<div></div>' +
+    '<div>Session</div>' +
+    '<div class="col-coach">Coach</div>' +
+    '<div class="col-when">When</div>' +
+    '<div>Status</div>' +
+    '<div class="col-blackout">Blackout</div>' +
+    '<div></div>';
+  table.appendChild(hdr);
+
+  sessions.forEach(function(s){
+    var row = document.createElement('div');
+    row.className = 'sess-row' + (s.active ? '' : ' inactive');
+
+    var emojiTxt = firstGrapheme(decodeHtmlEntities(s.emoji)) || '🎮';
+
+    // Emoji
+    var emo = document.createElement('div');
+    emo.className = 'sess-emoji';
+    emo.textContent = emojiTxt;
+    row.appendChild(emo);
+
+    // Name
+    var nm = document.createElement('div');
+    nm.className = 'sess-name';
+    nm.textContent = s.name || '(unnamed)';
+    row.appendChild(nm);
+
+    // Coach
+    var co = document.createElement('div');
+    co.className = 'sess-coach col-coach';
+    co.textContent = s.coach || '—';
+    row.appendChild(co);
+
+    // When
+    var wh = document.createElement('div');
+    wh.className = 'sess-when col-when';
+    wh.textContent = dayLabel(s.day) + (s.time ? ' · ' + s.time : '');
+    row.appendChild(wh);
+
+    // Status toggle
+    var togWrap = document.createElement('div');
+    var tog = document.createElement('button');
+    tog.className = 'toggle-pill ' + (s.active ? 'on' : 'off');
+    tog.textContent = s.active ? 'Active' : 'Off';
+    tog.title = s.active ? 'Click to deactivate' : 'Click to activate';
+    tog.addEventListener('click', function(){ toggleActive(s, tog); });
+    togWrap.appendChild(tog);
+    row.appendChild(togWrap);
+
+    // Blackout
+    var bo = document.createElement('div');
+    var hasBlackout = (s.blackout_start && s.blackout_end);
+    bo.className = 'sess-blackout col-blackout' + (hasBlackout ? ' has-dates' : '');
+    bo.textContent = hasBlackout ? (s.blackout_start + ' → ' + s.blackout_end) : '—';
+    row.appendChild(bo);
+
+    // Edit button
+    var editWrap = document.createElement('div');
+    var ed = document.createElement('button');
+    ed.className = 'btn-sm-blue';
+    ed.textContent = 'Edit';
+    ed.addEventListener('click', function(){ openEditModal(s); });
+    editWrap.appendChild(ed);
+    row.appendChild(editWrap);
+
+    table.appendChild(row);
+  });
+
+  list.appendChild(table);
+}
+
+// ── Toggle active ──
+async function toggleActive(s, btn){
+  btn.disabled = true;
+  var newActive = !s.active;
+  try {
+    var r = await fetch('/api/admin/lounge-session-save', {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        session_id: s.session_id,
+        name:           s.name,
+        emoji:          s.emoji,
+        coach:          s.coach,
+        day:            s.day,
+        time:           s.time,
+        description:    s.description,
+        link:           s.link,
+        active:         newActive,
+        blackout_start: s.blackout_start,
+        blackout_end:   s.blackout_end
+      })
+    });
+    if (r.status !== 200) throw new Error('save failed (' + r.status + ')');
+    s.active = newActive;
+    renderSessions(STATE.sessions);
+    flashSuccess('"' + s.name + '" set to ' + (newActive ? 'Active' : 'Off') + '.');
+  } catch (e) {
+    alert('Could not toggle: ' + e.message);
+    btn.disabled = false;
+  }
+}
+
+// ── Modal ──
+function openEditModal(s){
+  document.getElementById('modal-title').textContent = s ? 'Edit session' : 'New session';
+  document.getElementById('f-name').value           = s ? (s.name        || '') : '';
+  document.getElementById('f-emoji').value          = s ? decodeHtmlEntities(s.emoji || '') : '';
+  document.getElementById('f-coach').value          = s ? (s.coach       || '') : '';
+  document.getElementById('f-day').value            = s ? (s.day         || '').toUpperCase() : '';
+  document.getElementById('f-time').value           = s ? (s.time        || '') : '';
+  document.getElementById('f-description').value    = s ? (s.description || '') : '';
+  document.getElementById('f-link').value           = s ? (s.link        || '') : '';
+  document.getElementById('f-active').value         = s ? (s.active ? 'YES' : 'NO') : 'YES';
+  document.getElementById('f-blackout-start').value = s ? (s.blackout_start || '') : '';
+  document.getElementById('f-blackout-end').value   = s ? (s.blackout_end   || '') : '';
+  document.getElementById('f-session-id').value     = s ? (s.session_id || '') : '';
+  document.getElementById('modal-error').style.display = 'none';
+  document.getElementById('modal-backdrop').classList.add('open');
+}
+function closeModal(){
+  document.getElementById('modal-backdrop').classList.remove('open');
+}
+
+async function saveModal(){
+  var err = document.getElementById('modal-error');
+  err.style.display = 'none';
+
+  var payload = {
+    session_id:     document.getElementById('f-session-id').value.trim(),
+    name:           document.getElementById('f-name').value.trim(),
+    emoji:          document.getElementById('f-emoji').value.trim(),
+    coach:          document.getElementById('f-coach').value.trim(),
+    day:            document.getElementById('f-day').value.trim(),
+    time:           document.getElementById('f-time').value.trim(),
+    description:    document.getElementById('f-description').value,
+    link:           document.getElementById('f-link').value.trim(),
+    active:         (document.getElementById('f-active').value === 'YES'),
+    blackout_start: document.getElementById('f-blackout-start').value.trim(),
+    blackout_end:   document.getElementById('f-blackout-end').value.trim()
+  };
+
+  if (!payload.name) { setBanner(err, 'Session name is required.', 'error'); return; }
+  if (!payload.day)  { setBanner(err, 'Pick a day of the week.', 'error'); return; }
+  if (!payload.time) { setBanner(err, 'Time is required (e.g. "12:00 PM CT").', 'error'); return; }
+
+  // Both blackout dates or neither
+  if ((payload.blackout_start && !payload.blackout_end) || (!payload.blackout_start && payload.blackout_end)){
+    setBanner(err, 'Blackout needs both a start and an end date (or leave both blank).', 'error');
+    return;
+  }
+  if (payload.blackout_start && payload.blackout_end && payload.blackout_start > payload.blackout_end){
+    setBanner(err, 'Blackout end must be on or after blackout start.', 'error');
+    return;
+  }
+
+  var btn = document.getElementById('btn-save');
+  btn.disabled = true; btn.textContent = 'Saving…';
+  try {
+    var r = await fetch('/api/admin/lounge-session-save', {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    var data = {};
+    try { data = await r.json(); } catch(e){}
+    if (r.status !== 200){
+      var msg = data.detail || data.error || ('save failed (' + r.status + ')');
+      throw new Error(msg);
+    }
+    closeModal();
+    flashSuccess(data.created ? '"' + payload.name + '" added.' : '"' + payload.name + '" updated.');
+    await loadSessions();
+  } catch (e) {
+    setBanner(err, e.message, 'error');
+  } finally {
+    btn.disabled = false; btn.textContent = 'Save session';
+  }
+}
+
+// ── Load ──
+async function loadSessions(){
+  var r = await fetch('/api/admin/lounge-sessions-list', { credentials:'same-origin' });
+  if (r.status !== 200){
+    document.getElementById('toolbar-sub').textContent = 'Could not load sessions';
+    return;
+  }
+  var data = await r.json();
+  STATE.sessions = (data && data.sessions) || [];
+  renderSessions(STATE.sessions);
+}
+
+// ── Init ──
+async function init(){
+  var meRes;
+  try { meRes = await fetch('/auth/me', { credentials:'same-origin' }); }
+  catch (e) { window.location.href = '/auth/login?return_to=' + encodeURIComponent(window.location.pathname + window.location.search); return; }
+  if (meRes.status !== 200) { window.location.href = '/auth/login?return_to=' + encodeURIComponent(window.location.pathname + window.location.search); return; }
+  var user = await meRes.json();
+
+  if (!user.isAdmin) {
+    document.getElementById('page-loading').style.display = 'none';
+    document.getElementById('page-denied').style.display = 'flex';
+    return;
+  }
+  setupUserMenu(user);
+
+  document.getElementById('btn-new-session').addEventListener('click', function(){ openEditModal(null); });
+  document.getElementById('btn-new-session-empty').addEventListener('click', function(){ openEditModal(null); });
+  document.getElementById('modal-close').addEventListener('click', closeModal);
+  document.getElementById('btn-cancel').addEventListener('click', closeModal);
+  document.getElementById('btn-save').addEventListener('click', saveModal);
+  document.getElementById('modal-backdrop').addEventListener('click', function(e){
+    if (e.target === e.currentTarget) closeModal();
+  });
+  document.addEventListener('keydown', function(e){
+    if (e.key === 'Escape' && document.getElementById('modal-backdrop').classList.contains('open')){
+      closeModal();
+    }
+  });
+
+  await loadSessions();
+
+  document.getElementById('page-loading').style.display = 'none';
+  document.getElementById('page-body').style.display    = '';
+}
+
+init();
+</script>
+
+</body>
+</html>

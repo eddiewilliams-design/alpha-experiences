@@ -1259,6 +1259,151 @@ async function handleAdminRemove(req, res) {
   return res.status(200).json({ ok: true });
 }
 
+// ── LUL Sessions admin (Phase 2a) ───────────────────────────
+//
+// Sessions tab schema (used by api/get-sessions.js too):
+//   A Name | B Emoji | C Coach | D Day | E Time | F Description
+//   G Link (Zoom URL) | H Session ID (slug) | I Active (YES/NO)
+//   J Blackout Start  | K Blackout End
+//
+// Admin sees ALL rows including inactive ones. The Active toggle
+// flips col I; get-sessions.js will then hide it from students.
+
+const VALID_DAYS = ['SUN','MON','TUE','WED','THU','FRI','SAT'];
+
+async function handleLoungeSessionsList(req, res) {
+  let rows;
+  try {
+    const token = await getAccessToken();
+    const sheet = await batchGet(token, ['Sessions!A:K']);
+    rows = (sheet && sheet.valueRanges && sheet.valueRanges[0] && sheet.valueRanges[0].values) || [];
+  } catch (err) {
+    console.error('lounge-sessions-list error:', err.message);
+    return res.status(500).json({ error: 'server_error' });
+  }
+
+  const sessions = [];
+  for (let i = 1; i < rows.length; i++) {
+    const r = rows[i];
+    if (!r || !r[0]) continue;
+    sessions.push({
+      row_index:      i + 1, // 1-based for sheets ranges
+      name:           (r[0]  || '').toString(),
+      emoji:          (r[1]  || '').toString(),
+      coach:          (r[2]  || '').toString(),
+      day:            (r[3]  || '').toString(),
+      time:           (r[4]  || '').toString(),
+      description:    (r[5]  || '').toString(),
+      link:           (r[6]  || '').toString(),
+      session_id:     (r[7]  || '').toString(),
+      active:         ((r[8] || 'YES').toString().toUpperCase() !== 'NO'),
+      blackout_start: (r[9]  || '').toString(),
+      blackout_end:   (r[10] || '').toString()
+    });
+  }
+  return res.status(200).json({ sessions });
+}
+
+async function handleLoungeSessionSave(req, res) {
+  if (req.method !== 'POST') return res.status(405).json({ error: 'method_not_allowed' });
+
+  let body;
+  try { body = await readJsonBody(req); }
+  catch (e) { return res.status(400).json({ error: 'bad_json' }); }
+
+  const name = (body.name || '').toString().trim();
+  const day  = (body.day  || '').toString().trim().toUpperCase();
+  const time = (body.time || '').toString().trim();
+  if (!name) return res.status(400).json({ error: 'bad_request', detail: 'name required' });
+  if (VALID_DAYS.indexOf(day) === -1) return res.status(400).json({ error: 'bad_request', detail: 'day must be SUN-SAT' });
+  if (!time) return res.status(400).json({ error: 'bad_request', detail: 'time required' });
+
+  const incoming = {
+    name,
+    emoji:          (body.emoji || '').toString(),
+    coach:          (body.coach || '').toString(),
+    day,
+    time,
+    description:    (body.description || '').toString(),
+    link:           (body.link || '').toString(),
+    session_id:     (body.session_id || '').toString().trim(),
+    active:         (body.active === false || String(body.active).toUpperCase() === 'NO') ? 'NO' : 'YES',
+    blackout_start: (body.blackout_start || '').toString().trim(),
+    blackout_end:   (body.blackout_end   || '').toString().trim()
+  };
+
+  let token;
+  try { token = await getAccessToken('https://www.googleapis.com/auth/spreadsheets'); }
+  catch (err) {
+    console.error('lounge-session-save token error:', err.message);
+    return res.status(500).json({ error: 'server_error' });
+  }
+
+  let rows;
+  try {
+    const sheet = await batchGet(token, ['Sessions!A:K']);
+    rows = (sheet && sheet.valueRanges && sheet.valueRanges[0] && sheet.valueRanges[0].values) || [];
+  } catch (err) {
+    console.error('lounge-session-save read error:', err.message);
+    return res.status(500).json({ error: 'server_error' });
+  }
+
+  // Resolve session_id: keep existing for edit; generate unique slug for new
+  const existingIds = new Set();
+  let existingRowIndex = -1;
+  for (let i = 1; i < rows.length; i++) {
+    const id = (rows[i][7] || '').toString().trim();
+    if (id) existingIds.add(id);
+  }
+  let sid = incoming.session_id;
+  if (sid) {
+    for (let i = 1; i < rows.length; i++) {
+      if ((rows[i][7] || '').toString().trim() === sid) {
+        existingRowIndex = i; break;
+      }
+    }
+    if (existingRowIndex === -1) {
+      // session_id supplied but no row matches — refuse rather than silently create
+      return res.status(404).json({ error: 'not_found' });
+    }
+  } else {
+    // Generate a unique slug from the name
+    const base = slugify(name);
+    let candidate = base;
+    let n = 2;
+    while (existingIds.has(candidate)) candidate = `${base}-${n++}`;
+    sid = candidate;
+  }
+
+  const row = [
+    incoming.name,
+    incoming.emoji,
+    incoming.coach,
+    incoming.day,
+    incoming.time,
+    incoming.description,
+    incoming.link,
+    sid,
+    incoming.active,
+    incoming.blackout_start,
+    incoming.blackout_end
+  ];
+
+  try {
+    if (existingRowIndex >= 0) {
+      const rowNum = existingRowIndex + 1; // 1-indexed
+      await sheetsUpdate(token, `Sessions!A${rowNum}:K${rowNum}`, [row]);
+    } else {
+      await sheetsAppend(token, 'Sessions!A:K', [row]);
+    }
+  } catch (err) {
+    console.error('lounge-session-save write error:', err.message);
+    return res.status(500).json({ error: 'server_error' });
+  }
+
+  return res.status(200).json({ ok: true, session_id: sid, created: existingRowIndex < 0 });
+}
+
 // ── Dispatch ────────────────────────────────────────────────
 module.exports = async (req, res) => {
   res.setHeader('Cache-Control', 'no-store');
@@ -1271,20 +1416,22 @@ module.exports = async (req, res) => {
   const action = (req.query.action || '').toString();
 
   switch (action) {
-    case 'trips-list':     return handleTripsList(req, res);
-    case 'trip-get':       return handleTripGet(req, res);
-    case 'trip-save':      return handleTripSave(req, res);
-    case 'trip-delete':    return handleTripDelete(req, res);
-    case 'regs-list':      return handleRegsList(req, res);
-    case 'reg-create':     return handleRegCreate(req, res);
-    case 'reg-update':     return handleRegUpdate(req, res);
-    case 'reg-cancel':     return handleRegCancel(req, res);
-    case 'reg-attendance': return handleRegAttendance(req, res);
-    case 'subs-list':      return handleSubsList(req, res);
-    case 'sub-delete':     return handleSubDelete(req, res);
-    case 'admins-list':    return handleAdminsList(req, res);
-    case 'admin-add':      return handleAdminAdd(req, res);
-    case 'admin-remove':   return handleAdminRemove(req, res);
-    default:               return res.status(404).json({ error: 'not_found', detail: action });
+    case 'trips-list':            return handleTripsList(req, res);
+    case 'trip-get':              return handleTripGet(req, res);
+    case 'trip-save':             return handleTripSave(req, res);
+    case 'trip-delete':           return handleTripDelete(req, res);
+    case 'regs-list':             return handleRegsList(req, res);
+    case 'reg-create':            return handleRegCreate(req, res);
+    case 'reg-update':            return handleRegUpdate(req, res);
+    case 'reg-cancel':            return handleRegCancel(req, res);
+    case 'reg-attendance':        return handleRegAttendance(req, res);
+    case 'subs-list':             return handleSubsList(req, res);
+    case 'sub-delete':            return handleSubDelete(req, res);
+    case 'admins-list':           return handleAdminsList(req, res);
+    case 'admin-add':             return handleAdminAdd(req, res);
+    case 'admin-remove':          return handleAdminRemove(req, res);
+    case 'lounge-sessions-list':  return handleLoungeSessionsList(req, res);
+    case 'lounge-session-save':   return handleLoungeSessionSave(req, res);
+    default:                      return res.status(404).json({ error: 'not_found', detail: action });
   }
 };
