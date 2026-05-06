@@ -1938,6 +1938,159 @@ async function handleLoungePassResend(req, res) {
   return res.status(200).json({ ok: true });
 }
 
+async function handleLoungePassUpdate(req, res) {
+  if (req.method !== 'POST') return res.status(405).json({ error: 'method_not_allowed' });
+
+  let body;
+  try { body = await readJsonBody(req); }
+  catch (e) { return res.status(400).json({ error: 'bad_json' }); }
+
+  const passToken = (body.token || '').toString().trim();
+  if (!passToken) return res.status(400).json({ error: 'bad_request', detail: 'token required' });
+
+  // Currently supports updating Fulfilled (col F). Extensible: add more fields here.
+  const fulfilledRaw = body.fulfilled;
+  const VALID_FULFILLED = ['Yes', 'No', 'Pending', ''];
+  let fulfilled = null;
+  if (fulfilledRaw !== undefined) {
+    fulfilled = String(fulfilledRaw || '').trim();
+    // Normalize casing (Yes/No/Pending)
+    if (fulfilled.toLowerCase() === 'yes')     fulfilled = 'Yes';
+    else if (fulfilled.toLowerCase() === 'no') fulfilled = 'No';
+    else if (fulfilled.toLowerCase() === 'pending') fulfilled = 'Pending';
+    else if (fulfilled === '')                 fulfilled = '';
+    else return res.status(400).json({ error: 'bad_request', detail: 'fulfilled must be Yes / No / Pending / blank' });
+  }
+
+  if (fulfilled === null) {
+    return res.status(400).json({ error: 'bad_request', detail: 'no fields to update' });
+  }
+
+  let accessToken;
+  try { accessToken = await getAccessToken('https://www.googleapis.com/auth/spreadsheets'); }
+  catch (err) { console.error('pass-update token:', err.message); return res.status(500).json({ error: 'server_error' }); }
+
+  const { row: foundRow, rowIndex } = await findRowByToken(accessToken, passToken);
+  if (!foundRow) return res.status(404).json({ error: 'not_found' });
+
+  const rowNum = rowIndex + 1;
+  try {
+    if (fulfilled !== null) {
+      await sheetsUpdate(accessToken, `Sheet1!F${rowNum}`, [[fulfilled]]);
+    }
+  } catch (err) {
+    console.error('pass-update write:', err.message);
+    return res.status(500).json({ error: 'server_error' });
+  }
+
+  return res.status(200).json({ ok: true });
+}
+
+async function handleLoungeAttendanceList(req, res) {
+  const passToken = (req.query.token || '').toString().trim();
+  if (!passToken) return res.status(400).json({ error: 'bad_request', detail: 'token required' });
+
+  let accessToken;
+  try { accessToken = await getAccessToken(); }
+  catch (err) { return res.status(500).json({ error: 'server_error' }); }
+
+  // Find pass row to get the student's email
+  const { row: foundRow } = await findRowByToken(accessToken, passToken);
+  if (!foundRow) return res.status(404).json({ error: 'pass_not_found' });
+  const studentEmail = (foundRow[2] || '').toString().toLowerCase().trim();
+  const selectedRaw  = (foundRow[10] || '').toString().trim();
+  const selectedSet  = new Set(selectedRaw ? selectedRaw.split(/[,\s]+/).map(s => s.trim()).filter(Boolean) : []);
+
+  // Read attendance + sessions for nice display
+  let attRows, sessRows;
+  try {
+    const sheet = await batchGet(accessToken, ['LUL_Attendance!A:H', 'Sessions!A:K']);
+    attRows  = (sheet && sheet.valueRanges && sheet.valueRanges[0] && sheet.valueRanges[0].values) || [];
+    sessRows = (sheet && sheet.valueRanges && sheet.valueRanges[1] && sheet.valueRanges[1].values) || [];
+  } catch (err) {
+    console.error('attendance-list read:', err.message);
+    return res.status(500).json({ error: 'server_error' });
+  }
+
+  // Build session id → name lookup
+  const sessionNameById = {};
+  for (let i = 1; i < sessRows.length; i++) {
+    const r = sessRows[i] || [];
+    const id = (r[7] || '').toString().trim();
+    if (id) sessionNameById[id] = (r[0] || '').toString().trim();
+  }
+
+  const entries = [];
+  for (let i = 1; i < attRows.length; i++) {
+    const r = attRows[i] || [];
+    const email = (r[1] || '').toString().toLowerCase().trim();
+    if (email !== studentEmail) continue;
+    const sid = (r[3] || '').toString().trim();
+    entries.push({
+      row_index:    i + 1,
+      clicked_at:   (r[0] || '').toString(),
+      session_id:   sid,
+      session_name: sessionNameById[sid] || (r[4] || '').toString(),
+      zoom_url:     (r[5] || '').toString(),
+      token:        (r[6] || '').toString(),
+      in_picks:     selectedSet.has(sid)
+    });
+  }
+  // Newest first
+  entries.sort((a, b) => (b.clicked_at || '').localeCompare(a.clicked_at || ''));
+
+  return res.status(200).json({
+    student_email: studentEmail,
+    selected_session_ids: Array.from(selectedSet),
+    entries: entries
+  });
+}
+
+async function handleLoungeAttendanceDelete(req, res) {
+  if (req.method !== 'POST') return res.status(405).json({ error: 'method_not_allowed' });
+
+  let body;
+  try { body = await readJsonBody(req); }
+  catch (e) { return res.status(400).json({ error: 'bad_json' }); }
+
+  const rowIdxRaw = body.row_index;
+  const rowIdx = parseInt(rowIdxRaw, 10);
+  if (!rowIdx || rowIdx < 2) {
+    return res.status(400).json({ error: 'bad_request', detail: 'row_index must be a number >= 2' });
+  }
+
+  let accessToken, rows;
+  try {
+    accessToken = await getAccessToken('https://www.googleapis.com/auth/spreadsheets');
+    const sheet = await batchGet(accessToken, ['LUL_Attendance!A:H']);
+    rows = (sheet && sheet.valueRanges && sheet.valueRanges[0] && sheet.valueRanges[0].values) || [];
+  } catch (err) {
+    console.error('attendance-delete read:', err.message);
+    return res.status(500).json({ error: 'server_error' });
+  }
+
+  // rowIdx is 1-based (row 1 = header). Bounds check + safety: don't allow header.
+  if (rowIdx > rows.length) return res.status(404).json({ error: 'not_found' });
+
+  // Rewrite the tab without the target row. Brief gap during clear→update,
+  // but admin actions are infrequent and this is the simplest reliable way.
+  const header    = rows[0] || ['clicked_at','student_email','student_name','session_id','session_name','zoom_url','token','in_picks'];
+  const remaining = rows.slice(1).filter((_, i) => (i + 2) !== rowIdx);
+  if (remaining.length === rows.length - 1) {
+    return res.status(404).json({ error: 'not_found' });
+  }
+
+  try {
+    await sheetsClear(accessToken,  'LUL_Attendance!A:H');
+    await sheetsUpdate(accessToken, 'LUL_Attendance!A1', [header].concat(remaining));
+  } catch (err) {
+    console.error('attendance-delete write:', err.message);
+    return res.status(500).json({ error: 'server_error' });
+  }
+
+  return res.status(200).json({ ok: true });
+}
+
 async function handleLoungePassCancel(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'method_not_allowed' });
 
@@ -2009,6 +2162,9 @@ module.exports = async (req, res) => {
     case 'lounge-pass-extend':    return handleLoungePassExtend(req, res);
     case 'lounge-pass-resend':    return handleLoungePassResend(req, res);
     case 'lounge-pass-cancel':    return handleLoungePassCancel(req, res);
+    case 'lounge-pass-update':    return handleLoungePassUpdate(req, res);
+    case 'lounge-attendance-list':   return handleLoungeAttendanceList(req, res);
+    case 'lounge-attendance-delete': return handleLoungeAttendanceDelete(req, res);
     default:                      return res.status(404).json({ error: 'not_found', detail: action });
   }
 };

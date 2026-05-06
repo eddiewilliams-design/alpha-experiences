@@ -66,7 +66,7 @@ body{font-family:'Nunito Sans',sans-serif;background:var(--aa-white);min-height:
 
 /* Table */
 .passes-table{background:#fff;border-radius:14px;border:1.5px solid var(--aa-med-grey);overflow:hidden;}
-.pass-row{display:grid;grid-template-columns:minmax(150px,1.2fr) minmax(180px,1.4fr) minmax(140px,1fr) 100px 110px 100px 200px;gap:12px;padding:14px 16px;border-bottom:1px solid var(--aa-light-grey);align-items:center;}
+.pass-row{display:grid;grid-template-columns:minmax(150px,1.2fr) minmax(180px,1.4fr) 115px 110px 100px 90px 220px;gap:12px;padding:14px 16px;border-bottom:1px solid var(--aa-light-grey);align-items:center;}
 .pass-row:last-child{border-bottom:none;}
 .pass-row.header{background:var(--aa-light-grey);font-size:11px;font-weight:800;color:var(--aa-dark-grey);text-transform:uppercase;letter-spacing:0.05em;}
 .pass-name{font-family:'Nunito',sans-serif;font-weight:800;font-size:14px;color:var(--aa-navy);overflow-wrap:anywhere;}
@@ -84,6 +84,28 @@ body{font-family:'Nunito Sans',sans-serif;background:var(--aa-white);min-height:
 .status-used{background:var(--aa-light-purple);color:#3b1d61;}
 .status-cancelled{background:var(--aa-light-grey);color:var(--aa-dark-grey);}
 .status-expiring{background:var(--aa-light-yellow);color:#6b3a00;}
+
+/* Fulfilled chip select */
+.fulfilled-select{
+  font-family:inherit;font-size:10px;font-weight:800;
+  padding:5px 8px;border:1.5px solid var(--aa-med-grey);border-radius:999px;
+  background:#fff;color:var(--aa-dark-grey);width:100%;
+  letter-spacing:0.05em;text-transform:uppercase;cursor:pointer;
+}
+.fulfilled-select.yes{background:var(--aa-light-green);border-color:#a3d291;color:#1a5205;}
+.fulfilled-select.no{background:var(--aa-light-red);border-color:#f3a3a3;color:#7c0d0d;}
+.fulfilled-select.pending{background:var(--aa-light-yellow);border-color:#f0d39b;color:#6b3a00;}
+.fulfilled-select:disabled{opacity:0.5;cursor:wait;}
+
+/* Attendance modal list */
+.att-list{display:flex;flex-direction:column;gap:8px;}
+.att-row{display:grid;grid-template-columns:1fr 100px 80px;gap:12px;align-items:center;background:var(--aa-light-grey);border-radius:10px;padding:10px 14px;}
+.att-when{font-size:13px;font-weight:700;color:var(--aa-navy);}
+.att-name{font-size:11px;color:var(--aa-dark-grey);margin-top:2px;}
+.att-flag{font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:0.05em;text-align:center;padding:3px 8px;border-radius:999px;}
+.att-flag.in{background:var(--aa-light-green);color:#1a5205;}
+.att-flag.out{background:var(--aa-light-yellow);color:#6b3a00;}
+.att-empty{color:var(--aa-dark-grey);font-size:13px;padding:18px;text-align:center;}
 
 .pass-actions{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end;}
 .btn-mini{font-size:11px;font-weight:700;padding:5px 10px;border-radius:999px;border:1.5px solid var(--aa-med-grey);background:#fff;color:var(--aa-navy);cursor:pointer;font-family:inherit;}
@@ -139,10 +161,12 @@ body{font-family:'Nunito Sans',sans-serif;background:var(--aa-white);min-height:
 
 @media(max-width:900px){
   .pass-row{grid-template-columns:1fr 110px 100px;gap:10px;}
-  .pass-row .col-type,.pass-row .col-date,.pass-row .col-days,.pass-row .col-actions-h{display:none;}
-  .pass-row.header .col-type,.pass-row.header .col-date,.pass-row.header .col-days{display:none;}
+  .pass-row .col-type,.pass-row .col-fulfilled,.pass-row .col-date,.pass-row .col-days,.pass-row .col-actions-h{display:none;}
+  .pass-row.header .col-type,.pass-row.header .col-fulfilled,.pass-row.header .col-date,.pass-row.header .col-days{display:none;}
   .pass-actions{justify-content:flex-start;margin-top:6px;grid-column:1 / -1;}
   .field-row{grid-template-columns:1fr;}
+  .att-row{grid-template-columns:1fr 70px;}
+  .att-row .att-flag{display:none;}
 }
 </style>
 </head>
@@ -234,11 +258,11 @@ body{font-family:'Nunito Sans',sans-serif;background:var(--aa-white);min-height:
         </select>
       </div>
       <div class="filter-field">
-        <label for="f-date-from">Sent from</label>
+        <label for="f-date-from">Sent on or after</label>
         <input id="f-date-from" type="date" />
       </div>
       <div class="filter-field">
-        <label for="f-date-to">Sent to</label>
+        <label for="f-date-to">Sent on or before</label>
         <input id="f-date-to" type="date" />
       </div>
       <button class="btn-clear" id="btn-clear-filters">Clear</button>
@@ -362,6 +386,26 @@ body{font-family:'Nunito Sans',sans-serif;background:var(--aa-white);min-height:
     <div class="modal-foot">
       <button type="button" class="btn-grey" id="btn-cancel-back">Keep pass</button>
       <button type="button" class="btn-danger" id="btn-cancel-confirm">Cancel pass</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Attendance modal ── -->
+<div class="modal-backdrop" id="modal-attendance-backdrop">
+  <div class="modal" role="dialog" aria-modal="true" style="max-width:640px;">
+    <div class="modal-head">
+      <div class="modal-title">Attendance log</div>
+      <button class="modal-close" id="modal-attendance-close" aria-label="Close">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="confirm-summary" id="attendance-summary"></div>
+      <div class="field-help" style="margin-bottom:12px;">
+        Each row is a Zoom-link click logged in <code>LUL_Attendance</code>. Delete an entry if it shouldn't count toward the student's "Used" status (for example, a click that happened before the time-lock was active).
+      </div>
+      <div id="attendance-list"></div>
+    </div>
+    <div class="modal-foot">
+      <button type="button" class="btn-blue" id="btn-attendance-done">Done</button>
     </div>
   </div>
 </div>
@@ -496,10 +540,10 @@ function renderPasses(){
   hdr.innerHTML =
     '<div>Student</div>' +
     '<div class="col-type">Pass Type</div>' +
+    '<div class="col-fulfilled">Fulfilled</div>' +
     '<div>Status</div>' +
     '<div class="col-date">Sent</div>' +
     '<div class="col-days">Days left</div>' +
-    '<div></div>' +
     '<div class="col-actions-h"></div>';
   table.appendChild(hdr);
 
@@ -530,6 +574,12 @@ function renderPasses(){
     ty.className = 'pass-type col-type';
     ty.textContent = p.exp_type || '—';
     row.appendChild(ty);
+
+    // Fulfilled chip (inline-editable dropdown, auto-saves)
+    var fu = document.createElement('div');
+    fu.className = 'col-fulfilled';
+    fu.appendChild(buildFulfilledChip(p));
+    row.appendChild(fu);
 
     // Status
     var st = document.createElement('div');
@@ -562,13 +612,17 @@ function renderPasses(){
     }
     row.appendChild(dl);
 
-    // Spacer column to match header gap before actions
-    var spacer = document.createElement('div');
-    row.appendChild(spacer);
-
     // Actions
     var actions = document.createElement('div');
     actions.className = 'pass-actions col-actions-h';
+
+    var attBtn = document.createElement('button');
+    attBtn.className = 'btn-mini';
+    attBtn.textContent = 'Attendance';
+    attBtn.disabled = !p.token;
+    attBtn.title = p.token ? 'View / edit click log' : 'No token on this row';
+    attBtn.addEventListener('click', function(){ openAttendanceModal(p); });
+    actions.appendChild(attBtn);
 
     var extendBtn = document.createElement('button');
     extendBtn.className = 'btn-mini';
@@ -599,6 +653,52 @@ function renderPasses(){
   });
 
   list.appendChild(table);
+}
+
+// ── Fulfilled chip (inline editable, auto-saves) ──
+function fulfilledClass(value){
+  var v = (value || '').toString().toLowerCase();
+  if (v === 'yes')     return 'fulfilled-select yes';
+  if (v === 'no')      return 'fulfilled-select no';
+  if (v === 'pending') return 'fulfilled-select pending';
+  return 'fulfilled-select';
+}
+function buildFulfilledChip(p){
+  var sel = document.createElement('select');
+  sel.className = fulfilledClass(p.fulfilled);
+  ['', 'Yes', 'No', 'Pending'].forEach(function(v){
+    var opt = document.createElement('option');
+    opt.value = v;
+    opt.textContent = v || '— set —';
+    sel.appendChild(opt);
+  });
+  sel.value = (p.fulfilled || '');
+  sel.title = 'Fulfilled status — auto-saves on change';
+  sel.disabled = !p.token;
+  sel.addEventListener('change', function(){
+    saveFulfilled(p, sel.value, sel);
+  });
+  return sel;
+}
+async function saveFulfilled(p, newValue, sel){
+  sel.disabled = true;
+  try {
+    var r = await fetch('/api/admin/lounge-pass-update', {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token: p.token, fulfilled: newValue })
+    });
+    if (r.status !== 200) throw new Error('save failed (' + r.status + ')');
+    p.fulfilled = newValue;
+    sel.className = fulfilledClass(newValue);
+    flashSuccess('"' + (p.name || p.email) + '" fulfilled = ' + (newValue || 'cleared') + '.');
+  } catch (e) {
+    alert('Could not save: ' + e.message);
+    sel.value = p.fulfilled || '';
+  } finally {
+    sel.disabled = false;
+  }
 }
 
 // ── Modals ──
@@ -744,6 +844,102 @@ async function confirmResend(){
   }
 }
 
+// Attendance modal
+function openAttendanceModal(p){
+  STATE.activePass = p;
+  document.getElementById('attendance-summary').innerHTML = passSummaryHtml(p);
+  document.getElementById('attendance-list').innerHTML = '<div style="text-align:center;padding:30px;"><div class="spinner" style="margin:0 auto;"></div></div>';
+  showModal('modal-attendance-backdrop');
+  loadAttendance(p);
+}
+async function loadAttendance(p){
+  var listEl = document.getElementById('attendance-list');
+  try {
+    var r = await fetch('/api/admin/lounge-attendance-list?token=' + encodeURIComponent(p.token), { credentials:'same-origin' });
+    if (r.status !== 200) throw new Error('Failed to load (' + r.status + ')');
+    var data = await r.json();
+    renderAttendance(data);
+  } catch (e) {
+    listEl.innerHTML = '<div style="color:#7c0d0d;font-size:13px;padding:14px;">Could not load attendance: ' + e.message + '</div>';
+  }
+}
+function renderAttendance(data){
+  var listEl = document.getElementById('attendance-list');
+  if (!data.entries || !data.entries.length){
+    listEl.innerHTML = '<div class="att-empty">No attendance entries logged for this student yet.</div>';
+    return;
+  }
+
+  var wrap = document.createElement('div');
+  wrap.className = 'att-list';
+  data.entries.forEach(function(e){
+    var when = e.clicked_at;
+    try {
+      var d = new Date(e.clicked_at);
+      if (!isNaN(d.getTime())) {
+        when = d.toLocaleString(undefined, { month:'short', day:'numeric', year:'numeric', hour:'numeric', minute:'2-digit' });
+      }
+    } catch(_) {}
+
+    var row = document.createElement('div');
+    row.className = 'att-row';
+
+    var info = document.createElement('div');
+    var w = document.createElement('div');
+    w.className = 'att-when';
+    w.textContent = when;
+    info.appendChild(w);
+    var n = document.createElement('div');
+    n.className = 'att-name';
+    n.textContent = e.session_name || e.session_id || '(unknown session)';
+    info.appendChild(n);
+    row.appendChild(info);
+
+    var flag = document.createElement('div');
+    var flagSpan = document.createElement('span');
+    flagSpan.className = 'att-flag ' + (e.in_picks ? 'in' : 'out');
+    flagSpan.textContent = e.in_picks ? 'in picks' : 'outside picks';
+    flag.appendChild(flagSpan);
+    row.appendChild(flag);
+
+    var del = document.createElement('button');
+    del.className = 'btn-mini danger';
+    del.textContent = 'Delete';
+    del.addEventListener('click', function(){
+      if (!confirm('Delete this attendance entry? If the student was marked "Used", their status may flip back to "Locked in".')) return;
+      deleteAttendance(e.row_index, del);
+    });
+    row.appendChild(del);
+
+    wrap.appendChild(row);
+  });
+
+  listEl.innerHTML = '';
+  listEl.appendChild(wrap);
+}
+async function deleteAttendance(rowIndex, btn){
+  btn.disabled = true; btn.textContent = '…';
+  try {
+    var r = await fetch('/api/admin/lounge-attendance-delete', {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ row_index: rowIndex })
+    });
+    if (r.status !== 200) {
+      var d = {}; try { d = await r.json(); } catch(_) {}
+      throw new Error(d.detail || d.error || ('delete failed (' + r.status + ')'));
+    }
+    await loadAttendance(STATE.activePass);
+    await loadPasses();
+    flashSuccess('Attendance entry deleted.');
+  } catch (e) {
+    alert('Could not delete: ' + e.message);
+    btn.disabled = false;
+    btn.textContent = 'Delete';
+  }
+}
+
 // Cancel modal
 function openCancelModal(p){
   STATE.activePass = p;
@@ -868,13 +1064,18 @@ async function init(){
   document.getElementById('btn-cancel-back').addEventListener('click', function(){ hideModal('modal-cancel-backdrop'); });
   document.getElementById('btn-cancel-confirm').addEventListener('click', confirmCancel);
 
+  // Attendance modal
+  document.getElementById('modal-attendance-close').addEventListener('click', function(){ hideModal('modal-attendance-backdrop'); });
+  document.getElementById('btn-attendance-done').addEventListener('click',     function(){ hideModal('modal-attendance-backdrop'); });
+
   // Backdrop close + Escape
-  ['modal-add-backdrop','modal-extend-backdrop','modal-resend-backdrop','modal-cancel-backdrop'].forEach(function(id){
+  var allModals = ['modal-add-backdrop','modal-extend-backdrop','modal-resend-backdrop','modal-cancel-backdrop','modal-attendance-backdrop'];
+  allModals.forEach(function(id){
     document.getElementById(id).addEventListener('click', function(e){ if (e.target === e.currentTarget) hideModal(id); });
   });
   document.addEventListener('keydown', function(e){
     if (e.key === 'Escape'){
-      ['modal-add-backdrop','modal-extend-backdrop','modal-resend-backdrop','modal-cancel-backdrop'].forEach(function(id){
+      allModals.forEach(function(id){
         if (document.getElementById(id).classList.contains('open')) hideModal(id);
       });
     }
