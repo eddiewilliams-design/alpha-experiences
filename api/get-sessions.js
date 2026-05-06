@@ -1,5 +1,5 @@
 // ============================================================
-// ALPHA EXPERIENCES — GET SESSIONS API  v2
+// ALPHA EXPERIENCES — GET SESSIONS API  v3
 // Vercel Serverless Function — Service Account Auth
 // GET /api/get-sessions
 // GET /api/get-sessions?include=blooket,improv
@@ -7,12 +7,20 @@
 //     inactive or within a coach blackout window.
 //     Used by lul.html for students who already locked in.
 //
+// Time-lock (v3): Sessions are weekly (same day-of-week, same
+// time). For each session we compute the NEXT occurrence in
+// Chicago time and only include the actual `link` field when
+// the current time is inside [start − 15 min, start + 45 min].
+// Outside that window, link is omitted entirely (never sent to
+// the browser). The picker re-polls /api/get-sessions every 30s
+// so the link auto-appears when the unlock window opens.
+//
 // Sessions tab column layout (A–K):
 //   A (0)  Name
 //   B (1)  Emoji
 //   C (2)  Coach
-//   D (3)  Day
-//   E (4)  Time
+//   D (3)  Day             ← "MON"/"TUE"/etc. (case-insensitive)
+//   E (4)  Time            ← "12:00 PM CT" (CT/CST/CDT suffix optional)
 //   F (5)  Description
 //   G (6)  Link
 //   H (7)  Session ID  ← stable unique slug, e.g. "blooket"
@@ -20,6 +28,96 @@
 //   J (9)  Blackout Start  ← date (leave blank if not needed)
 //   K (10) Blackout End    ← date (leave blank if not needed)
 // ============================================================
+
+const TZ                  = 'America/Chicago';
+const UNLOCK_BEFORE_MS    = 15 * 60 * 1000; // 15 min before start
+const LOCK_AFTER_MS       = 45 * 60 * 1000; // 45 min after start (sessions are 30 min)
+
+const DAY_MAP = {
+  SUN:0, SUNDAY:0,
+  MON:1, MONDAY:1,
+  TUE:2, TUES:2, TUESDAY:2,
+  WED:3, WEDS:3, WEDNESDAY:3,
+  THU:4, THUR:4, THURS:4, THURSDAY:4,
+  FRI:5, FRIDAY:5,
+  SAT:6, SATURDAY:6
+};
+
+// Returns ms by which the tz is ahead of UTC at the given UTC instant.
+// Same trick used in api/trips/[tripId].js for the VFT time-lock.
+function tzOffsetMs(utcMs, tz) {
+  const fmt = new Intl.DateTimeFormat('en-US', {
+    timeZone: tz, hour12: false,
+    year: 'numeric', month: '2-digit', day: '2-digit',
+    hour: '2-digit', minute: '2-digit', second: '2-digit'
+  });
+  const parts = fmt.formatToParts(new Date(utcMs));
+  const g = (t, def) => {
+    const p = parts.find(x => x.type === t);
+    if (!p) return def;
+    const n = parseInt(p.value, 10);
+    return isNaN(n) ? def : n;
+  };
+  let h = g('hour', 0);
+  if (h === 24) h = 0;
+  const fakeUtcMs = Date.UTC(g('year', 1970), g('month', 1) - 1, g('day', 1), h, g('minute', 0), g('second', 0));
+  return fakeUtcMs - utcMs;
+}
+
+// "12:00 PM CT" / "12:00 PM" / "14:00" → { hh, mm }. Strips CT/CST/CDT suffix.
+function parseTimeWithCT(s) {
+  if (!s) return null;
+  const str = String(s).trim().replace(/\s*(CT|CST|CDT)\s*$/i, '').trim();
+  const m = str.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)?$/i);
+  if (!m) return null;
+  let hh = parseInt(m[1], 10);
+  const mm = parseInt(m[2], 10);
+  const ap = (m[3] || '').toUpperCase();
+  if (ap === 'PM' && hh < 12) hh += 12;
+  if (ap === 'AM' && hh === 12) hh = 0;
+  if (hh > 23 || mm > 59 || hh < 0 || mm < 0) return null;
+  return { hh, mm };
+}
+
+// Find current Chicago wall-time components (year, month, date, day-of-week).
+function chicagoNowParts() {
+  const fmt = new Intl.DateTimeFormat('en-US', {
+    timeZone: TZ, hour12: false,
+    year: 'numeric', month: '2-digit', day: '2-digit', weekday: 'short'
+  });
+  const parts = fmt.formatToParts(new Date());
+  const g = t => parts.find(p => p.type === t).value;
+  return {
+    Y: parseInt(g('year'), 10),
+    M: parseInt(g('month'), 10),
+    D: parseInt(g('day'), 10),
+    weekday: DAY_MAP[g('weekday').toUpperCase()]
+  };
+}
+
+// Returns UTC-ms of the next occurrence of (dayStr at timeStr) in Chicago,
+// skipping forward by 7 days if this week's occurrence is past its lock window.
+function nextOccurrenceUtcMs(dayStr, timeStr) {
+  const targetDay = DAY_MAP[String(dayStr || '').toUpperCase().trim()];
+  if (targetDay === undefined) return null;
+  const t = parseTimeWithCT(timeStr);
+  if (!t) return null;
+
+  const todayCT = chicagoNowParts();
+  const daysAhead = (targetDay - todayCT.weekday + 7) % 7;
+
+  function buildUtc(daysOffset) {
+    const naive = Date.UTC(todayCT.Y, todayCT.M - 1, todayCT.D + daysOffset, t.hh, t.mm, 0);
+    return naive - tzOffsetMs(naive, TZ);
+  }
+
+  let startUtc = buildUtc(daysAhead);
+  if (startUtc + LOCK_AFTER_MS < Date.now()) {
+    // Today's window has closed — use next week's
+    startUtc = buildUtc(daysAhead + 7);
+  }
+  return startUtc;
+}
 
 const https  = require('https');
 const crypto = require('crypto');
@@ -171,7 +269,23 @@ module.exports = async (req, res) => {
         }
       }
 
-      sessions.push({ id, name, emoji, coach, day, time, description, link });
+      // Compute time-lock state from the next weekly occurrence
+      const startUtc = nextOccurrenceUtcMs(day, time);
+      const nowMs    = Date.now();
+      const isUnlocked = startUtc !== null
+        && nowMs >= (startUtc - UNLOCK_BEFORE_MS)
+        && nowMs <= (startUtc + LOCK_AFTER_MS);
+
+      // Server is the gatekeeper: never send the link until unlock.
+      const safeLink = isUnlocked ? link : '';
+
+      sessions.push({
+        id, name, emoji, coach, day, time, description,
+        link: safeLink,
+        is_unlocked:        isUnlocked,
+        unlock_at_iso:      startUtc !== null ? new Date(startUtc - UNLOCK_BEFORE_MS).toISOString() : null,
+        session_start_iso:  startUtc !== null ? new Date(startUtc).toISOString() : null
+      });
     }
 
     return res.status(200).json({ sessions });

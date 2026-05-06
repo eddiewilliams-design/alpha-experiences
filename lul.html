@@ -66,6 +66,8 @@
     .session-time{font-family:'Nunito Sans',sans-serif;font-weight:400;font-size:12px;color:var(--aa-dark-grey);}
     .join-btn{flex-shrink:0;padding:9px 18px;background:var(--aa-blue);color:var(--media-white);border:none;border-radius:var(--r-pill);font-family:'Nunito Sans',sans-serif;font-weight:600;font-size:13px;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;gap:5px;transition:opacity 0.15s,transform 0.1s;}
     .join-btn:hover{opacity:0.88;transform:scale(1.03);}
+    .join-btn.locked{flex-shrink:0;background:var(--aa-light-yellow);color:#6b3a00;border:1px solid #f0c060;font-size:11px;font-weight:700;padding:7px 12px;cursor:not-allowed;text-decoration:none;display:inline-flex;align-items:center;gap:4px;line-height:1.2;text-align:center;max-width:170px;}
+    .join-btn.locked:hover{opacity:1;transform:none;}
     .note-box{display:flex;align-items:flex-start;gap:10px;padding:12px 16px;background:var(--aa-light-yellow);border:1.5px solid var(--aa-yellow);border-radius:var(--r-sm);margin-bottom:1.25rem;font-family:'Nunito Sans',sans-serif;font-size:13px;color:var(--aa-navy);line-height:1.55;}
     .cta-btn{width:100%;padding:16px;font-family:'Nunito Sans',sans-serif;font-weight:700;font-size:15px;background:var(--aa-blue);color:var(--media-white);border:none;border-radius:var(--r-pill);cursor:pointer;transition:opacity 0.15s,transform 0.1s;margin-bottom:0.75rem;}
     .cta-btn:disabled{opacity:0.3;cursor:not-allowed;}
@@ -201,6 +203,53 @@ function trackUrl(zoomLink) {
          '&dest=' + encodeURIComponent(zoomLink);
 }
 
+// ── Local-timezone formatting for session times ──────────────
+// Returns { dayChip, timeLine, unlockAtLine } based on the student's
+// browser timezone. If they're in Chicago, pass through the published
+// times. Otherwise show local time with the published CT in parens.
+function fmtSessionTimes(s) {
+  var rawTime = s.time || '';
+  var rawDay  = s.day  || '';
+  var fallback = {
+    dayChip: rawDay,
+    timeLine: rawTime,
+    unlockAtLine: 'Unlocks 15 min before start'
+  };
+  if (!s.session_start_iso) return fallback;
+  var startUtcMs = Date.parse(s.session_start_iso);
+  if (isNaN(startUtcMs)) return fallback;
+  var unlockUtcMs = startUtcMs - 15 * 60 * 1000;
+
+  var localTz;
+  try { localTz = Intl.DateTimeFormat().resolvedOptions().timeZone; }
+  catch (e) { return fallback; }
+  var isCT = (localTz === 'America/Chicago');
+
+  function fmtDay(ms, tz) {
+    return new Intl.DateTimeFormat('en-US', { weekday: 'short', timeZone: tz })
+      .format(new Date(ms)).toUpperCase();
+  }
+  function fmtTime(ms, tz, withZone) {
+    var opts = { hour: 'numeric', minute: '2-digit', hour12: true, timeZone: tz };
+    if (withZone) opts.timeZoneName = 'short';
+    return new Intl.DateTimeFormat('en-US', opts).format(new Date(ms));
+  }
+
+  if (isCT) {
+    return {
+      dayChip:      fmtDay(startUtcMs, 'America/Chicago'),
+      timeLine:     rawTime,
+      unlockAtLine: 'Unlocks at ' + fmtTime(unlockUtcMs, 'America/Chicago', false) + ' CT'
+    };
+  }
+  // Non-CT: local prominent + original CT in parens
+  return {
+    dayChip:      fmtDay(startUtcMs, localTz),
+    timeLine:     fmtTime(startUtcMs, localTz, true) + ' (' + rawTime + ')',
+    unlockAtLine: 'Unlocks at ' + fmtTime(unlockUtcMs, localTz, true)
+  };
+}
+
 async function init() {
   currentToken = getParam('token');
   if (!currentToken) {
@@ -291,12 +340,23 @@ function showConfirmed() {
   var show = mode === 'full' ? SESSIONS : SESSIONS.filter(function(s){ return selected.has(s.id); });
 
   show.forEach(function(s) {
-    var a          = document.createElement('a');
-    a.href         = trackUrl(s.link);
-    a.target       = '_blank';
-    a.className    = 'confirmed-link';
-    a.innerHTML    = '<span>' + s.emoji + ' <strong>' + esc(s.name) + '</strong> — ' + esc(s.day) + ' ' + esc(s.time) + '</span><span class="arrow">→</span>';
-    div.appendChild(a);
+    var ft = fmtSessionTimes(s);
+    if (s.is_unlocked && s.link) {
+      var a          = document.createElement('a');
+      a.href         = trackUrl(s.link);
+      a.target       = '_blank';
+      a.className    = 'confirmed-link';
+      a.innerHTML    = '<span>' + s.emoji + ' <strong>' + esc(s.name) + '</strong> — ' + esc(ft.dayChip) + ' ' + esc(ft.timeLine) + '</span><span class="arrow">→</span>';
+      div.appendChild(a);
+    } else {
+      // Locked: same row layout, but no clickable link until 15 min before start
+      var span       = document.createElement('div');
+      span.className = 'confirmed-link';
+      span.style.cursor   = 'default';
+      span.style.opacity  = '0.75';
+      span.innerHTML = '<span>' + s.emoji + ' <strong>' + esc(s.name) + '</strong> — ' + esc(ft.dayChip) + ' ' + esc(ft.timeLine) + '</span><span class="arrow" style="font-size:11px;color:#6b3a00;background:#FFF7E5;padding:3px 10px;border-radius:999px;border:1px solid #f0c060;">🔒 ' + esc(ft.unlockAtLine) + '</span>';
+      div.appendChild(span);
+    }
   });
 
   document.getElementById('confirmed-box').className = 'confirmed-box visible';
@@ -336,22 +396,30 @@ function renderSessions() {
 
     if (mode === 'full') {
       card.className = 'session-card full-access-card';
+      var ftFull = fmtSessionTimes(s);
+      var joinBtnHtml;
+      if (s.is_unlocked && s.link) {
+        joinBtnHtml = '<a href="' + trackUrl(s.link) + '" class="join-btn" target="_blank">Join →</a>';
+      } else {
+        joinBtnHtml = '<span class="join-btn locked" title="' + esc(ftFull.unlockAtLine) + '">🔒 ' + esc(ftFull.unlockAtLine) + '</span>';
+      }
       card.innerHTML =
         '<div class="session-emoji">' + s.emoji + '</div>' +
         '<div class="session-info"><div class="session-name">' + esc(s.name) + '</div>' +
         '<div class="session-description">' + esc(s.description) + '</div>' +
-        '<div class="session-meta"><span class="day-chip">' + esc(s.day) + '</span>' +
-        '<span class="session-time">' + esc(s.time) + ' · ' + esc(s.coach) + '</span></div></div>' +
-        '<a href="' + trackUrl(s.link) + '" class="join-btn" target="_blank">Join →</a>';
+        '<div class="session-meta"><span class="day-chip">' + esc(ftFull.dayChip) + '</span>' +
+        '<span class="session-time">' + esc(ftFull.timeLine) + ' · ' + esc(s.coach) + '</span></div></div>' +
+        joinBtnHtml;
     } else {
       card.className = 'session-card' + (isSel ? ' selected' : '') + (isDis ? ' disabled' : '');
+      var ftPick = fmtSessionTimes(s);
       card.innerHTML =
         '<div class="checkbox-ring' + (isSel ? ' checked' : '') + '">' + (isSel ? '✓' : '') + '</div>' +
         '<div class="session-emoji">' + s.emoji + '</div>' +
         '<div class="session-info"><div class="session-name">' + esc(s.name) + '</div>' +
         '<div class="session-description">' + esc(s.description) + '</div>' +
-        '<div class="session-meta"><span class="day-chip">' + esc(s.day) + '</span>' +
-        '<span class="session-time">' + esc(s.time) + ' · ' + esc(s.coach) + '</span></div></div>';
+        '<div class="session-meta"><span class="day-chip">' + esc(ftPick.dayChip) + '</span>' +
+        '<span class="session-time">' + esc(ftPick.timeLine) + ' · ' + esc(s.coach) + '</span></div></div>';
       if (!isDis) {
         (function(id){ card.addEventListener('click', function(){ toggleSession(id); }); })(s.id);
       }
@@ -405,6 +473,33 @@ async function confirmSelections() {
 }
 
 init();
+
+// ── Poll for time-lock state every 30s ────────────────────
+// Re-fetches /api/get-sessions so the lock auto-opens when the
+// 15-min-before-start window arrives, without the student needing
+// to refresh the page. Server is the source of truth for the
+// is_unlocked flag and the actual Zoom link.
+setInterval(function refreshSessionsLock() {
+  if (!currentToken) return;
+  var url = '/api/get-sessions';
+  if (selected && selected.size) {
+    url += '?include=' + encodeURIComponent(Array.from(selected).join(','));
+  }
+  fetch(url)
+    .then(function(r){ return r.status === 200 ? r.json() : null; })
+    .then(function(data){
+      if (!data || !data.sessions) return;
+      SESSIONS = data.sessions;
+      // Re-render whichever view is currently visible
+      var confirmedVisible = document.getElementById('confirmed-box').classList.contains('visible');
+      if (confirmedVisible) {
+        showConfirmed();
+      } else {
+        renderSessions();
+      }
+    })
+    .catch(function(){ /* ignore — try again next tick */ });
+}, 30000);
 
 // ── User chip — only renders if signed in. Legacy email-link visitors
 //    (token URL, no portal session) just see the logo; no chip. ────

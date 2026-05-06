@@ -214,6 +214,37 @@ body{font-family:'Nunito Sans',sans-serif;background:var(--aa-white);min-height:
 // has its visual weight, but the click does nothing.
 var MARKETPLACE_URL = '';
 
+// ── Local-timezone formatting for session times ──────────────
+// If browser TZ is Chicago, pass through published times. Otherwise
+// show local time with the original CT string in parens.
+function fmtSessionTimes(s){
+  var rawDay  = s.day  || '';
+  var rawTime = s.time || '';
+  var fallback = { dayChip: rawDay, timeLine: rawTime };
+  if (!s.session_start_iso) return fallback;
+  var ms = Date.parse(s.session_start_iso);
+  if (isNaN(ms)) return fallback;
+  var localTz;
+  try { localTz = Intl.DateTimeFormat().resolvedOptions().timeZone; }
+  catch (e) { return fallback; }
+  function fmtDay(tz){
+    return new Intl.DateTimeFormat('en-US', { weekday:'short', timeZone: tz })
+      .format(new Date(ms)).toUpperCase();
+  }
+  function fmtTime(tz, withZone){
+    var opts = { hour:'numeric', minute:'2-digit', hour12:true, timeZone: tz };
+    if (withZone) opts.timeZoneName = 'short';
+    return new Intl.DateTimeFormat('en-US', opts).format(new Date(ms));
+  }
+  if (localTz === 'America/Chicago') {
+    return { dayChip: fmtDay('America/Chicago'), timeLine: rawTime };
+  }
+  return {
+    dayChip: fmtDay(localTz),
+    timeLine: fmtTime(localTz, true) + ' (' + rawTime + ')'
+  };
+}
+
 // ── Helpers ────────────────────────────────────────────────
 function emailHandle(e){ if(!e) return ''; var i=e.indexOf('@'); return i<0?e:e.slice(0,i); }
 function initialsFor(name, email){
@@ -434,14 +465,15 @@ function renderSessions(sessions, hasPass){
 
     var meta = document.createElement('p');
     meta.className = 'session-meta';
-    if (s.day) {
+    var ft = fmtSessionTimes(s);
+    if (ft.dayChip) {
       var chip = document.createElement('span');
       chip.className   = 'day-chip';
-      chip.textContent = s.day;
+      chip.textContent = ft.dayChip;
       meta.appendChild(chip);
     }
     var t = document.createElement('span');
-    t.textContent = (s.time || '') + (s.coach ? ' · ' + s.coach : '');
+    t.textContent = (ft.timeLine || '') + (s.coach ? ' · ' + s.coach : '');
     meta.appendChild(t);
     info.appendChild(meta);
 

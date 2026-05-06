@@ -21,9 +21,9 @@
 //   K: saved_selections (comma-separated session slugs)
 //   M: date_first_clicked (written by api/track-join.js)
 //
-// Sessions tab columns (per apps-script-migration.gs):
-//   A: name             B: description       C: coach
-//   D: day              E: time              F: emoji
+// Sessions tab columns (verified against the live get-sessions.js):
+//   A: name             B: emoji             C: coach
+//   D: day              E: time              F: description
 //   G: zoom_link        H: session_id (slug) I: active (YES/NO)
 //   J: blackout_start   K: blackout_end
 // ============================================================
@@ -125,6 +125,71 @@ function daysRemainingFromSent(dateSent) {
   return Math.ceil(ms / (24 * 60 * 60 * 1000));
 }
 
+// ── Time-lock helpers (mirror api/get-sessions.js) ────────────
+const LUL_TZ = 'America/Chicago';
+const DAY_MAP_LUL = {
+  SUN:0, SUNDAY:0, MON:1, MONDAY:1,
+  TUE:2, TUES:2, TUESDAY:2, WED:3, WEDS:3, WEDNESDAY:3,
+  THU:4, THUR:4, THURS:4, THURSDAY:4,
+  FRI:5, FRIDAY:5, SAT:6, SATURDAY:6
+};
+function tzOffsetMsLul(utcMs, tz) {
+  const fmt = new Intl.DateTimeFormat('en-US', {
+    timeZone: tz, hour12: false,
+    year: 'numeric', month: '2-digit', day: '2-digit',
+    hour: '2-digit', minute: '2-digit', second: '2-digit'
+  });
+  const parts = fmt.formatToParts(new Date(utcMs));
+  const g = (t, def) => {
+    const p = parts.find(x => x.type === t);
+    if (!p) return def;
+    const n = parseInt(p.value, 10);
+    return isNaN(n) ? def : n;
+  };
+  let h = g('hour', 0);
+  if (h === 24) h = 0;
+  const fakeUtcMs = Date.UTC(g('year', 1970), g('month', 1) - 1, g('day', 1), h, g('minute', 0), g('second', 0));
+  return fakeUtcMs - utcMs;
+}
+function parseTimeWithCT(s) {
+  if (!s) return null;
+  const str = String(s).trim().replace(/\s*(CT|CST|CDT)\s*$/i, '').trim();
+  const m = str.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)?$/i);
+  if (!m) return null;
+  let hh = parseInt(m[1], 10);
+  const mm = parseInt(m[2], 10);
+  const ap = (m[3] || '').toUpperCase();
+  if (ap === 'PM' && hh < 12) hh += 12;
+  if (ap === 'AM' && hh === 12) hh = 0;
+  if (hh > 23 || mm > 59 || hh < 0 || mm < 0) return null;
+  return { hh, mm };
+}
+function nextOccurrenceUtcMs(dayStr, timeStr) {
+  const targetDay = DAY_MAP_LUL[String(dayStr || '').toUpperCase().trim()];
+  if (targetDay === undefined) return null;
+  const t = parseTimeWithCT(timeStr);
+  if (!t) return null;
+  const fmt = new Intl.DateTimeFormat('en-US', {
+    timeZone: LUL_TZ, hour12: false,
+    year: 'numeric', month: '2-digit', day: '2-digit', weekday: 'short'
+  });
+  const parts = fmt.formatToParts(new Date());
+  const g = type => parts.find(p => p.type === type).value;
+  const Y = parseInt(g('year'), 10);
+  const M = parseInt(g('month'), 10);
+  const D = parseInt(g('day'), 10);
+  const todayDay = DAY_MAP_LUL[g('weekday').toUpperCase()];
+  const daysAhead = (targetDay - todayDay + 7) % 7;
+  const LOCK_AFTER_MS_LUL = 45 * 60 * 1000;
+  function buildUtc(off) {
+    const naive = Date.UTC(Y, M - 1, D + off, t.hh, t.mm, 0);
+    return naive - tzOffsetMsLul(naive, LUL_TZ);
+  }
+  let startUtc = buildUtc(daysAhead);
+  if (startUtc + LOCK_AFTER_MS_LUL < Date.now()) startUtc = buildUtc(daysAhead + 7);
+  return startUtc;
+}
+
 // True if today falls between blackout_start and blackout_end (inclusive)
 function inBlackoutWindow(start, end) {
   const s = parseSheetDate(start);
@@ -167,14 +232,19 @@ async function handleLoungeData(req, res) {
       const active = (r[8] || '').toString().toUpperCase().trim();
       if (active && active !== 'YES') continue;
       if (inBlackoutWindow(r[9], r[10])) continue;
+      const day  = (r[3] || '').toString();
+      const time = (r[4] || '').toString();
+      const startUtc = nextOccurrenceUtcMs(day, time);
       sessions.push({
         session_id:  sid,
         name:        (r[0] || '').toString(),
-        description: (r[1] || '').toString(),
+        emoji:       (r[1] || '').toString(),     // col B = emoji
         coach:       (r[2] || '').toString(),
-        day:         (r[3] || '').toString(),
-        time:        (r[4] || '').toString(),
-        emoji:       (r[5] || '').toString()
+        day:         day,
+        time:        time,
+        description: (r[5] || '').toString(),     // col F = description
+        // ISO of next occurrence — client formats into local TZ
+        session_start_iso: startUtc !== null ? new Date(startUtc).toISOString() : null
       });
     }
     // Stable order: by day-of-week then by time. Best effort with string sort.
