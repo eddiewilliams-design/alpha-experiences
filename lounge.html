@@ -393,7 +393,7 @@ function renderPasses(passes){
       p.saved_selections.forEach(function(s){
         var pill = document.createElement('span');
         pill.className = 'session-pill';
-        var em = firstGrapheme(s.emoji);
+        var em = firstGrapheme(decodeHtmlEntities(s.emoji));
         pill.textContent = (em ? em + ' ' : '') + (s.name || s.session_id);
         saved.appendChild(pill);
       });
@@ -410,6 +410,16 @@ function renderPasses(passes){
 
     list.appendChild(card);
   });
+}
+
+// Sheets sometimes returns emoji values as HTML entities (e.g. "&#127942;"
+// for 🏆). Decode before further processing so firstGrapheme sees the
+// actual emoji char, not the leading "&" of the entity.
+function decodeHtmlEntities(str){
+  if (!str) return '';
+  var txt = document.createElement('textarea');
+  txt.innerHTML = String(str);
+  return txt.value;
 }
 
 // Return only the first visible character of a string, treating
@@ -452,7 +462,7 @@ function renderSessions(sessions, hasPass){
 
     var em = document.createElement('div');
     em.className   = 'session-emoji';
-    em.textContent = firstGrapheme(s.emoji) || '🎮';
+    em.textContent = firstGrapheme(decodeHtmlEntities(s.emoji)) || '🎮';
     card.appendChild(em);
 
     var info = document.createElement('div');
