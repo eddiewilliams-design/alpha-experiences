@@ -1,0 +1,584 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Admin — Lounge Attendance</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@700;800;900&family=Nunito+Sans:wght@300;400;600;700&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+:root{
+  --aa-navy:#072256;--aa-blue:#006FF9;--aa-yellow:#E59500;
+  --aa-white:#FAFAFA;--aa-light-blue:#E5F6FD;--aa-light-yellow:#FFF7E5;
+  --aa-med-grey:#DADFE7;--aa-dark-grey:#8291AA;--aa-light-grey:#EEF0F3;
+  --aa-green:#2C8707;--aa-light-green:#EEFDE8;--aa-red:#B91C1C;--aa-light-red:#FEE2E2;
+  --aa-purple:#5B2D8E;--aa-light-purple:#F1E8FB;
+}
+body{font-family:'Nunito Sans',sans-serif;background:var(--aa-white);min-height:100vh;color:var(--aa-navy);display:flex;flex-direction:column;}
+
+.site-header{background:var(--aa-navy);padding:16px 32px;display:flex;align-items:center;justify-content:space-between;}
+.header-logo{display:flex;align-items:center;gap:12px;}
+.logo-divider{width:1px;height:28px;background:rgba(255,255,255,0.2);}
+.logo-text-top{font-family:'Nunito',sans-serif;font-weight:900;font-size:14px;color:#fff;line-height:1.1;}
+.logo-text-sub{font-size:10px;color:rgba(255,255,255,0.5);font-weight:600;letter-spacing:0.05em;text-transform:uppercase;}
+.header-right{display:flex;align-items:center;gap:10px;}
+.admin-badge{background:var(--aa-yellow);color:#3a2000;font-size:10px;font-weight:800;padding:4px 12px;border-radius:999px;letter-spacing:0.04em;text-transform:uppercase;}
+.user-wrap{position:relative;}
+.user-chip{display:flex;align-items:center;gap:8px;background:rgba(255,255,255,0.12);border:none;border-radius:999px;padding:6px 14px 6px 7px;cursor:pointer;font-family:inherit;}
+.user-chip:hover{background:rgba(255,255,255,0.18);}
+.avatar{width:26px;height:26px;border-radius:50%;background:var(--aa-blue);display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:#fff;}
+.user-name{font-size:13px;color:rgba(255,255,255,0.85);font-weight:600;}
+.user-menu{position:absolute;top:calc(100% + 8px);right:0;background:#fff;border:1px solid var(--aa-med-grey);border-radius:12px;box-shadow:0 8px 24px rgba(7,34,86,0.15);padding:6px;min-width:180px;display:none;z-index:50;}
+.user-menu.open{display:block;}
+.user-menu-email{font-size:11px;color:var(--aa-dark-grey);padding:8px 12px 10px;border-bottom:1px solid var(--aa-light-grey);margin-bottom:6px;word-break:break-all;}
+.user-menu a{display:block;padding:9px 12px;font-size:13px;font-weight:600;color:var(--aa-navy);text-decoration:none;border-radius:8px;}
+.user-menu a:hover{background:var(--aa-light-grey);}
+
+.admin-nav{background:#fff;border-bottom:1.5px solid var(--aa-med-grey);padding:0 32px;display:flex;gap:4px;overflow-x:auto;}
+.admin-tab{font-size:13px;font-weight:600;color:var(--aa-dark-grey);padding:14px 16px;border-bottom:2.5px solid transparent;cursor:pointer;white-space:nowrap;text-decoration:none;}
+.admin-tab.active{color:var(--aa-blue);border-bottom-color:var(--aa-blue);}
+.admin-tab:hover:not(.active){color:var(--aa-navy);}
+
+.sub-nav{background:var(--aa-light-grey);padding:14px 32px 0;display:flex;gap:6px;flex-wrap:wrap;border-bottom:1px solid var(--aa-med-grey);}
+.sub-tab{font-size:12px;font-weight:700;color:var(--aa-dark-grey);background:#fff;border:1.5px solid var(--aa-med-grey);border-bottom:none;border-radius:10px 10px 0 0;padding:8px 16px;cursor:pointer;text-decoration:none;letter-spacing:0.02em;}
+.sub-tab.active{color:var(--aa-blue);border-color:var(--aa-blue);}
+
+.page-body{background:var(--aa-light-grey);padding:24px 24px 56px;min-height:60vh;}
+.page-inner{max-width:1240px;margin:0 auto;}
+
+/* Toolbar / filters */
+.toolbar{display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;gap:12px;flex-wrap:wrap;}
+.toolbar-title{font-family:'Nunito',sans-serif;font-weight:800;font-size:18px;color:var(--aa-navy);}
+.period-pills{display:flex;background:#fff;border:1.5px solid var(--aa-med-grey);border-radius:999px;padding:3px;}
+.period-pill{font-size:12px;font-weight:700;color:var(--aa-dark-grey);padding:7px 16px;border-radius:999px;border:none;background:transparent;cursor:pointer;font-family:inherit;}
+.period-pill.active{background:var(--aa-blue);color:#fff;}
+.period-pill:hover:not(.active){color:var(--aa-navy);}
+
+/* KPI cards */
+.kpi-row{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:24px;}
+.kpi-card{background:#fff;border:1.5px solid var(--aa-med-grey);border-radius:14px;padding:18px 20px;}
+.kpi-label{font-size:11px;font-weight:800;color:var(--aa-dark-grey);text-transform:uppercase;letter-spacing:0.06em;}
+.kpi-value{font-family:'Nunito',sans-serif;font-weight:900;font-size:32px;color:var(--aa-navy);margin:6px 0 4px;line-height:1;}
+.kpi-delta{font-size:12px;font-weight:700;color:var(--aa-dark-grey);min-height:16px;}
+.kpi-delta.up{color:#1a5205;}
+.kpi-delta.down{color:#7c0d0d;}
+.kpi-delta-period{font-weight:600;color:var(--aa-dark-grey);font-size:10px;text-transform:uppercase;letter-spacing:0.04em;margin-left:4px;}
+.kpi-card.muted .kpi-value{color:var(--aa-dark-grey);}
+
+/* Section card */
+.section{background:#fff;border:1.5px solid var(--aa-med-grey);border-radius:14px;padding:20px 22px;margin-bottom:18px;}
+.section-head{display:flex;justify-content:space-between;align-items:baseline;gap:12px;margin-bottom:14px;}
+.section-title{font-family:'Nunito',sans-serif;font-weight:800;font-size:15px;color:var(--aa-navy);}
+.section-meta{font-size:11px;color:var(--aa-dark-grey);font-weight:600;}
+
+/* Horizontal bar chart */
+.bar-chart{display:flex;flex-direction:column;gap:10px;}
+.bar-row{display:grid;grid-template-columns:minmax(140px,200px) 1fr minmax(120px,160px);gap:14px;align-items:center;}
+.bar-label{font-size:13px;font-weight:700;color:var(--aa-navy);overflow-wrap:anywhere;}
+.bar-track{height:18px;background:var(--aa-light-grey);border-radius:6px;overflow:hidden;display:flex;}
+.bar-seg{height:100%;display:block;}
+.bar-seg.in{background:var(--aa-blue);}
+.bar-seg.out{background:var(--aa-yellow);}
+.bar-seg.solid{background:var(--aa-purple);}
+.bar-value{font-size:13px;font-weight:800;color:var(--aa-navy);text-align:left;}
+.bar-value-sub{font-size:11px;font-weight:600;color:var(--aa-dark-grey);margin-left:6px;}
+.bar-empty{color:var(--aa-dark-grey);font-size:13px;text-align:center;padding:20px;}
+
+/* Legend */
+.bar-legend{display:flex;gap:14px;font-size:11px;font-weight:700;color:var(--aa-dark-grey);text-transform:uppercase;letter-spacing:0.04em;}
+.legend-dot{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:6px;vertical-align:middle;}
+.legend-dot.in{background:var(--aa-blue);}
+.legend-dot.out{background:var(--aa-yellow);}
+
+/* Weekly trend */
+.trend-wrap{display:flex;flex-direction:column;gap:6px;}
+.trend-chart{display:flex;align-items:flex-end;gap:8px;height:140px;padding-top:24px;border-bottom:1.5px solid var(--aa-med-grey);}
+.trend-bar{flex:1;background:var(--aa-light-blue);border:1.5px solid var(--aa-blue);border-bottom:none;border-radius:6px 6px 0 0;min-height:6px;position:relative;transition:background 0.2s;cursor:default;}
+.trend-bar.current{background:var(--aa-blue);}
+.trend-bar:hover{background:var(--aa-blue);}
+.trend-bar:hover .trend-bar-value{color:var(--aa-blue);}
+.trend-bar-value{position:absolute;top:-22px;left:50%;transform:translateX(-50%);font-size:11px;font-weight:800;color:var(--aa-navy);white-space:nowrap;}
+.trend-labels{display:flex;gap:8px;}
+.trend-labels span{flex:1;text-align:center;font-size:10px;font-weight:700;color:var(--aa-dark-grey);text-transform:uppercase;letter-spacing:0.04em;}
+.trend-summary{display:flex;justify-content:flex-end;align-items:baseline;gap:8px;margin-top:4px;font-size:13px;font-weight:700;color:var(--aa-dark-grey);}
+.trend-summary .delta{font-size:14px;font-weight:800;}
+.trend-summary .delta.up{color:#1a5205;}
+.trend-summary .delta.down{color:#7c0d0d;}
+
+/* Recent activity */
+.recent-table{background:#fff;border:1.5px solid var(--aa-med-grey);border-radius:14px;overflow:hidden;}
+.recent-head{display:grid;grid-template-columns:140px 1fr minmax(180px,1.5fr) 110px;gap:12px;padding:11px 16px;background:var(--aa-light-grey);font-size:11px;font-weight:800;color:var(--aa-dark-grey);text-transform:uppercase;letter-spacing:0.05em;}
+.recent-row{display:grid;grid-template-columns:140px 1fr minmax(180px,1.5fr) 110px;gap:12px;padding:11px 16px;border-bottom:1px solid var(--aa-light-grey);align-items:center;font-size:12px;}
+.recent-row:last-child{border-bottom:none;}
+.recent-when{color:var(--aa-navy);font-weight:700;}
+.recent-email{color:var(--aa-navy);overflow-wrap:anywhere;}
+.recent-session{color:var(--aa-navy);overflow-wrap:anywhere;}
+.recent-tag{font-size:10px;font-weight:800;letter-spacing:0.05em;text-transform:uppercase;padding:3px 9px;border-radius:999px;text-align:center;justify-self:start;}
+.recent-tag.in{background:var(--aa-light-green);color:#1a5205;}
+.recent-tag.out{background:var(--aa-light-yellow);color:#6b3a00;}
+.recent-empty{color:var(--aa-dark-grey);font-size:13px;text-align:center;padding:30px;}
+
+.page-loading,.page-denied{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:80px 24px;background:var(--aa-light-grey);min-height:60vh;text-align:center;}
+.spinner{width:32px;height:32px;border:3px solid var(--aa-med-grey);border-top-color:var(--aa-blue);border-radius:50%;animation:spin 0.7s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg);}}
+.denied-icon{font-size:48px;margin-bottom:12px;}
+.denied-title{font-family:'Nunito',sans-serif;font-weight:900;font-size:22px;color:var(--aa-navy);margin-bottom:8px;}
+.denied-sub{font-size:14px;color:var(--aa-dark-grey);max-width:360px;line-height:1.55;margin-bottom:20px;}
+
+.site-footer{background:var(--aa-navy);padding:20px 32px;text-align:center;border-top:3px solid var(--aa-blue);margin-top:auto;}
+.footer-text{font-size:11px;color:var(--aa-dark-grey);letter-spacing:0.05em;text-transform:uppercase;margin-top:8px;}
+
+@media(max-width:760px){
+  .kpi-row{grid-template-columns:repeat(2,1fr);}
+  .bar-row{grid-template-columns:1fr;gap:6px;}
+  .bar-row .bar-label{font-size:13px;}
+  .bar-row .bar-value{text-align:right;}
+  .recent-head,.recent-row{grid-template-columns:1fr 90px;gap:8px;}
+  .recent-head .col-when,.recent-head .col-session,
+  .recent-row .col-when,.recent-row .col-session{display:none;}
+}
+</style>
+</head>
+<body>
+
+<header class="site-header">
+  <div class="header-logo">
+    <svg width="32" height="32" viewBox="0 0 67 55" fill="none"><path d="M66.3126 50.8822L48.3919 1.76245C48.0093 0.703285 46.9977 0 45.867 0H20.6096C19.479 0 18.4673 0.703285 18.0848 1.76245L0.164039 50.8822C-0.473557 52.6277 0.82714 54.4749 2.68892 54.4749H25.9059C27.0366 54.4749 28.0483 53.7716 28.4308 52.7125L33.2426 39.5365L38.0543 52.7125C38.4368 53.7716 39.4485 54.4749 40.5792 54.4749H63.7962C65.658 54.4749 66.9587 52.6277 66.3211 50.8822H66.3126ZM40.9532 51.255L34.9598 34.8253L45.9945 4.58406L63.0226 51.2635H40.9532V51.255Z" fill="white"/></svg>
+    <div class="logo-divider"></div>
+    <div>
+      <div class="logo-text-top">Alpha Experiences</div>
+      <div class="logo-text-sub">Admin Dashboard</div>
+    </div>
+  </div>
+  <div class="header-right">
+    <span class="admin-badge">Admin</span>
+    <div class="user-wrap">
+      <button class="user-chip" id="user-chip" aria-haspopup="true" aria-expanded="false">
+        <div class="avatar" id="user-avatar">··</div>
+        <span class="user-name" id="user-handle">…</span>
+      </button>
+      <div class="user-menu" id="user-menu" role="menu">
+        <div class="user-menu-email" id="user-menu-email"></div>
+        <a href="/trips" role="menuitem">Student view</a>
+        <a href="/gallery" role="menuitem">Gallery</a>
+        <a href="/auth/logout" role="menuitem">Sign out</a>
+      </div>
+    </div>
+  </div>
+</header>
+
+<nav class="admin-nav">
+  <a class="admin-tab" href="/admin">Field Trips</a>
+  <a class="admin-tab" href="/admin/registrations">Registrations</a>
+  <a class="admin-tab" href="/admin/submissions">Submissions</a>
+  <a class="admin-tab active" href="/admin/lounge">Lounge</a>
+  <a class="admin-tab" href="/admin/access">Admin Access</a>
+</nav>
+
+<nav class="sub-nav">
+  <a class="sub-tab" href="/admin/lounge">Sessions</a>
+  <a class="sub-tab" href="/admin/lounge/types">Pass Types</a>
+  <a class="sub-tab" href="/admin/lounge/passes">Pass Holders</a>
+  <a class="sub-tab active" href="/admin/lounge/attendance">Attendance</a>
+</nav>
+
+<div id="page-loading" class="page-loading"><div class="spinner"></div></div>
+
+<div id="page-denied" class="page-denied" style="display:none;">
+  <div class="denied-icon">🔒</div>
+  <p class="denied-title">Admins only</p>
+  <p class="denied-sub">This area is for Alpha Anywhere staff. Ask Eddie to add your email to the admins list.</p>
+  <a href="/trips" class="btn-blue">← Back to my trips</a>
+</div>
+
+<div id="page-body" class="page-body" style="display:none;">
+  <div class="page-inner">
+
+    <div class="toolbar">
+      <div class="toolbar-title">Attendance dashboard</div>
+      <div class="period-pills" id="period-pills">
+        <button class="period-pill active" data-period="this-week">This week</button>
+        <button class="period-pill" data-period="last-4-weeks">Last 4 weeks</button>
+        <button class="period-pill" data-period="all">All time</button>
+      </div>
+    </div>
+
+    <div class="kpi-row" id="kpi-row"></div>
+
+    <div class="section">
+      <div class="section-head">
+        <div class="section-title">Attendance by session</div>
+        <div class="bar-legend">
+          <span><span class="legend-dot in"></span>In picks</span>
+          <span><span class="legend-dot out"></span>Outside picks</span>
+        </div>
+      </div>
+      <div id="per-session-chart"></div>
+    </div>
+
+    <div class="section">
+      <div class="section-head">
+        <div class="section-title">Attendance over time</div>
+        <div class="section-meta">Unique attendees · last 8 weeks</div>
+      </div>
+      <div class="trend-wrap">
+        <div class="trend-chart" id="trend-chart"></div>
+        <div class="trend-labels" id="trend-labels"></div>
+        <div class="trend-summary" id="trend-summary"></div>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-head">
+        <div class="section-title">Active passes by type</div>
+        <div class="section-meta">Snapshot · all-time totals</div>
+      </div>
+      <div id="type-chart"></div>
+    </div>
+
+    <div class="section">
+      <div class="section-head">
+        <div class="section-title">Recent click activity</div>
+        <div class="section-meta">Latest 50 events</div>
+      </div>
+      <div class="recent-table" id="recent-table"></div>
+    </div>
+
+  </div>
+</div>
+
+<footer class="site-footer">
+  <svg width="24" height="20" viewBox="0 0 67 55" fill="none"><path d="M66.3126 50.8822L48.3919 1.76245C48.0093 0.703285 46.9977 0 45.867 0H20.6096C19.479 0 18.4673 0.703285 18.0848 1.76245L0.164039 50.8822C-0.473557 52.6277 0.82714 54.4749 2.68892 54.4749H25.9059C27.0366 54.4749 28.0483 53.7716 28.4308 52.7125L33.2426 39.5365L38.0543 52.7125C38.4368 53.7716 39.4485 54.4749 40.5792 54.4749H63.7962C65.658 54.4749 66.9587 52.6277 66.3211 50.8822H66.3126ZM40.9532 51.255L34.9598 34.8253L45.9945 4.58406L63.0226 51.2635H40.9532V51.255Z" fill="#FAFAFA" opacity="0.4"/></svg>
+  <p class="footer-text">Alpha Experiences · Admin</p>
+</footer>
+
+<script>
+function emailHandle(e){ if(!e) return ''; var i=e.indexOf('@'); return i<0?e:e.slice(0,i); }
+function initialsFor(name, email){
+  var s = (name || emailHandle(email) || '').trim();
+  if (!s) return '··';
+  var parts = s.split(/[\s.]+/).filter(Boolean);
+  if (parts.length === 1) return (parts[0][0] || '·').toUpperCase();
+  return ((parts[0][0] || '·') + (parts[parts.length-1][0] || '')).toUpperCase();
+}
+function setupUserMenu(user){
+  document.getElementById('user-avatar').textContent     = initialsFor(user.name, user.email);
+  document.getElementById('user-handle').textContent     = emailHandle(user.email);
+  document.getElementById('user-menu-email').textContent = user.email;
+  var btn = document.getElementById('user-chip');
+  var menu = document.getElementById('user-menu');
+  btn.addEventListener('click', function(e){ e.stopPropagation(); var open = menu.classList.toggle('open'); btn.setAttribute('aria-expanded', open ? 'true' : 'false'); });
+  document.addEventListener('click', function(e){ if (!menu.contains(e.target) && e.target !== btn) { menu.classList.remove('open'); btn.setAttribute('aria-expanded', 'false'); }});
+}
+function fmtDelta(curr, prev){
+  if (prev == null) return { sign:'', n:0, pct:null, dir:'flat' };
+  var diff = curr - prev;
+  var pct  = prev === 0 ? (curr > 0 ? null : 0) : Math.round((diff / prev) * 100);
+  var dir  = diff > 0 ? 'up' : (diff < 0 ? 'down' : 'flat');
+  return { sign: diff > 0 ? '+' : (diff < 0 ? '' : ''), n: diff, pct: pct, dir: dir };
+}
+function fmtClickTime(s){
+  try {
+    var d = new Date(s);
+    if (!isNaN(d.getTime())) {
+      return d.toLocaleString(undefined, { month:'short', day:'numeric', hour:'numeric', minute:'2-digit' });
+    }
+  } catch(_){}
+  return s;
+}
+function fmtWeekLabel(weekStart, isCurrent){
+  if (isCurrent) return 'Now';
+  if (!weekStart) return '';
+  var d = new Date(weekStart + 'T00:00:00Z');
+  if (isNaN(d.getTime())) return weekStart;
+  return d.toLocaleDateString(undefined, { month:'short', day:'numeric', timeZone:'UTC' });
+}
+
+var STATE = { period: 'this-week', data: null };
+
+function renderKPIs(){
+  var row = document.getElementById('kpi-row');
+  row.innerHTML = '';
+
+  var data = STATE.data;
+  var hasDelta = data.has_delta;
+  var prior = data.prior || {};
+  var current = data.current || {};
+  var label = data.period_label || '';
+
+  var defs = [
+    { key: 'pass_holders',  label: 'Pass Holders',  hint: hasDelta ? 'New issuances ' + label : 'Total issuances' },
+    { key: 'active_passes', label: 'Active Passes', hint: 'Currently active' },
+    { key: 'attended',      label: 'Attended',      hint: 'Unique students who clicked ' + label },
+    { key: 'used',          label: 'Used',          hint: 'Completed all picked sessions' }
+  ];
+
+  defs.forEach(function(def){
+    var card = document.createElement('div');
+    card.className = 'kpi-card';
+
+    var lbl = document.createElement('div');
+    lbl.className = 'kpi-label';
+    lbl.textContent = def.label;
+    card.appendChild(lbl);
+
+    var val = document.createElement('div');
+    val.className = 'kpi-value';
+    val.textContent = current[def.key] != null ? current[def.key] : 0;
+    card.appendChild(val);
+
+    var deltaEl = document.createElement('div');
+    deltaEl.className = 'kpi-delta';
+    if (hasDelta && prior) {
+      var d = fmtDelta(current[def.key] || 0, prior[def.key] || 0);
+      var arrow = d.dir === 'up' ? '▲' : (d.dir === 'down' ? '▼' : '—');
+      deltaEl.classList.add(d.dir);
+      var text = d.dir === 'flat'
+        ? '— no change'
+        : (arrow + ' ' + d.sign + Math.abs(d.n) + (d.pct != null ? ' (' + d.sign + Math.abs(d.pct) + '%)' : ''));
+      deltaEl.innerHTML = text + '<span class="kpi-delta-period">' + label + '</span>';
+    } else {
+      deltaEl.innerHTML = '<span class="kpi-delta-period">' + label + '</span>';
+    }
+    card.appendChild(deltaEl);
+
+    row.appendChild(card);
+  });
+}
+
+function renderPerSession(){
+  var el = document.getElementById('per-session-chart');
+  el.innerHTML = '';
+  var rows = (STATE.data.per_session || []).slice();
+  if (!rows.length) {
+    el.innerHTML = '<div class="bar-empty">No clicks logged in this period yet.</div>';
+    return;
+  }
+  var max = rows.reduce(function(m,r){ return Math.max(m, r.total); }, 0) || 1;
+
+  var chart = document.createElement('div');
+  chart.className = 'bar-chart';
+
+  rows.forEach(function(r){
+    var row = document.createElement('div');
+    row.className = 'bar-row';
+
+    var lbl = document.createElement('div');
+    lbl.className = 'bar-label';
+    lbl.textContent = r.session_name;
+    row.appendChild(lbl);
+
+    var track = document.createElement('div');
+    track.className = 'bar-track';
+    var inPct = (r.in_picks / max) * 100;
+    var outPct = (r.outside_picks / max) * 100;
+    if (r.in_picks > 0) {
+      var inSeg = document.createElement('div');
+      inSeg.className = 'bar-seg in';
+      inSeg.style.width = inPct + '%';
+      track.appendChild(inSeg);
+    }
+    if (r.outside_picks > 0) {
+      var outSeg = document.createElement('div');
+      outSeg.className = 'bar-seg out';
+      outSeg.style.width = outPct + '%';
+      track.appendChild(outSeg);
+    }
+    row.appendChild(track);
+
+    var val = document.createElement('div');
+    val.className = 'bar-value';
+    val.innerHTML = r.total + ' attendee' + (r.total === 1 ? '' : 's') +
+      (r.outside_picks ? '<span class="bar-value-sub">' + r.in_picks + ' in · ' + r.outside_picks + ' out</span>' : '');
+    row.appendChild(val);
+
+    chart.appendChild(row);
+  });
+
+  el.appendChild(chart);
+}
+
+function renderWeeklyTrend(){
+  var chartEl  = document.getElementById('trend-chart');
+  var labelsEl = document.getElementById('trend-labels');
+  var sumEl    = document.getElementById('trend-summary');
+  chartEl.innerHTML = ''; labelsEl.innerHTML = ''; sumEl.innerHTML = '';
+
+  var weeks = STATE.data.weekly_trend || [];
+  if (!weeks.length) {
+    chartEl.innerHTML = '<div class="bar-empty" style="width:100%;">No weekly data yet.</div>';
+    return;
+  }
+  var max = weeks.reduce(function(m,w){ return Math.max(m, w.attendees); }, 0) || 1;
+
+  weeks.forEach(function(w){
+    var bar = document.createElement('div');
+    bar.className = 'trend-bar' + (w.is_current ? ' current' : '');
+    var pct = (w.attendees / max) * 100;
+    bar.style.height = Math.max(4, pct) + '%';
+    var v = document.createElement('div');
+    v.className = 'trend-bar-value';
+    v.textContent = w.attendees;
+    bar.appendChild(v);
+    bar.title = fmtWeekLabel(w.week_start, w.is_current) + ' · ' + w.attendees + ' attendee' + (w.attendees === 1 ? '' : 's');
+    chartEl.appendChild(bar);
+
+    var lbl = document.createElement('span');
+    lbl.textContent = fmtWeekLabel(w.week_start, w.is_current);
+    labelsEl.appendChild(lbl);
+  });
+
+  // Delta vs last week (current vs previous bar)
+  if (weeks.length >= 2) {
+    var current = weeks[weeks.length - 1].attendees;
+    var prev    = weeks[weeks.length - 2].attendees;
+    var d = fmtDelta(current, prev);
+    var arrow = d.dir === 'up' ? '▲' : (d.dir === 'down' ? '▼' : '—');
+    sumEl.innerHTML =
+      '<span>This week vs last week:</span>' +
+      '<span class="delta ' + d.dir + '">' +
+        arrow + ' ' + d.sign + Math.abs(d.n) +
+        (d.pct != null ? ' (' + d.sign + Math.abs(d.pct) + '%)' : '') +
+      '</span>';
+  }
+}
+
+function renderTypeBreakdown(){
+  var el = document.getElementById('type-chart');
+  el.innerHTML = '';
+  var rows = STATE.data.type_breakdown || [];
+  if (!rows.length) {
+    el.innerHTML = '<div class="bar-empty">No active passes yet.</div>';
+    return;
+  }
+  var max = rows.reduce(function(m,r){ return Math.max(m, r.count); }, 0) || 1;
+  var total = rows.reduce(function(s,r){ return s + r.count; }, 0);
+
+  var chart = document.createElement('div');
+  chart.className = 'bar-chart';
+
+  rows.forEach(function(r){
+    var row = document.createElement('div');
+    row.className = 'bar-row';
+
+    var lbl = document.createElement('div');
+    lbl.className = 'bar-label';
+    lbl.textContent = r.exp_type;
+    row.appendChild(lbl);
+
+    var track = document.createElement('div');
+    track.className = 'bar-track';
+    var seg = document.createElement('div');
+    seg.className = 'bar-seg solid';
+    seg.style.width = ((r.count / max) * 100) + '%';
+    track.appendChild(seg);
+    row.appendChild(track);
+
+    var val = document.createElement('div');
+    val.className = 'bar-value';
+    var pct = total ? Math.round((r.count / total) * 100) : 0;
+    val.innerHTML = r.count + ' active <span class="bar-value-sub">' + pct + '%</span>';
+    row.appendChild(val);
+
+    chart.appendChild(row);
+  });
+
+  el.appendChild(chart);
+}
+
+function renderRecent(){
+  var el = document.getElementById('recent-table');
+  el.innerHTML = '';
+  var rows = STATE.data.recent || [];
+
+  var head = document.createElement('div');
+  head.className = 'recent-head';
+  head.innerHTML =
+    '<div class="col-when">Time</div>' +
+    '<div>Student</div>' +
+    '<div class="col-session">Session</div>' +
+    '<div>Tag</div>';
+  el.appendChild(head);
+
+  if (!rows.length) {
+    var empty = document.createElement('div');
+    empty.className = 'recent-empty';
+    empty.textContent = 'No clicks logged yet.';
+    el.appendChild(empty);
+    return;
+  }
+
+  rows.forEach(function(r){
+    var row = document.createElement('div');
+    row.className = 'recent-row';
+    var when = document.createElement('div'); when.className = 'recent-when col-when'; when.textContent = fmtClickTime(r.clicked_at); row.appendChild(when);
+    var em   = document.createElement('div'); em.className   = 'recent-email'; em.textContent = r.email; row.appendChild(em);
+    var ss   = document.createElement('div'); ss.className   = 'recent-session col-session'; ss.textContent = r.session_name; row.appendChild(ss);
+    var tag  = document.createElement('div');
+    var tagSpan = document.createElement('span');
+    tagSpan.className = 'recent-tag ' + (r.in_picks ? 'in' : 'out');
+    tagSpan.textContent = r.in_picks ? 'in picks' : 'outside';
+    tag.appendChild(tagSpan);
+    row.appendChild(tag);
+    el.appendChild(row);
+  });
+}
+
+function renderAll(){
+  renderKPIs();
+  renderPerSession();
+  renderWeeklyTrend();
+  renderTypeBreakdown();
+  renderRecent();
+}
+
+async function loadStats(){
+  document.getElementById('kpi-row').innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:30px;"><div class="spinner" style="margin:0 auto;"></div></div>';
+  try {
+    var r = await fetch('/api/admin/lounge-attendance-stats?period=' + encodeURIComponent(STATE.period), { credentials:'same-origin' });
+    if (r.status !== 200) throw new Error('Failed to load (' + r.status + ')');
+    STATE.data = await r.json();
+    renderAll();
+  } catch (e) {
+    document.getElementById('kpi-row').innerHTML = '<div style="grid-column:1/-1;color:#7c0d0d;background:#fff;padding:20px;border-radius:14px;border:1.5px solid #f3a3a3;">Could not load: ' + e.message + '</div>';
+  }
+}
+
+function bindPeriodPills(){
+  var pills = document.querySelectorAll('.period-pill');
+  pills.forEach(function(pill){
+    pill.addEventListener('click', function(){
+      pills.forEach(function(p){ p.classList.remove('active'); });
+      pill.classList.add('active');
+      STATE.period = pill.dataset.period;
+      loadStats();
+    });
+  });
+}
+
+async function init(){
+  var meRes;
+  try { meRes = await fetch('/auth/me', { credentials:'same-origin' }); }
+  catch (e) { window.location.href = '/auth/login?return_to=' + encodeURIComponent(window.location.pathname + window.location.search); return; }
+  if (meRes.status !== 200) { window.location.href = '/auth/login?return_to=' + encodeURIComponent(window.location.pathname + window.location.search); return; }
+  var user = await meRes.json();
+  if (!user.isAdmin) {
+    document.getElementById('page-loading').style.display = 'none';
+    document.getElementById('page-denied').style.display = 'flex';
+    return;
+  }
+  setupUserMenu(user);
+  bindPeriodPills();
+
+  document.getElementById('page-loading').style.display = 'none';
+  document.getElementById('page-body').style.display    = '';
+
+  await loadStats();
+}
+init();
+</script>
+
+</body>
+</html>

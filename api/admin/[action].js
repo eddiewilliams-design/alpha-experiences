@@ -1286,6 +1286,43 @@ function chicagoYMD() {
   return fmt.format(new Date());
 }
 
+// Returns ms by which America/Chicago is ahead of UTC at the given instant.
+// (Same trick used by get-sessions.js — handles DST automatically.)
+function chicagoTzOffsetMs(utcMs) {
+  const fmt = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'America/Chicago', hour12: false,
+    year: 'numeric', month: '2-digit', day: '2-digit',
+    hour: '2-digit', minute: '2-digit', second: '2-digit'
+  });
+  const parts = fmt.formatToParts(new Date(utcMs));
+  const g = (t) => {
+    const p = parts.find(x => x.type === t);
+    return p ? parseInt(p.value, 10) : 0;
+  };
+  let h = g('hour'); if (h === 24) h = 0;
+  const fakeUtc = Date.UTC(g('year'), g('month') - 1, g('day'), h, g('minute'), g('second'));
+  return fakeUtc - utcMs;
+}
+
+// UTC ms of Monday 00:00:00 in Chicago for the week N weeks back.
+// weeksBack=0 → Monday of this week; weeksBack=1 → last Monday.
+function weekStartMs(weeksBack) {
+  const fmt = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'America/Chicago', hour12: false,
+    year: 'numeric', month: '2-digit', day: '2-digit', weekday: 'short'
+  });
+  const parts = fmt.formatToParts(new Date());
+  const g = (t) => parts.find(p => p.type === t).value;
+  const Y = parseInt(g('year'), 10);
+  const M = parseInt(g('month'), 10);
+  const D = parseInt(g('day'), 10);
+  const dayMap = { SUN:0, MON:1, TUE:2, WED:3, THU:4, FRI:5, SAT:6 };
+  const dow = dayMap[g('weekday').toUpperCase()];
+  const daysFromMonday = (dow + 6) % 7; // 0=Mon..6=Sun
+  const naive = Date.UTC(Y, M - 1, D - daysFromMonday - 7 * weeksBack, 0, 0, 0);
+  return naive - chicagoTzOffsetMs(naive);
+}
+
 function parseSheetDateMs(val) {
   if (val === null || val === undefined) return null;
   const s = String(val).trim();
@@ -2121,6 +2158,255 @@ async function handleLoungePassCancel(req, res) {
   return res.status(200).json({ ok: true });
 }
 
+// ── LUL Attendance dashboard (Phase 2c) ─────────────────────
+//
+// One endpoint that aggregates everything the dashboard needs:
+//   - 4 KPIs for the selected period (with deltas vs prior period)
+//   - Per-session attendance for the selected period (in-picks vs outside)
+//   - Weekly trend (last 8 weeks, always — independent of period)
+//   - Pass type breakdown (active passes, snapshot)
+//   - Recent activity (last 50 clicks)
+//
+// Period values:
+//   - 'this-week'    (default) → Mon→Sun in CT, prior = last Mon→Sun
+//   - 'last-4-weeks' → last 4 weeks ending this week, prior = the 4 before
+//   - 'all'          → everything; no delta
+
+async function handleLoungeAttendanceStats(req, res) {
+  const period = (req.query.period || 'this-week').toString();
+
+  let token;
+  try { token = await getAccessToken(); }
+  catch (err) {
+    console.error('attendance-stats token:', err.message);
+    return res.status(500).json({ error: 'server_error' });
+  }
+
+  let sheet1Rows, attendanceRows, sessionRows, typeRows;
+  try {
+    const sheet = await batchGet(token, [
+      'Sheet1!A:N', 'LUL_Attendance!A:H', 'Sessions!A:K', 'LUL_Pass_Types!A:E'
+    ]);
+    const ranges = (sheet && sheet.valueRanges) || [];
+    sheet1Rows     = (ranges[0] && ranges[0].values) || [];
+    attendanceRows = (ranges[1] && ranges[1].values) || [];
+    sessionRows    = (ranges[2] && ranges[2].values) || [];
+    typeRows       = (ranges[3] && ranges[3].values) || [];
+  } catch (err) {
+    console.error('attendance-stats read:', err.message);
+    return res.status(500).json({ error: 'server_error' });
+  }
+
+  // Session id → name lookup
+  const sessionNameById = {};
+  for (let i = 1; i < sessionRows.length; i++) {
+    const r = sessionRows[i] || [];
+    const id = (r[7] || '').toString().trim();
+    if (id) sessionNameById[id] = (r[0] || '').toString().trim();
+  }
+
+  // Pass types
+  const passTypes = [];
+  for (let i = 1; i < typeRows.length; i++) {
+    const r = typeRows[i] || [];
+    if (!r[0]) continue;
+    const pcRaw = (r[2] == null ? '' : r[2]).toString().trim();
+    passTypes.push({
+      exp_type:   (r[0] || '').toString().trim(),
+      mode:       ((r[1] || 'pick').toString().toLowerCase().trim()) || 'pick',
+      pick_count: pcRaw && /^\d+$/.test(pcRaw) ? parseInt(pcRaw, 10) : null
+    });
+  }
+
+  // Passes
+  const passes = [];
+  for (let i = 1; i < sheet1Rows.length; i++) {
+    const r = sheet1Rows[i] || [];
+    if (!r[0] && !r[1] && !r[2]) continue;
+    const dateSentMs = parseSheetDateMs(r[8]);
+    const selectedRaw = (r[10] || '').toString().trim();
+    const selectedIds = selectedRaw ? selectedRaw.split(/[,\s]+/).map(s => s.trim()).filter(Boolean) : [];
+    passes.push({
+      exp_type:    (r[0] || '').toString().trim(),
+      name:        (r[1] || '').toString().trim(),
+      email:       (r[2] || '').toString().toLowerCase().trim(),
+      token:       (r[6] || '').toString().trim(),
+      active:      isYesish(r[7]),
+      date_sent_ms: dateSentMs,
+      selections_locked: isYesish(r[9]),
+      selected_session_ids: selectedIds
+    });
+  }
+
+  // Clicks
+  const clicks = [];
+  const attendedByEmail = {}; // email → array of session ids ever attended (for Used calc)
+  for (let i = 1; i < attendanceRows.length; i++) {
+    const r = attendanceRows[i] || [];
+    const email = (r[1] || '').toString().toLowerCase().trim();
+    const sid   = (r[3] || '').toString().trim();
+    const ts    = (r[0] || '').toString();
+    const tsMs  = ts ? new Date(ts).getTime() : null;
+    if (!email) continue;
+    clicks.push({
+      ts_ms:        isNaN(tsMs) ? null : tsMs,
+      ts_iso:       ts,
+      email:        email,
+      session_id:   sid,
+      session_name: (r[4] || '').toString().trim(),
+      in_picks:     (r[7] || '').toString().toUpperCase().trim() === 'YES'
+    });
+    if (sid) (attendedByEmail[email] = attendedByEmail[email] || []).push(sid);
+  }
+
+  // Period boundaries (UTC ms)
+  const thisWeek  = weekStartMs(0);
+  const nextWeek  = thisWeek + 7 * 86400000;
+  const lastWeek  = weekStartMs(1);
+  const fourWk    = weekStartMs(4);
+  const eightWk   = weekStartMs(8);
+
+  let curStart, curEnd, priorStart, priorEnd, hasDelta, periodLabel;
+  if (period === 'last-4-weeks') {
+    curStart = fourWk;   curEnd = nextWeek;
+    priorStart = eightWk; priorEnd = fourWk;
+    hasDelta = true;
+    periodLabel = 'vs prior 4 weeks';
+  } else if (period === 'all') {
+    curStart = 0;        curEnd = nextWeek;
+    priorStart = priorEnd = null;
+    hasDelta = false;
+    periodLabel = 'all time';
+  } else {
+    curStart = thisWeek; curEnd = nextWeek;
+    priorStart = lastWeek; priorEnd = thisWeek;
+    hasDelta = true;
+    periodLabel = 'vs last week';
+  }
+
+  function inRange(ms, start, end) {
+    if (ms == null) return false;
+    if (start === 0) return ms < end; // 'all' lower bound
+    return ms >= start && ms < end;
+  }
+
+  function kpisForRange(start, end) {
+    let passHolders = 0, activePasses = 0, used = 0;
+    const attendedEmails = new Set();
+
+    for (const p of passes) {
+      if (start === 0 || inRange(p.date_sent_ms, start, end)) {
+        passHolders++;
+        if (p.active) activePasses++;
+
+        // Used: passes whose attendance has crossed the pick-count threshold
+        if (p.active && p.selections_locked) {
+          const cfg = modeForType(passTypes, p.exp_type);
+          const required = cfg.pick_count != null ? cfg.pick_count : (p.selected_session_ids.length || 1);
+          const sids     = (attendedByEmail[p.email] || []).filter(s => p.selected_session_ids.indexOf(s) >= 0);
+          const unique   = new Set(sids);
+          if (required > 0 && unique.size >= required) used++;
+        }
+      }
+    }
+    for (const c of clicks) {
+      if (c.ts_ms == null) continue;
+      if (start === 0 ? c.ts_ms < end : (c.ts_ms >= start && c.ts_ms < end)) {
+        attendedEmails.add(c.email);
+      }
+    }
+    return {
+      pass_holders:  passHolders,
+      active_passes: activePasses,
+      attended:      attendedEmails.size,
+      used:          used
+    };
+  }
+
+  const current = kpisForRange(curStart, curEnd);
+  const prior   = hasDelta ? kpisForRange(priorStart, priorEnd) : null;
+
+  // Per-session attendance (current period)
+  const perSessionMap = {};
+  for (const c of clicks) {
+    if (c.ts_ms == null) continue;
+    const inCur = curStart === 0 ? c.ts_ms < curEnd : (c.ts_ms >= curStart && c.ts_ms < curEnd);
+    if (!inCur) continue;
+    const key = c.session_id || ('name:' + c.session_name);
+    if (!perSessionMap[key]) {
+      perSessionMap[key] = {
+        session_id:   c.session_id || '',
+        session_name: c.session_name || sessionNameById[c.session_id] || c.session_id || '(unknown)',
+        in_picks:     new Set(),
+        outside:      new Set()
+      };
+    }
+    if (c.in_picks) perSessionMap[key].in_picks.add(c.email);
+    else            perSessionMap[key].outside.add(c.email);
+  }
+  const perSession = Object.values(perSessionMap)
+    .map(s => ({
+      session_id:    s.session_id,
+      session_name:  s.session_name,
+      in_picks:      s.in_picks.size,
+      outside_picks: s.outside.size,
+      total:         s.in_picks.size + s.outside.size
+    }))
+    .sort((a, b) => b.total - a.total);
+
+  // Weekly trend: last 8 weeks (always)
+  const weeklyTrend = [];
+  for (let w = 7; w >= 0; w--) {
+    const ws = weekStartMs(w);
+    const we = weekStartMs(w - 1);
+    const emails = new Set();
+    for (const c of clicks) {
+      if (c.ts_ms != null && c.ts_ms >= ws && c.ts_ms < we) emails.add(c.email);
+    }
+    weeklyTrend.push({
+      week_start: new Date(ws).toISOString().slice(0, 10),
+      attendees:  emails.size,
+      is_current: w === 0
+    });
+  }
+
+  // Pass type breakdown (active passes, snapshot)
+  const typeMap = {};
+  for (const p of passes) {
+    if (!p.active) continue;
+    const t = p.exp_type || '(unspecified)';
+    typeMap[t] = (typeMap[t] || 0) + 1;
+  }
+  const typeBreakdown = Object.entries(typeMap)
+    .map(([exp_type, count]) => ({ exp_type, count }))
+    .sort((a, b) => b.count - a.count);
+
+  // Recent activity: last 50 clicks chronologically
+  const recent = clicks
+    .filter(c => c.ts_ms != null)
+    .sort((a, b) => b.ts_ms - a.ts_ms)
+    .slice(0, 50)
+    .map(c => ({
+      clicked_at:   c.ts_iso,
+      email:        c.email,
+      session_id:   c.session_id,
+      session_name: c.session_name || sessionNameById[c.session_id] || c.session_id || '(unknown)',
+      in_picks:     c.in_picks
+    }));
+
+  return res.status(200).json({
+    period,
+    period_label:   periodLabel,
+    current,
+    prior,
+    has_delta:      hasDelta,
+    per_session:    perSession,
+    weekly_trend:   weeklyTrend,
+    type_breakdown: typeBreakdown,
+    recent
+  });
+}
+
 // ── Dispatch ────────────────────────────────────────────────
 module.exports = async (req, res) => {
   res.setHeader('Cache-Control', 'no-store');
@@ -2159,6 +2445,7 @@ module.exports = async (req, res) => {
     case 'lounge-pass-update':    return handleLoungePassUpdate(req, res);
     case 'lounge-attendance-list':   return handleLoungeAttendanceList(req, res);
     case 'lounge-attendance-delete': return handleLoungeAttendanceDelete(req, res);
+    case 'lounge-attendance-stats':  return handleLoungeAttendanceStats(req, res);
     default:                      return res.status(404).json({ error: 'not_found', detail: action });
   }
 };
