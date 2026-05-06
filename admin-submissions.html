@@ -41,6 +41,11 @@ body{font-family:'Nunito Sans',sans-serif;background:var(--aa-white);min-height:
 .admin-tab.active{color:var(--aa-blue);border-bottom-color:var(--aa-blue);}
 .admin-tab:hover:not(.active){color:var(--aa-navy);}
 
+.sub-nav{background:var(--aa-light-grey);padding:14px 32px 0;display:flex;gap:6px;flex-wrap:wrap;border-bottom:1px solid var(--aa-med-grey);}
+.sub-tab{font-size:12px;font-weight:700;color:var(--aa-dark-grey);background:#fff;border:1.5px solid var(--aa-med-grey);border-bottom:none;border-radius:10px 10px 0 0;padding:8px 16px;cursor:pointer;text-decoration:none;letter-spacing:0.02em;}
+.sub-tab.active{color:var(--aa-blue);border-color:var(--aa-blue);}
+.sub-tab:hover:not(.active){color:var(--aa-navy);}
+
 .page-body{background:var(--aa-light-grey);padding:28px 24px 56px;min-height:60vh;}
 .page-inner{max-width:980px;margin:0 auto;}
 
@@ -137,11 +142,15 @@ body{font-family:'Nunito Sans',sans-serif;background:var(--aa-white);min-height:
 </header>
 
 <nav class="admin-nav">
-  <a class="admin-tab" href="/admin">Field Trips</a>
-  <a class="admin-tab" href="/admin/registrations">Registrations</a>
-  <a class="admin-tab active" href="/admin/submissions">Submissions</a>
+  <a class="admin-tab active" href="/admin">Virtual Field Trips</a>
   <a class="admin-tab" href="/admin/lounge">Lounge</a>
   <a class="admin-tab" href="/admin/access">Admin Access</a>
+</nav>
+
+<nav class="sub-nav">
+  <a class="sub-tab" href="/admin">Field Trips</a>
+  <a class="sub-tab" href="/admin/registrations">Registrations</a>
+  <a class="sub-tab active" href="/admin/submissions">Submissions</a>
 </nav>
 
 <div id="page-loading" class="page-loading">
