@@ -88,23 +88,32 @@ body{font-family:'Nunito Sans',sans-serif;background:var(--aa-white);min-height:
 /* Inline notes editor (auto-save, sits below each pass row) */
 .pass-notes{
   grid-column: 1 / -1;
-  margin-top:6px;
+  margin-top:4px;
   display:flex;align-items:center;gap:8px;
 }
+.pass-notes.empty{justify-content:flex-end;margin-top:2px;}
 .pass-notes textarea{
   flex:1;font-family:inherit;font-size:11px;color:var(--aa-navy);
   border:1.5px solid var(--aa-light-grey);border-radius:7px;
-  padding:4px 8px;
+  padding:3px 8px;
   background:var(--aa-light-grey);
-  resize:none;line-height:1.35;
+  resize:none;line-height:1.35;max-height:80px;overflow-y:auto;
   transition:background 0.15s, border-color 0.15s;
 }
 .pass-notes textarea::placeholder{color:var(--aa-dark-grey);font-style:italic;}
 .pass-notes textarea:focus{outline:none;background:#fff;border-color:var(--aa-blue);}
-.pass-notes-status{font-size:9px;font-weight:800;color:var(--aa-dark-grey);min-height:11px;letter-spacing:0.05em;text-transform:uppercase;flex-shrink:0;width:70px;text-align:right;}
+.pass-notes-status{font-size:9px;font-weight:800;color:var(--aa-dark-grey);min-height:11px;letter-spacing:0.05em;text-transform:uppercase;flex-shrink:0;width:64px;text-align:right;}
 .pass-notes-status.saving{color:var(--aa-dark-grey);}
 .pass-notes-status.saved{color:#1a5205;}
 .pass-notes-status.err{color:#b91c1c;}
+.pass-notes-add{
+  background:none;border:none;
+  font-size:10px;font-weight:700;color:var(--aa-dark-grey);
+  cursor:pointer;padding:1px 4px;
+  font-family:inherit;letter-spacing:0.03em;
+  text-decoration:underline;
+}
+.pass-notes-add:hover{color:var(--aa-blue);}
 
 /* Click log modal: grouped-by-session view */
 .att-list{display:flex;flex-direction:column;gap:10px;}
@@ -675,84 +684,116 @@ function renderPasses(){
 // ── Inline notes (auto-saves on blur + 700ms debounce) ──
 function autoResize(ta){
   ta.style.height = 'auto';
-  ta.style.height = Math.max(24, ta.scrollHeight + 2) + 'px';
+  ta.style.height = Math.max(22, Math.min(80, ta.scrollHeight + 2)) + 'px';
 }
+
 function buildNotesField(p){
+  // Wrap is the slot in the row; we re-render its contents based on
+  // whether there's content or not. Empty rows show only a small
+  // "+ Add note" link to keep them compact.
   var wrap = document.createElement('div');
   wrap.className = 'pass-notes';
 
-  var ta = document.createElement('textarea');
-  ta.placeholder = 'Add a note about this pass holder… (auto-saves)';
-  ta.value = p.notes || '';
-  ta.rows = 1;
+  function renderEditor(focusOnMount){
+    wrap.innerHTML = '';
+    wrap.classList.remove('empty');
 
-  var status = document.createElement('div');
-  status.className = 'pass-notes-status';
+    var ta = document.createElement('textarea');
+    ta.placeholder = 'Note…';
+    ta.value = p.notes || '';
+    ta.rows = 1;
 
-  var saveTimer = null;
-  var lastSaved = ta.value;
-  var inFlight  = false;
+    var status = document.createElement('div');
+    status.className = 'pass-notes-status';
 
-  async function doSave(){
-    if (saveTimer) { clearTimeout(saveTimer); saveTimer = null; }
-    var current = ta.value;
-    if (current === lastSaved || inFlight) return;
-    inFlight = true;
-    status.textContent = 'Saving…';
-    status.className = 'pass-notes-status saving';
-    try {
-      var r = await fetch('/api/admin/lounge-pass-update', {
-        method: 'POST',
-        credentials: 'same-origin',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ token: p.token, notes: current })
-      });
-      if (r.status !== 200) {
-        var d = {}; try { d = await r.json(); } catch(_) {}
-        throw new Error(d.detail || d.error || ('save failed (' + r.status + ')'));
-      }
-      lastSaved = current;
-      p.notes = current;
-      status.textContent = '✓ saved';
-      status.className = 'pass-notes-status saved';
-      setTimeout(function(){
-        if (lastSaved === ta.value && status.classList.contains('saved')) {
-          status.textContent = '';
-          status.className = 'pass-notes-status';
-        }
-      }, 2500);
-    } catch (e) {
-      status.textContent = '× ' + (e.message || 'failed');
-      status.className = 'pass-notes-status err';
-    } finally {
-      inFlight = false;
-      // If user kept typing during the save, schedule another
-      if (ta.value !== lastSaved) scheduleSave();
-    }
-  }
+    var saveTimer = null;
+    var lastSaved = ta.value;
+    var inFlight  = false;
 
-  function scheduleSave(){
-    if (saveTimer) clearTimeout(saveTimer);
-    saveTimer = setTimeout(doSave, 700);
-  }
-
-  ta.addEventListener('input', function(){
-    autoResize(ta);
-    if (ta.value !== lastSaved) {
-      status.textContent = 'Editing…';
+    async function doSave(){
+      if (saveTimer) { clearTimeout(saveTimer); saveTimer = null; }
+      var current = ta.value;
+      if (current === lastSaved || inFlight) return;
+      inFlight = true;
+      status.textContent = 'Saving…';
       status.className = 'pass-notes-status saving';
+      try {
+        var r = await fetch('/api/admin/lounge-pass-update', {
+          method: 'POST',
+          credentials: 'same-origin',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ token: p.token, notes: current })
+        });
+        if (r.status !== 200) {
+          var d = {}; try { d = await r.json(); } catch(_) {}
+          throw new Error(d.detail || d.error || ('save failed (' + r.status + ')'));
+        }
+        lastSaved = current;
+        p.notes = current;
+        status.textContent = '✓ saved';
+        status.className = 'pass-notes-status saved';
+        setTimeout(function(){
+          if (lastSaved === ta.value && status.classList.contains('saved')) {
+            status.textContent = '';
+            status.className = 'pass-notes-status';
+          }
+        }, 2500);
+      } catch (e) {
+        status.textContent = '× ' + (e.message || 'failed');
+        status.className = 'pass-notes-status err';
+      } finally {
+        inFlight = false;
+        if (ta.value !== lastSaved) scheduleSave();
+      }
     }
-    scheduleSave();
-  });
-  ta.addEventListener('blur', function(){
-    if (ta.value !== lastSaved) doSave();
-  });
+    function scheduleSave(){
+      if (saveTimer) clearTimeout(saveTimer);
+      saveTimer = setTimeout(doSave, 700);
+    }
 
-  // Resize once mounted (scrollHeight needs the element to be in the DOM)
-  setTimeout(function(){ autoResize(ta); }, 0);
+    ta.addEventListener('input', function(){
+      autoResize(ta);
+      if (ta.value !== lastSaved) {
+        status.textContent = 'Editing…';
+        status.className = 'pass-notes-status saving';
+      }
+      scheduleSave();
+    });
+    ta.addEventListener('blur', function(){
+      if (ta.value !== lastSaved) doSave();
+      // If admin emptied the textarea (and the empty value is saved),
+      // collapse back to "+ Add note" so the row stays compact.
+      if (!ta.value.trim() && lastSaved === '') {
+        renderEmpty();
+      }
+    });
 
-  wrap.appendChild(ta);
-  wrap.appendChild(status);
+    wrap.appendChild(ta);
+    wrap.appendChild(status);
+
+    setTimeout(function(){
+      autoResize(ta);
+      if (focusOnMount) ta.focus();
+    }, 0);
+  }
+
+  function renderEmpty(){
+    wrap.innerHTML = '';
+    wrap.classList.add('empty');
+    var btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'pass-notes-add';
+    btn.textContent = '+ Add note';
+    btn.addEventListener('click', function(){ renderEditor(true); });
+    wrap.appendChild(btn);
+  }
+
+  if (p.notes && String(p.notes).trim()) {
+    renderEditor(false);
+  } else {
+    renderEmpty();
+  }
+
   return wrap;
 }
 
