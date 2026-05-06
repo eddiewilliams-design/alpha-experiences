@@ -44,7 +44,8 @@ body{font-family:'Nunito Sans',sans-serif;background:var(--aa-white);min-height:
 
 .exp-tabs{background:#fff;border-bottom:1.5px solid var(--aa-med-grey);padding:0 24px;display:flex;gap:4px;}
 .exp-tab-inner{max-width:720px;margin:0 auto;display:flex;gap:4px;width:100%;}
-.exp-tab{font-size:13px;font-weight:600;color:var(--aa-dark-grey);padding:14px 16px;border-bottom:2.5px solid transparent;cursor:pointer;white-space:nowrap;background:none;border-top:none;border-left:none;border-right:none;font-family:inherit;}
+.exp-tab{font-size:13px;font-weight:600;color:var(--aa-dark-grey);padding:14px 16px;border-bottom:2.5px solid transparent;cursor:pointer;white-space:nowrap;background:none;border-top:none;border-left:none;border-right:none;font-family:inherit;text-decoration:none;display:inline-block;}
+.exp-tab:hover:not(.active){color:var(--aa-navy);}
 .exp-tab.active{color:var(--aa-blue);border-bottom-color:var(--aa-blue);}
 
 .page-body{background:var(--aa-light-grey);padding:28px 24px 48px;min-height:50vh;}
@@ -130,9 +131,9 @@ body{font-family:'Nunito Sans',sans-serif;background:var(--aa-white);min-height:
 
 <div class="exp-tabs">
   <div class="exp-tab-inner">
-    <button class="exp-tab active">Virtual Field Trips</button>
-    <button class="exp-tab" title="Coming soon">Level Up Lounge</button>
-    <button class="exp-tab" title="Coming soon">All Experiences</button>
+    <a class="exp-tab" href="/trips#vft">Virtual Field Trips</a>
+    <a class="exp-tab" href="/lounge">Level Up Lounge</a>
+    <a class="exp-tab active" href="/trips">All Experiences</a>
   </div>
 </div>
 
@@ -143,7 +144,7 @@ body{font-family:'Nunito Sans',sans-serif;background:var(--aa-white);min-height:
 <div id="page-body" class="page-body" style="display:none;">
   <div class="page-inner">
 
-    <div class="section-label">
+    <div class="section-label" id="vft" style="scroll-margin-top:24px;">
       <p class="section-heading">Virtual Field Trips</p>
       <span class="section-count" id="trip-count">0 registered</span>
     </div>

@@ -39,6 +39,13 @@ body{font-family:'Nunito Sans',sans-serif;background:var(--aa-white);min-height:
 .back-link{font-size:13px;font-weight:700;color:var(--aa-blue);text-decoration:none;}
 .back-link:hover{text-decoration:underline;}
 
+/* ── Experience type tabs (mirrors /trips) ── */
+.exp-tabs{background:#fff;border-bottom:1.5px solid var(--aa-med-grey);padding:0 24px;display:flex;gap:4px;}
+.exp-tab-inner{max-width:780px;margin:0 auto;display:flex;gap:4px;width:100%;}
+.exp-tab{font-size:13px;font-weight:600;color:var(--aa-dark-grey);padding:14px 16px;border-bottom:2.5px solid transparent;cursor:pointer;white-space:nowrap;text-decoration:none;display:inline-block;font-family:inherit;}
+.exp-tab:hover:not(.active){color:var(--aa-navy);}
+.exp-tab.active{color:var(--aa-blue);border-bottom-color:var(--aa-blue);}
+
 /* ── Hero ── */
 .hero{background:var(--aa-navy);padding:36px 32px 0;text-align:center;}
 .hero-badge{display:inline-block;background:var(--aa-blue);color:#fff;font-size:11px;font-weight:700;letter-spacing:0.07em;text-transform:uppercase;padding:5px 16px;border-radius:999px;margin-bottom:14px;}
@@ -151,6 +158,14 @@ body{font-family:'Nunito Sans',sans-serif;background:var(--aa-white);min-height:
   <h1 class="hero-title">Live coaching games &<br><span>good company.</span></h1>
   <p class="hero-sub">Themed game sessions hosted by your Alpha coaches each week. Earn a pass and pick the ones you want to join.</p>
   <div class="hero-scallop"></div>
+</div>
+
+<div class="exp-tabs">
+  <div class="exp-tab-inner">
+    <a class="exp-tab" href="/trips#vft">Virtual Field Trips</a>
+    <a class="exp-tab active" href="/lounge">Level Up Lounge</a>
+    <a class="exp-tab" href="/trips">All Experiences</a>
+  </div>
 </div>
 
 <div id="page-loading" class="page-loading">
