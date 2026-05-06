@@ -194,6 +194,11 @@ module.exports = async (req, res) => {
   if (!trip || !mySessionId) {
     return res.status(404).json({ error: 'not_purchased' });
   }
+  // Drafts are admin-side only — even a registered student gets 404 here.
+  // Publish (status=open) before students should see the detail page.
+  if (trip.status === 'draft') {
+    return res.status(404).json({ error: 'not_purchased' });
+  }
 
   // 3. Sessions for this trip — with lock state
   const nowMs = Date.now();

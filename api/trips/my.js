@@ -158,6 +158,9 @@ module.exports = async (req, res) => {
       const trip    = tripsById[tripId];
       const sessRow = sessionsById[sessionId];
       if (!trip) continue;
+      // Hide draft trips from students even if they have a registration row.
+      // Admins still see them via /admin and the trip editor.
+      if (trip.status === 'draft') continue;
 
       trips.push({
         trip_id:         trip.trip_id,
