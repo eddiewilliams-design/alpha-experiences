@@ -1259,6 +1259,50 @@ async function handleAdminRemove(req, res) {
   return res.status(200).json({ ok: true });
 }
 
+// ── LUL shared helpers (Phase 2a + 2b) ─────────────────────
+
+function generateToken() {
+  // 16 hex chars (8 random bytes), URL-safe, plenty of uniqueness for our scale
+  return crypto.randomBytes(8).toString('hex');
+}
+
+function isYesish(v) {
+  if (v === true)  return true;
+  if (v === false) return false;
+  const s = String(v == null ? '' : v).trim().toUpperCase();
+  return s === 'YES' || s === 'TRUE';
+}
+
+function todayYMD() {
+  return new Date().toISOString().slice(0, 10);
+}
+
+function chicagoYMD() {
+  // YYYY-MM-DD in CT — used for human-readable Notes timestamps
+  const fmt = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'America/Chicago',
+    year: 'numeric', month: '2-digit', day: '2-digit'
+  });
+  return fmt.format(new Date());
+}
+
+function parseSheetDateMs(val) {
+  if (val === null || val === undefined) return null;
+  const s = String(val).trim();
+  if (!s) return null;
+  if (/^\d{4}-\d{2}-\d{2}/.test(s)) {
+    return Date.UTC(+s.slice(0, 4), +s.slice(5, 7) - 1, +s.slice(8, 10));
+  }
+  if (/^\d+(\.\d+)?$/.test(s)) {
+    const serial = parseFloat(s);
+    return Date.UTC(1899, 11, 30) + serial * 86400000;
+  }
+  const m1 = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+  if (m1) return Date.UTC(+m1[3], +m1[1] - 1, +m1[2]);
+  const d = new Date(s);
+  return isNaN(d.getTime()) ? null : d.getTime();
+}
+
 // ── LUL Sessions admin (Phase 2a) ───────────────────────────
 //
 // Sessions tab schema (used by api/get-sessions.js too):
@@ -1437,6 +1481,499 @@ async function handleLoungeSessionSave(req, res) {
   return res.status(200).json({ ok: true, session_id: sid, created: existingRowIndex < 0 });
 }
 
+// ── LUL Pass Types config (Phase 2b) ────────────────────────
+//
+// LUL_Pass_Types tab schema:
+//   A Experience Type | B Mode | C Pick Count | D Description | E Active
+//
+// Mode is one of: 'pick' (pick N sessions), 'celebration' (single
+// Friday slot), 'full' (all weekly sessions auto-locked, no picker).
+
+const VALID_PASS_MODES = ['pick', 'celebration', 'full'];
+
+async function readPassTypes(token) {
+  const sheet = await batchGet(token, ['LUL_Pass_Types!A:E']);
+  const rows = (sheet && sheet.valueRanges && sheet.valueRanges[0] && sheet.valueRanges[0].values) || [];
+  const types = [];
+  for (let i = 1; i < rows.length; i++) {
+    const r = rows[i];
+    if (!r || !r[0]) continue;
+    const expType  = (r[0] || '').toString().trim();
+    const mode     = ((r[1] || 'pick').toString().toLowerCase().trim()) || 'pick';
+    const pickRaw  = (r[2] == null ? '' : r[2]).toString().trim();
+    const pickCnt  = pickRaw && /^\d+$/.test(pickRaw) ? parseInt(pickRaw, 10) : null;
+    const descr    = (r[3] || '').toString();
+    const active   = isYesish(r[4] == null || r[4] === '' ? 'YES' : r[4]);
+    types.push({
+      row_index:   i + 1,
+      exp_type:    expType,
+      mode:        mode,
+      pick_count:  pickCnt,
+      description: descr,
+      active:      active
+    });
+  }
+  return types;
+}
+
+// Resolve mode for a given Experience Type, with legacy-string fallback
+// (matches Apps Script's hardcoded detection so old sheet rows still work
+// even if the LUL_Pass_Types tab is empty or missing the entry).
+function modeForType(types, expType) {
+  const t = (expType || '').toString();
+  const tLower = t.toLowerCase();
+  const cfg = (types || []).find(x => (x.exp_type || '').toLowerCase() === tLower);
+  if (cfg) return { mode: cfg.mode, pick_count: cfg.pick_count };
+  if (tLower.includes('friday coaching celebration')) return { mode: 'celebration', pick_count: 1 };
+  if (tLower.includes('2 sessions'))                  return { mode: 'pick',        pick_count: 2 };
+  return { mode: 'full', pick_count: null };
+}
+
+async function handleLoungePassTypesList(req, res) {
+  let types;
+  try {
+    const token = await getAccessToken();
+    types = await readPassTypes(token);
+  } catch (err) {
+    console.error('lounge-pass-types-list:', err.message);
+    return res.status(500).json({ error: 'server_error' });
+  }
+  return res.status(200).json({ types });
+}
+
+async function handleLoungePassTypeSave(req, res) {
+  if (req.method !== 'POST') return res.status(405).json({ error: 'method_not_allowed' });
+
+  let body;
+  try { body = await readJsonBody(req); }
+  catch (e) { return res.status(400).json({ error: 'bad_json' }); }
+
+  const expType  = (body.exp_type || '').toString().trim();
+  const mode     = (body.mode || '').toString().toLowerCase().trim();
+  const pickRaw  = (body.pick_count == null ? '' : body.pick_count).toString().trim();
+  const pickCnt  = pickRaw && /^\d+$/.test(pickRaw) ? parseInt(pickRaw, 10) : null;
+  const descr    = (body.description || '').toString();
+  const active   = (body.active === false || String(body.active).toUpperCase() === 'NO') ? 'NO' : 'YES';
+  const original = (body.original_exp_type || '').toString().trim() || expType;
+
+  if (!expType) return res.status(400).json({ error: 'bad_request', detail: 'exp_type required' });
+  if (VALID_PASS_MODES.indexOf(mode) === -1) {
+    return res.status(400).json({ error: 'bad_request', detail: 'mode must be pick / celebration / full' });
+  }
+  if (mode === 'pick' && (!pickCnt || pickCnt < 1)) {
+    return res.status(400).json({ error: 'bad_request', detail: 'pick mode requires pick_count >= 1' });
+  }
+
+  let token, rows;
+  try {
+    token = await getAccessToken('https://www.googleapis.com/auth/spreadsheets');
+    const sheet = await batchGet(token, ['LUL_Pass_Types!A:E']);
+    rows = (sheet && sheet.valueRanges && sheet.valueRanges[0] && sheet.valueRanges[0].values) || [];
+  } catch (err) {
+    console.error('lounge-pass-type-save read:', err.message);
+    return res.status(500).json({ error: 'server_error' });
+  }
+
+  let existingRow = -1;
+  for (let i = 1; i < rows.length; i++) {
+    if ((rows[i][0] || '').toString().trim().toLowerCase() === original.toLowerCase()) {
+      existingRow = i; break;
+    }
+  }
+  // Detect collision if creating or renaming
+  for (let i = 1; i < rows.length; i++) {
+    if (i === existingRow) continue;
+    if ((rows[i][0] || '').toString().trim().toLowerCase() === expType.toLowerCase()) {
+      return res.status(409).json({ error: 'duplicate_exp_type' });
+    }
+  }
+
+  const row = [
+    expType,
+    mode,
+    pickCnt == null ? '' : String(pickCnt),
+    descr,
+    active
+  ];
+
+  try {
+    if (existingRow >= 0) {
+      const rowNum = existingRow + 1;
+      await sheetsUpdate(token, `LUL_Pass_Types!A${rowNum}:E${rowNum}`, [row]);
+    } else {
+      await sheetsAppend(token, 'LUL_Pass_Types!A:E', [row]);
+    }
+  } catch (err) {
+    console.error('lounge-pass-type-save write:', err.message);
+    return res.status(500).json({ error: 'server_error' });
+  }
+
+  return res.status(200).json({ ok: true, exp_type: expType, created: existingRow < 0 });
+}
+
+// ── LUL Pass Holders admin (Phase 2b) ───────────────────────
+//
+// Sheet1 schema (from existing Apps Script):
+//   A Experience Type | B Name | C Email | D Parent Email
+//   E Email Sent | F Fulfilled | G Token | H Active? (checkbox)
+//   I Date Sent | J Selections Locked | K Selected Sessions
+//   L Date Locked | M Date First Clicked | N Notes
+//
+// Status computation:
+//   - Active=NO              → cancelled
+//   - Active=YES, Locked=NO  → active   (issued, no selections yet)
+//   - Active=YES, Locked=YES, attendance < required → locked-in
+//   - Active=YES, Locked=YES, attendance >= required → used (attended all)
+//
+// "Attended" = unique session_ids in LUL_Attendance (col D) for the
+// student's email (col B) that match one of the student's selected
+// session ids (Sheet1 col K).
+
+async function readSheet1(token) {
+  const sheet = await batchGet(token, ['Sheet1!A:N']);
+  return (sheet && sheet.valueRanges && sheet.valueRanges[0] && sheet.valueRanges[0].values) || [];
+}
+
+async function readAttendance(token) {
+  const sheet = await batchGet(token, ['LUL_Attendance!A:H']);
+  return (sheet && sheet.valueRanges && sheet.valueRanges[0] && sheet.valueRanges[0].values) || [];
+}
+
+async function findRowByToken(token, passToken) {
+  const rows = await readSheet1(token);
+  for (let i = 1; i < rows.length; i++) {
+    if ((rows[i][6] || '').toString().trim() === passToken) {
+      return { row: rows[i], rowIndex: i, allRows: rows };
+    }
+  }
+  return { row: null, rowIndex: -1, allRows: rows };
+}
+
+function computePassStatus(pass, types, attendanceByEmail) {
+  if (!pass.active) return { status: 'cancelled', days_left: null };
+
+  let daysLeft = null;
+  if (pass.date_sent_ms != null) {
+    const expiresMs = pass.date_sent_ms + 30 * 86400000;
+    daysLeft = Math.ceil((expiresMs - Date.now()) / 86400000);
+  }
+
+  if (!pass.selections_locked) return { status: 'active', days_left: daysLeft };
+
+  const cfg = modeForType(types, pass.exp_type);
+  const required = cfg.pick_count != null
+    ? cfg.pick_count
+    : (pass.selected_session_ids.length || 1);
+
+  const emailKey = (pass.email || '').toLowerCase();
+  const attended = (attendanceByEmail[emailKey] || []).filter(sid =>
+    pass.selected_session_ids.indexOf(sid) >= 0
+  );
+  const attendedUnique = Array.from(new Set(attended));
+
+  if (attendedUnique.length >= required) return { status: 'used',     days_left: daysLeft };
+  return                                          { status: 'locked-in', days_left: daysLeft };
+}
+
+async function handleLoungePassesList(req, res) {
+  let token, sheet1Rows, attendanceRows, types;
+  try {
+    token = await getAccessToken();
+    [sheet1Rows, attendanceRows, types] = await Promise.all([
+      readSheet1(token),
+      readAttendance(token),
+      readPassTypes(token)
+    ]);
+  } catch (err) {
+    console.error('lounge-passes-list:', err.message);
+    return res.status(500).json({ error: 'server_error' });
+  }
+
+  const attendanceByEmail = {};
+  for (let i = 1; i < attendanceRows.length; i++) {
+    const r = attendanceRows[i] || [];
+    const emailKey = (r[1] || '').toString().toLowerCase().trim();
+    const sid      = (r[3] || '').toString().trim();
+    if (!emailKey || !sid) continue;
+    (attendanceByEmail[emailKey] = attendanceByEmail[emailKey] || []).push(sid);
+  }
+
+  const passes = [];
+  for (let i = 1; i < sheet1Rows.length; i++) {
+    const r = sheet1Rows[i] || [];
+    const expType    = (r[0] || '').toString().trim();
+    const name       = (r[1] || '').toString().trim();
+    const email      = (r[2] || '').toString().trim();
+    if (!expType && !name && !email) continue;
+
+    const dateSentRaw = (r[8] || '').toString();
+    const selected    = (r[10] || '').toString().trim();
+    const selectedIds = selected ? selected.split(/[,\s]+/).map(s => s.trim()).filter(Boolean) : [];
+
+    const pass = {
+      row_index:           i + 1,
+      exp_type:            expType,
+      name:                name,
+      email:               email,
+      parent_email:        (r[3] || '').toString().trim(),
+      email_sent:          (r[4] || '').toString().trim(),
+      fulfilled:           (r[5] || '').toString().trim(),
+      token:               (r[6] || '').toString().trim(),
+      active:              isYesish(r[7]),
+      date_sent:           toYMD(dateSentRaw),
+      date_sent_ms:        parseSheetDateMs(dateSentRaw),
+      selections_locked:   isYesish(r[9]),
+      selected_session_ids: selectedIds,
+      date_locked:         toYMD(r[11]),
+      first_clicked:       toYMD(r[12]),
+      notes:               (r[13] || '').toString()
+    };
+
+    const computed = computePassStatus(pass, types, attendanceByEmail);
+    pass.status     = computed.status;
+    pass.days_left  = computed.days_left;
+    passes.push(pass);
+  }
+
+  return res.status(200).json({ passes, types });
+}
+
+async function handleLoungePassCreate(req, res) {
+  if (req.method !== 'POST') return res.status(405).json({ error: 'method_not_allowed' });
+
+  let body;
+  try { body = await readJsonBody(req); }
+  catch (e) { return res.status(400).json({ error: 'bad_json' }); }
+
+  const name        = (body.name || '').toString().trim();
+  const email       = (body.email || '').toString().trim();
+  const parentEmail = (body.parent_email || '').toString().trim();
+  const expType     = (body.exp_type || '').toString().trim();
+  const notes       = (body.notes || '').toString();
+
+  if (!name)    return res.status(400).json({ error: 'bad_request', detail: 'name required' });
+  if (!email)   return res.status(400).json({ error: 'bad_request', detail: 'email required' });
+  if (!expType) return res.status(400).json({ error: 'bad_request', detail: 'exp_type required' });
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    return res.status(400).json({ error: 'bad_request', detail: 'invalid email' });
+  }
+  if (parentEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(parentEmail)) {
+    return res.status(400).json({ error: 'bad_request', detail: 'invalid parent email' });
+  }
+
+  let accessToken, types;
+  try {
+    accessToken = await getAccessToken('https://www.googleapis.com/auth/spreadsheets');
+    types = await readPassTypes(accessToken);
+  } catch (err) {
+    console.error('pass-create init:', err.message);
+    return res.status(500).json({ error: 'server_error' });
+  }
+
+  const cfg      = modeForType(types, expType);
+  const newToken = generateToken();
+  const today    = todayYMD();
+
+  // Apps Script's onSheetEdit doesn't fire for API writes, but we still
+  // mark Email Sent='Yes' so a later USER edit on a different row can't
+  // make sendPendingEmails() re-send this one.
+  const row = [
+    expType,     // A
+    name,        // B
+    email,       // C
+    parentEmail, // D
+    'Yes',       // E Email Sent
+    '',          // F Fulfilled
+    newToken,    // G Token
+    true,        // H Active (boolean checkbox)
+    today,       // I Date Sent
+    'NO',        // J Selections Locked
+    '',          // K Selected Sessions
+    '',          // L Date Locked
+    '',          // M Date First Clicked
+    notes        // N Notes
+  ];
+
+  try {
+    await sheetsAppend(accessToken, 'Sheet1!A:N', [row]);
+  } catch (err) {
+    console.error('pass-create write:', err.message);
+    return res.status(500).json({ error: 'server_error', detail: 'sheet write failed' });
+  }
+
+  // Send the welcome email via Intercom
+  try {
+    const { sendWelcomeEmail } = require('../_lib/lul-email.js');
+    await sendWelcomeEmail({
+      name, email, parentEmail, expType, mode: cfg.mode, token: newToken
+    });
+  } catch (err) {
+    const msg = err.message || String(err);
+    console.error('pass-create email:', msg);
+
+    // Best-effort: append failure note so admin sees it. Find the row we
+    // just appended (by token) and patch the Notes column.
+    try {
+      const { row: foundRow, rowIndex } = await findRowByToken(accessToken, newToken);
+      if (foundRow && rowIndex >= 0) {
+        const rowNum   = rowIndex + 1;
+        const existing = (foundRow[13] || '').toString();
+        const noteLine = `Welcome email failed ${chicagoYMD()}: ${msg}`;
+        const updated  = existing + (existing ? '\n' : '') + noteLine;
+        await sheetsUpdate(accessToken, `Sheet1!N${rowNum}`, [[updated]]);
+      }
+    } catch (_) { /* swallow secondary failure */ }
+
+    return res.status(502).json({
+      error: 'email_failed',
+      detail: msg,
+      token: newToken,
+      hint: 'The pass row was created, but the welcome email did not send. Click Resend to retry.'
+    });
+  }
+
+  return res.status(200).json({ ok: true, token: newToken });
+}
+
+async function handleLoungePassExtend(req, res) {
+  if (req.method !== 'POST') return res.status(405).json({ error: 'method_not_allowed' });
+
+  let body;
+  try { body = await readJsonBody(req); }
+  catch (e) { return res.status(400).json({ error: 'bad_json' }); }
+
+  const passToken = (body.token || '').toString().trim();
+  const newExpiry = (body.new_expiry || '').toString().trim();
+  if (!passToken) return res.status(400).json({ error: 'bad_request', detail: 'token required' });
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(newExpiry)) {
+    return res.status(400).json({ error: 'bad_request', detail: 'new_expiry must be YYYY-MM-DD' });
+  }
+
+  // Apps Script's expireOldTokens kills passes >30 days since Date Sent.
+  // To make a pass expire on `newExpiry`, set Date Sent = newExpiry − 30 days.
+  const expMs   = Date.UTC(+newExpiry.slice(0, 4), +newExpiry.slice(5, 7) - 1, +newExpiry.slice(8, 10));
+  const newSent = new Date(expMs - 30 * 86400000).toISOString().slice(0, 10);
+
+  let accessToken;
+  try { accessToken = await getAccessToken('https://www.googleapis.com/auth/spreadsheets'); }
+  catch (err) { console.error('pass-extend token:', err.message); return res.status(500).json({ error: 'server_error' }); }
+
+  let foundRow, rowIndex;
+  try {
+    const r = await findRowByToken(accessToken, passToken);
+    foundRow = r.row; rowIndex = r.rowIndex;
+  } catch (err) {
+    console.error('pass-extend read:', err.message);
+    return res.status(500).json({ error: 'server_error' });
+  }
+  if (!foundRow) return res.status(404).json({ error: 'not_found' });
+
+  const rowNum = rowIndex + 1;
+  try {
+    // Reactivate (in case it was previously expired) AND bump Date Sent
+    await sheetsUpdate(accessToken, `Sheet1!H${rowNum}:I${rowNum}`, [[true, newSent]]);
+
+    const existing = (foundRow[13] || '').toString();
+    const noteLine = `Extended ${chicagoYMD()} → expires ${newExpiry}`;
+    const updated  = existing + (existing ? '\n' : '') + noteLine;
+    await sheetsUpdate(accessToken, `Sheet1!N${rowNum}`, [[updated]]);
+  } catch (err) {
+    console.error('pass-extend write:', err.message);
+    return res.status(500).json({ error: 'server_error' });
+  }
+
+  return res.status(200).json({ ok: true, new_expiry: newExpiry, new_date_sent: newSent });
+}
+
+async function handleLoungePassResend(req, res) {
+  if (req.method !== 'POST') return res.status(405).json({ error: 'method_not_allowed' });
+
+  let body;
+  try { body = await readJsonBody(req); }
+  catch (e) { return res.status(400).json({ error: 'bad_json' }); }
+
+  const passToken = (body.token || '').toString().trim();
+  if (!passToken) return res.status(400).json({ error: 'bad_request', detail: 'token required' });
+
+  let accessToken, types;
+  try {
+    accessToken = await getAccessToken('https://www.googleapis.com/auth/spreadsheets');
+    types = await readPassTypes(accessToken);
+  } catch (err) {
+    console.error('pass-resend init:', err.message);
+    return res.status(500).json({ error: 'server_error' });
+  }
+
+  const { row: foundRow, rowIndex } = await findRowByToken(accessToken, passToken);
+  if (!foundRow) return res.status(404).json({ error: 'not_found' });
+
+  const expType     = (foundRow[0] || '').toString().trim();
+  const name        = (foundRow[1] || '').toString().trim();
+  const email       = (foundRow[2] || '').toString().trim();
+  const parentEmail = (foundRow[3] || '').toString().trim();
+  if (!email) return res.status(400).json({ error: 'bad_request', detail: 'no email on row' });
+
+  const cfg = modeForType(types, expType);
+
+  try {
+    const { sendWelcomeEmail } = require('../_lib/lul-email.js');
+    await sendWelcomeEmail({
+      name, email, parentEmail, expType, mode: cfg.mode, token: passToken
+    });
+  } catch (err) {
+    console.error('pass-resend email:', err.message);
+    return res.status(502).json({ error: 'email_failed', detail: err.message });
+  }
+
+  // Stamp Email Sent='Yes' (in case it was 'FAILED' or empty) and append note
+  try {
+    const rowNum   = rowIndex + 1;
+    await sheetsUpdate(accessToken, `Sheet1!E${rowNum}`, [['Yes']]);
+    const existing = (foundRow[13] || '').toString();
+    const noteLine = `Resent ${chicagoYMD()}`;
+    const updated  = existing + (existing ? '\n' : '') + noteLine;
+    await sheetsUpdate(accessToken, `Sheet1!N${rowNum}`, [[updated]]);
+  } catch (_) { /* secondary; ignore */ }
+
+  return res.status(200).json({ ok: true });
+}
+
+async function handleLoungePassCancel(req, res) {
+  if (req.method !== 'POST') return res.status(405).json({ error: 'method_not_allowed' });
+
+  let body;
+  try { body = await readJsonBody(req); }
+  catch (e) { return res.status(400).json({ error: 'bad_json' }); }
+
+  const passToken = (body.token || '').toString().trim();
+  if (!passToken) return res.status(400).json({ error: 'bad_request', detail: 'token required' });
+
+  const session = getSession(req);
+  const adminEmail = (session && session.email) || 'admin';
+
+  let accessToken;
+  try { accessToken = await getAccessToken('https://www.googleapis.com/auth/spreadsheets'); }
+  catch (err) { console.error('pass-cancel token:', err.message); return res.status(500).json({ error: 'server_error' }); }
+
+  const { row: foundRow, rowIndex } = await findRowByToken(accessToken, passToken);
+  if (!foundRow) return res.status(404).json({ error: 'not_found' });
+
+  const rowNum   = rowIndex + 1;
+  const existing = (foundRow[13] || '').toString();
+  const noteLine = `Cancelled ${chicagoYMD()} by ${adminEmail}`;
+  const updated  = existing + (existing ? '\n' : '') + noteLine;
+
+  try {
+    await sheetsUpdate(accessToken, `Sheet1!H${rowNum}`, [[false]]);
+    await sheetsUpdate(accessToken, `Sheet1!N${rowNum}`, [[updated]]);
+  } catch (err) {
+    console.error('pass-cancel write:', err.message);
+    return res.status(500).json({ error: 'server_error' });
+  }
+
+  return res.status(200).json({ ok: true });
+}
+
 // ── Dispatch ────────────────────────────────────────────────
 module.exports = async (req, res) => {
   res.setHeader('Cache-Control', 'no-store');
@@ -1465,6 +2002,13 @@ module.exports = async (req, res) => {
     case 'admin-remove':          return handleAdminRemove(req, res);
     case 'lounge-sessions-list':  return handleLoungeSessionsList(req, res);
     case 'lounge-session-save':   return handleLoungeSessionSave(req, res);
+    case 'lounge-pass-types-list':return handleLoungePassTypesList(req, res);
+    case 'lounge-pass-type-save': return handleLoungePassTypeSave(req, res);
+    case 'lounge-passes-list':    return handleLoungePassesList(req, res);
+    case 'lounge-pass-create':    return handleLoungePassCreate(req, res);
+    case 'lounge-pass-extend':    return handleLoungePassExtend(req, res);
+    case 'lounge-pass-resend':    return handleLoungePassResend(req, res);
+    case 'lounge-pass-cancel':    return handleLoungePassCancel(req, res);
     default:                      return res.status(404).json({ error: 'not_found', detail: action });
   }
 };
