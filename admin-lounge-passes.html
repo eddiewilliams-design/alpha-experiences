@@ -85,6 +85,27 @@ body{font-family:'Nunito Sans',sans-serif;background:var(--aa-white);min-height:
 .status-cancelled{background:var(--aa-light-grey);color:var(--aa-dark-grey);}
 .status-expiring{background:var(--aa-light-yellow);color:#6b3a00;}
 
+/* Inline notes editor (auto-save, sits below each pass row) */
+.pass-notes{
+  grid-column: 1 / -1;
+  margin-top:10px;
+  display:flex;flex-direction:column;gap:4px;
+}
+.pass-notes textarea{
+  width:100%;font-family:inherit;font-size:12px;color:var(--aa-navy);
+  border:1.5px solid var(--aa-light-grey);border-radius:8px;
+  padding:7px 10px;
+  background:var(--aa-light-grey);
+  resize:none;line-height:1.5;
+  transition:background 0.15s, border-color 0.15s;
+}
+.pass-notes textarea::placeholder{color:var(--aa-dark-grey);font-style:italic;}
+.pass-notes textarea:focus{outline:none;background:#fff;border-color:var(--aa-blue);}
+.pass-notes-status{font-size:9px;font-weight:800;color:var(--aa-dark-grey);min-height:11px;letter-spacing:0.05em;text-transform:uppercase;}
+.pass-notes-status.saving{color:var(--aa-dark-grey);}
+.pass-notes-status.saved{color:#1a5205;}
+.pass-notes-status.err{color:#b91c1c;}
+
 /* Click log modal: grouped-by-session view */
 .att-list{display:flex;flex-direction:column;gap:10px;}
 .att-group{background:var(--aa-light-grey);border-radius:12px;overflow:hidden;border:1.5px solid var(--aa-med-grey);}
@@ -639,10 +660,100 @@ function renderPasses(){
     }
 
     row.appendChild(actions);
+
+    // Inline notes — spans the whole row width via grid-column: 1 / -1
+    if (p.token) {
+      row.appendChild(buildNotesField(p));
+    }
+
     table.appendChild(row);
   });
 
   list.appendChild(table);
+}
+
+// ── Inline notes (auto-saves on blur + 700ms debounce) ──
+function autoResize(ta){
+  ta.style.height = 'auto';
+  ta.style.height = Math.max(34, ta.scrollHeight + 2) + 'px';
+}
+function buildNotesField(p){
+  var wrap = document.createElement('div');
+  wrap.className = 'pass-notes';
+
+  var ta = document.createElement('textarea');
+  ta.placeholder = 'Add a note about this pass holder… (auto-saves)';
+  ta.value = p.notes || '';
+  ta.rows = 1;
+
+  var status = document.createElement('div');
+  status.className = 'pass-notes-status';
+
+  var saveTimer = null;
+  var lastSaved = ta.value;
+  var inFlight  = false;
+
+  async function doSave(){
+    if (saveTimer) { clearTimeout(saveTimer); saveTimer = null; }
+    var current = ta.value;
+    if (current === lastSaved || inFlight) return;
+    inFlight = true;
+    status.textContent = 'Saving…';
+    status.className = 'pass-notes-status saving';
+    try {
+      var r = await fetch('/api/admin/lounge-pass-update', {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token: p.token, notes: current })
+      });
+      if (r.status !== 200) {
+        var d = {}; try { d = await r.json(); } catch(_) {}
+        throw new Error(d.detail || d.error || ('save failed (' + r.status + ')'));
+      }
+      lastSaved = current;
+      p.notes = current;
+      status.textContent = '✓ saved';
+      status.className = 'pass-notes-status saved';
+      setTimeout(function(){
+        if (lastSaved === ta.value && status.classList.contains('saved')) {
+          status.textContent = '';
+          status.className = 'pass-notes-status';
+        }
+      }, 2500);
+    } catch (e) {
+      status.textContent = '× ' + (e.message || 'failed');
+      status.className = 'pass-notes-status err';
+    } finally {
+      inFlight = false;
+      // If user kept typing during the save, schedule another
+      if (ta.value !== lastSaved) scheduleSave();
+    }
+  }
+
+  function scheduleSave(){
+    if (saveTimer) clearTimeout(saveTimer);
+    saveTimer = setTimeout(doSave, 700);
+  }
+
+  ta.addEventListener('input', function(){
+    autoResize(ta);
+    if (ta.value !== lastSaved) {
+      status.textContent = 'Editing…';
+      status.className = 'pass-notes-status saving';
+    }
+    scheduleSave();
+  });
+  ta.addEventListener('blur', function(){
+    if (ta.value !== lastSaved) doSave();
+  });
+
+  // Resize once mounted (scrollHeight needs the element to be in the DOM)
+  setTimeout(function(){ autoResize(ta); }, 0);
+
+  wrap.appendChild(ta);
+  wrap.appendChild(status);
+  return wrap;
 }
 
 // ── Fulfilled chip (inline editable, auto-saves) ──

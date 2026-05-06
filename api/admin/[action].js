@@ -1949,21 +1949,27 @@ async function handleLoungePassUpdate(req, res) {
   const passToken = (body.token || '').toString().trim();
   if (!passToken) return res.status(400).json({ error: 'bad_request', detail: 'token required' });
 
-  // Currently supports updating Fulfilled (col F). Extensible: add more fields here.
+  // Supports updating Fulfilled (col F) and/or Notes (col N).
   const fulfilledRaw = body.fulfilled;
-  const VALID_FULFILLED = ['Yes', 'No', 'Pending', ''];
   let fulfilled = null;
   if (fulfilledRaw !== undefined) {
     fulfilled = String(fulfilledRaw || '').trim();
-    // Normalize casing (Yes/No/Pending)
-    if (fulfilled.toLowerCase() === 'yes')     fulfilled = 'Yes';
-    else if (fulfilled.toLowerCase() === 'no') fulfilled = 'No';
+    if (fulfilled.toLowerCase() === 'yes')          fulfilled = 'Yes';
+    else if (fulfilled.toLowerCase() === 'no')      fulfilled = 'No';
     else if (fulfilled.toLowerCase() === 'pending') fulfilled = 'Pending';
-    else if (fulfilled === '')                 fulfilled = '';
+    else if (fulfilled === '')                      fulfilled = '';
     else return res.status(400).json({ error: 'bad_request', detail: 'fulfilled must be Yes / No / Pending / blank' });
   }
 
-  if (fulfilled === null) {
+  let notes = null;
+  if (body.notes !== undefined) {
+    notes = String(body.notes == null ? '' : body.notes);
+    if (notes.length > 4000) {
+      return res.status(400).json({ error: 'bad_request', detail: 'notes too long (max 4000 chars)' });
+    }
+  }
+
+  if (fulfilled === null && notes === null) {
     return res.status(400).json({ error: 'bad_request', detail: 'no fields to update' });
   }
 
@@ -1978,6 +1984,9 @@ async function handleLoungePassUpdate(req, res) {
   try {
     if (fulfilled !== null) {
       await sheetsUpdate(accessToken, `Sheet1!F${rowNum}`, [[fulfilled]]);
+    }
+    if (notes !== null) {
+      await sheetsUpdate(accessToken, `Sheet1!N${rowNum}`, [[notes]]);
     }
   } catch (err) {
     console.error('pass-update write:', err.message);
