@@ -2381,18 +2381,31 @@ async function handleLoungeAttendanceStats(req, res) {
     .map(([exp_type, count]) => ({ exp_type, count }))
     .sort((a, b) => b.count - a.count);
 
-  // Recent activity: last 50 clicks chronologically
-  const recent = clicks
+  // Recent activity: last 50 unique student/session/day combos.
+  // Multiple clicks on the same session by the same student on the same
+  // day collapse into one row with a click_count badge — keeps the
+  // dashboard signal-dense (per-click detail lives in Pass Holders → Click log).
+  const recentMap = new Map();
+  clicks
     .filter(c => c.ts_ms != null)
     .sort((a, b) => b.ts_ms - a.ts_ms)
-    .slice(0, 50)
-    .map(c => ({
-      clicked_at:   c.ts_iso,
-      email:        c.email,
-      session_id:   c.session_id,
-      session_name: c.session_name || sessionNameById[c.session_id] || c.session_id || '(unknown)',
-      in_picks:     c.in_picks
-    }));
+    .forEach(c => {
+      const day = new Date(c.ts_ms).toISOString().slice(0, 10);
+      const key = c.email + '|' + (c.session_id || c.session_name || '?') + '|' + day;
+      if (recentMap.has(key)) {
+        recentMap.get(key).click_count++;
+      } else {
+        recentMap.set(key, {
+          clicked_at:   c.ts_iso,
+          email:        c.email,
+          session_id:   c.session_id,
+          session_name: c.session_name || sessionNameById[c.session_id] || c.session_id || '(unknown)',
+          in_picks:     c.in_picks,
+          click_count:  1
+        });
+      }
+    });
+  const recent = Array.from(recentMap.values()).slice(0, 50);
 
   return res.status(200).json({
     period,

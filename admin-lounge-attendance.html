@@ -115,6 +115,7 @@ body{font-family:'Nunito Sans',sans-serif;background:var(--aa-white);min-height:
 .recent-when{color:var(--aa-navy);font-weight:700;}
 .recent-email{color:var(--aa-navy);overflow-wrap:anywhere;}
 .recent-session{color:var(--aa-navy);overflow-wrap:anywhere;}
+.recent-click-count{display:inline-block;margin-left:8px;font-size:10px;font-weight:800;color:var(--aa-dark-grey);background:var(--aa-light-grey);border-radius:999px;padding:1px 8px;letter-spacing:0.04em;}
 .recent-tag{font-size:10px;font-weight:800;letter-spacing:0.05em;text-transform:uppercase;padding:3px 9px;border-radius:999px;text-align:center;justify-self:start;}
 .recent-tag.in{background:var(--aa-light-green);color:#1a5205;}
 .recent-tag.out{background:var(--aa-light-yellow);color:#6b3a00;}
@@ -211,8 +212,8 @@ body{font-family:'Nunito Sans',sans-serif;background:var(--aa-white);min-height:
       <div class="section-head">
         <div class="section-title">Attendance by session</div>
         <div class="bar-legend">
-          <span><span class="legend-dot in"></span>In picks</span>
-          <span><span class="legend-dot out"></span>Outside picks</span>
+          <span><span class="legend-dot in"></span>Picked</span>
+          <span><span class="legend-dot out"></span>Not picked</span>
         </div>
       </div>
       <div id="per-session-chart"></div>
@@ -391,7 +392,7 @@ function renderPerSession(){
     var val = document.createElement('div');
     val.className = 'bar-value';
     val.innerHTML = r.total + ' attendee' + (r.total === 1 ? '' : 's') +
-      (r.outside_picks ? '<span class="bar-value-sub">' + r.in_picks + ' in · ' + r.outside_picks + ' out</span>' : '');
+      (r.outside_picks ? '<span class="bar-value-sub">' + r.in_picks + ' picked · ' + r.outside_picks + ' not picked</span>' : '');
     row.appendChild(val);
 
     chart.appendChild(row);
@@ -515,11 +516,25 @@ function renderRecent(){
     row.className = 'recent-row';
     var when = document.createElement('div'); when.className = 'recent-when col-when'; when.textContent = fmtClickTime(r.clicked_at); row.appendChild(when);
     var em   = document.createElement('div'); em.className   = 'recent-email'; em.textContent = r.email; row.appendChild(em);
-    var ss   = document.createElement('div'); ss.className   = 'recent-session col-session'; ss.textContent = r.session_name; row.appendChild(ss);
+
+    var ss = document.createElement('div');
+    ss.className = 'recent-session col-session';
+    var sessName = document.createElement('span');
+    sessName.textContent = r.session_name;
+    ss.appendChild(sessName);
+    if (r.click_count && r.click_count > 1) {
+      var badge = document.createElement('span');
+      badge.className = 'recent-click-count';
+      badge.textContent = '× ' + r.click_count;
+      badge.title = r.click_count + ' clicks on this session today';
+      ss.appendChild(badge);
+    }
+    row.appendChild(ss);
+
     var tag  = document.createElement('div');
     var tagSpan = document.createElement('span');
     tagSpan.className = 'recent-tag ' + (r.in_picks ? 'in' : 'out');
-    tagSpan.textContent = r.in_picks ? 'in picks' : 'outside';
+    tagSpan.textContent = r.in_picks ? 'picked' : 'not picked';
     tag.appendChild(tagSpan);
     row.appendChild(tag);
     el.appendChild(row);
