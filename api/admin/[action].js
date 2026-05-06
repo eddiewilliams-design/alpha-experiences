@@ -1271,6 +1271,39 @@ async function handleAdminRemove(req, res) {
 
 const VALID_DAYS = ['SUN','MON','TUE','WED','THU','FRI','SAT'];
 
+// Sheets returns dates in whatever format the cell uses (e.g.
+// "5/25/2026", or a serial number like 46172, or already
+// "2026-05-25" for text-formatted cells). Normalize to YYYY-MM-DD
+// so HTML <input type="date"> can populate from it.
+function toYMD(val) {
+  if (val === null || val === undefined) return '';
+  const s = String(val).trim();
+  if (!s) return '';
+
+  // Already YYYY-MM-DD?
+  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
+
+  // Serial number (days since 1899-12-30)?
+  if (/^\d+(\.\d+)?$/.test(s)) {
+    const serial = parseFloat(s);
+    const ms = Date.UTC(1899, 11, 30) + serial * 86400000;
+    return new Date(ms).toISOString().slice(0, 10);
+  }
+
+  // M/D/YYYY or MM/DD/YYYY (US format Sheets often returns)?
+  const m1 = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  if (m1) {
+    const mm = String(m1[1]).padStart(2, '0');
+    const dd = String(m1[2]).padStart(2, '0');
+    return `${m1[3]}-${mm}-${dd}`;
+  }
+
+  // Last-resort Date parse — emit UTC date components to avoid TZ drift
+  const d = new Date(s);
+  if (isNaN(d.getTime())) return '';
+  return d.toISOString().slice(0, 10);
+}
+
 async function handleLoungeSessionsList(req, res) {
   let rows;
   try {
@@ -1297,8 +1330,8 @@ async function handleLoungeSessionsList(req, res) {
       link:           (r[6]  || '').toString(),
       session_id:     (r[7]  || '').toString(),
       active:         ((r[8] || 'YES').toString().toUpperCase() !== 'NO'),
-      blackout_start: (r[9]  || '').toString(),
-      blackout_end:   (r[10] || '').toString()
+      blackout_start: toYMD(r[9]),
+      blackout_end:   toYMD(r[10])
     });
   }
   return res.status(200).json({ sessions });
