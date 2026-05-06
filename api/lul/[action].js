@@ -321,12 +321,251 @@ async function handleLoungeData(req, res) {
   return res.status(200).json({ passes, sessions });
 }
 
+// ── readJsonBody helper ───────────────────────────────────
+function readJsonBody(req) {
+  return new Promise((resolve, reject) => {
+    if (req.body && typeof req.body === 'object') return resolve(req.body);
+    if (typeof req.body === 'string') { try { return resolve(JSON.parse(req.body)); } catch (e) {} }
+    let d = '';
+    req.on('data', c => d += c);
+    req.on('end',  () => { try { resolve(d ? JSON.parse(d) : {}); } catch (e) { reject(e); } });
+    req.on('error', reject);
+  });
+}
+
+// ── PUT helper for writing to Sheets ───────────────────────
+function putSheet(url, body, accessToken) {
+  return new Promise((resolve, reject) => {
+    const buf = Buffer.from(JSON.stringify(body));
+    const req = https.request(url, {
+      method: 'PUT',
+      headers: {
+        'Authorization': 'Bearer ' + accessToken,
+        'Content-Type':  'application/json',
+        'Content-Length': buf.length
+      }
+    }, res => {
+      let d = '';
+      res.on('data', c => d += c);
+      res.on('end',  () => {
+        if (res.statusCode < 200 || res.statusCode >= 300) {
+          return reject(new Error('PUT ' + res.statusCode + ': ' + d));
+        }
+        try { resolve(JSON.parse(d)); } catch (e) { reject(e); }
+      });
+    });
+    req.on('error', reject); req.write(buf); req.end();
+  });
+}
+
+// ── Find a Sheet1 row by token (col G). Returns { row, rowIndex } or null. ─
+function findPassByToken(passRows, passToken) {
+  for (let i = 1; i < passRows.length; i++) {
+    if ((passRows[i][6] || '').toString().trim() === passToken) {
+      return { row: passRows[i], rowIndex: i + 1 };  // 1-indexed for Sheets
+    }
+  }
+  return null;
+}
+
+// ── Build a session object with time-lock state — used by pick-data ─
+function buildSessionWithLock(r, includeRegardless) {
+  const sid = (r[7] || '').toString().trim();
+  if (!sid) return null;
+  const active = (r[8] || '').toString().toUpperCase().trim();
+  const blackedOut = inBlackoutWindow(r[9], r[10]);
+  if (!includeRegardless) {
+    if (active && active !== 'YES') return null;
+    if (blackedOut) return null;
+  }
+
+  const day  = (r[3] || '').toString();
+  const time = (r[4] || '').toString();
+  const link = (r[6] || '').toString().trim();
+  const startUtc = nextOccurrenceUtcMs(day, time);
+  const UNLOCK_BEFORE_MS = 15 * 60 * 1000;
+  const LOCK_AFTER_MS    = 45 * 60 * 1000;
+  const nowMs = Date.now();
+  const isUnlocked = startUtc !== null
+    && nowMs >= (startUtc - UNLOCK_BEFORE_MS)
+    && nowMs <= (startUtc + LOCK_AFTER_MS);
+
+  return {
+    session_id:  sid,
+    name:        (r[0] || '').toString(),
+    emoji:       (r[1] || '').toString(),
+    coach:       (r[2] || '').toString(),
+    day:         day,
+    time:        time,
+    description: (r[5] || '').toString(),
+    link:        isUnlocked ? link : '',
+    is_unlocked: isUnlocked,
+    session_start_iso: startUtc !== null ? new Date(startUtc).toISOString() : null,
+    blacked_out: blackedOut
+  };
+}
+
+// ── handlePickData ────────────────────────────────────────
+// GET /api/lul/pick-data?pass=<token>
+// Returns the pass + this week's sessions for the picker UI.
+// Token is a row LOCATOR, not a credential — auth still requires
+// a signed-in session AND the row's email must match.
+async function handlePickData(req, res) {
+  const session = getSession(req);
+  if (!session) return res.status(401).json({ error: 'not_authenticated' });
+  const myEmail = (session.email || '').toLowerCase().trim();
+
+  const passToken = (req.query.pass || '').toString().trim();
+  if (!passToken) return res.status(400).json({ error: 'bad_request', detail: 'pass token required' });
+
+  try {
+    const token = await getAccessToken();
+    const sheet = await batchGet(token, [PASS_RANGE, SESSIONS_RANGE]);
+    const ranges = (sheet && sheet.valueRanges) || [];
+    const passRows    = (ranges[0] && ranges[0].values) || [];
+    const sessionRows = (ranges[1] && ranges[1].values) || [];
+
+    const found = findPassByToken(passRows, passToken);
+    if (!found) return res.status(404).json({ error: 'not_found' });
+
+    const rowEmail = (found.row[2] || '').toString().toLowerCase().trim();
+    if (rowEmail !== myEmail) return res.status(403).json({ error: 'forbidden' });
+
+    const r = found.row;
+    const expType  = (r[0] || '').toString();
+    const name     = (r[1] || '').toString();
+    const dateSent = (r[8] || '').toString();
+    const isActive =
+      r[7] === true || r[7] === 'TRUE' || r[7] === 'true' || r[7] === 1 || r[7] === '1';
+    const locked   = (r[9] || '').toString().toUpperCase().trim() === 'YES';
+    const savedRaw = (r[10] || '').toString().trim();
+    const savedSelections = savedRaw
+      ? savedRaw.split(',').map(s => s.trim()).filter(Boolean)
+      : [];
+    const daysLeft = daysRemainingFromSent(dateSent);
+    const expired  = !isActive || (daysLeft !== null && daysLeft < 0);
+    const mode     = passModeFromExpType(expType);
+
+    const pass = {
+      pass_token:       passToken,
+      experience_type:  expType,
+      pass_mode:        mode,
+      pass_label:       passLabelFromMode(mode),
+      name:             name,
+      first_name:       (name.split(/\s+/)[0] || '').trim(),
+      active:           isActive,
+      expired:          expired,
+      date_sent:        dateSent,
+      days_remaining:   daysLeft,
+      locked:           locked,
+      saved_selections: savedSelections
+    };
+
+    // Build sessions list. If locked, force-include the student's
+    // saved sessions even if inactive/blackout (so confirmed view
+    // can still render them).
+    const includeSet = new Set(locked ? savedSelections : []);
+    const sessions = [];
+    for (let i = 1; i < sessionRows.length; i++) {
+      const sObj = buildSessionWithLock(sessionRows[i], includeSet.has((sessionRows[i][7] || '').toString().trim()));
+      if (sObj) sessions.push(sObj);
+    }
+
+    // Order by day-of-week then by time string
+    const dayOrder = { 'mon':1,'monday':1,'tue':2,'tuesday':2,'wed':3,'wednesday':3,'thu':4,'thursday':4,'fri':5,'friday':5,'sat':6,'saturday':6,'sun':7,'sunday':7 };
+    sessions.sort((a, b) => {
+      const ao = dayOrder[(a.day || '').toLowerCase()] || 9;
+      const bo = dayOrder[(b.day || '').toLowerCase()] || 9;
+      if (ao !== bo) return ao - bo;
+      return (a.time || '').localeCompare(b.time || '');
+    });
+
+    return res.status(200).json({ pass, sessions });
+  } catch (err) {
+    console.error('lul pick-data error:', err.message);
+    return res.status(500).json({ error: 'server_error' });
+  }
+}
+
+// ── handleSavePick ────────────────────────────────────────
+// POST /api/lul/save-pick
+//   body: { pass: <token>, selections: [<session_id>...] }
+// Writes Sheet1 cols J=YES, K=comma-joined selections, L=timestamp.
+// Same shape as the legacy save-selections.js so data stays
+// consistent across both flows.
+async function handleSavePick(req, res) {
+  if (req.method !== 'POST') return res.status(405).json({ error: 'method_not_allowed' });
+
+  const session = getSession(req);
+  if (!session) return res.status(401).json({ error: 'not_authenticated' });
+  const myEmail = (session.email || '').toLowerCase().trim();
+
+  let body;
+  try { body = await readJsonBody(req); }
+  catch (e) { return res.status(400).json({ error: 'bad_json' }); }
+
+  const passToken  = (body.pass || '').toString().trim();
+  const selections = Array.isArray(body.selections) ? body.selections : [];
+  if (!passToken)        return res.status(400).json({ error: 'bad_request', detail: 'pass required' });
+  if (!selections.length) return res.status(400).json({ error: 'no_selections' });
+
+  let writeToken;
+  try { writeToken = await getAccessToken('https://www.googleapis.com/auth/spreadsheets'); }
+  catch (err) {
+    console.error('save-pick token error:', err.message);
+    return res.status(500).json({ error: 'server_error' });
+  }
+
+  let passRows;
+  try {
+    const sheet = await batchGet(writeToken, [PASS_RANGE]);
+    passRows = (sheet && sheet.valueRanges && sheet.valueRanges[0] && sheet.valueRanges[0].values) || [];
+  } catch (err) {
+    console.error('save-pick read error:', err.message);
+    return res.status(500).json({ error: 'server_error' });
+  }
+
+  const found = findPassByToken(passRows, passToken);
+  if (!found) return res.status(404).json({ error: 'not_found' });
+
+  const rowEmail = (found.row[2] || '').toString().toLowerCase().trim();
+  if (rowEmail !== myEmail) return res.status(403).json({ error: 'forbidden' });
+
+  // Pass-mode-specific selection count validation
+  const mode = passModeFromExpType((found.row[0] || '').toString());
+  if (mode === 'two' && selections.length !== 2) {
+    return res.status(400).json({ error: 'wrong_count', expected: 2, got: selections.length });
+  }
+  if (mode === 'celebration' && selections.length !== 1) {
+    return res.status(400).json({ error: 'wrong_count', expected: 1, got: selections.length });
+  }
+
+  const cleaned = selections.map(s => String(s).trim()).filter(Boolean).join(',');
+  const writeRange = `Sheet1!J${found.rowIndex}:L${found.rowIndex}`;
+  const writeUrl   = `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/${encodeURIComponent(writeRange)}?valueInputOption=USER_ENTERED`;
+
+  try {
+    await putSheet(writeUrl, {
+      range: writeRange,
+      majorDimension: 'ROWS',
+      values: [[ 'YES', cleaned, new Date().toISOString() ]]
+    }, writeToken);
+  } catch (err) {
+    console.error('save-pick write error:', err.message);
+    return res.status(500).json({ error: 'server_error' });
+  }
+
+  return res.status(200).json({ ok: true });
+}
+
 // ── Dispatch ────────────────────────────────────────────────
 module.exports = async (req, res) => {
   res.setHeader('Cache-Control', 'no-store');
   const action = (req.query.action || '').toString();
   switch (action) {
     case 'lounge-data': return handleLoungeData(req, res);
+    case 'pick-data':   return handlePickData(req, res);
+    case 'save-pick':   return handleSavePick(req, res);
     default:            return res.status(404).json({ error: 'not_found', detail: action });
   }
 };

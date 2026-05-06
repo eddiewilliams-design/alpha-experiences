@@ -388,11 +388,11 @@ function renderPasses(passes){
     } else if (p.locked) {
       cta.className   = 'pass-cta';
       cta.textContent = 'View my sessions →';
-      cta.href        = '/lul?token=' + encodeURIComponent(p.token);
+      cta.href        = '/lounge/pick?pass=' + encodeURIComponent(p.token);
     } else {
       cta.className   = 'pass-cta';
       cta.textContent = (p.pass_mode === 'celebration' ? 'Lock in my spot →' : 'Choose my sessions →');
-      cta.href        = '/lul?token=' + encodeURIComponent(p.token);
+      cta.href        = '/lounge/pick?pass=' + encodeURIComponent(p.token);
     }
     card.appendChild(cta);
 

@@ -1,0 +1,618 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pick Your Sessions — Level Up Lounge</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@700;800;900&family=Nunito+Sans:wght@300;400;600;700&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+:root{
+  --aa-navy:#072256;--aa-blue:#006FF9;--aa-yellow:#E59500;
+  --aa-white:#FAFAFA;--aa-light-blue:#E5F6FD;--aa-light-yellow:#FFF7E5;
+  --aa-med-grey:#DADFE7;--aa-dark-grey:#8291AA;--aa-light-grey:#EEF0F3;
+  --aa-green:#2C8707;--aa-light-green:#EEFDE8;
+}
+body{font-family:'Nunito Sans',sans-serif;background:var(--aa-white);min-height:100vh;color:var(--aa-navy);display:flex;flex-direction:column;}
+
+/* Header (portal-standard) */
+.site-header{background:var(--aa-navy);padding:16px 32px;display:flex;align-items:center;justify-content:space-between;}
+.header-logo{display:flex;align-items:center;gap:12px;}
+.logo-divider{width:1px;height:28px;background:rgba(255,255,255,0.2);}
+.logo-text-top{font-family:'Nunito',sans-serif;font-weight:900;font-size:14px;color:#fff;line-height:1.1;}
+.logo-text-sub{font-size:10px;color:rgba(255,255,255,0.5);font-weight:600;letter-spacing:0.05em;text-transform:uppercase;}
+.user-wrap{position:relative;}
+.user-chip{display:flex;align-items:center;gap:8px;background:rgba(255,255,255,0.12);border:none;border-radius:999px;padding:6px 14px 6px 7px;cursor:pointer;font-family:inherit;}
+.user-chip:hover{background:rgba(255,255,255,0.18);}
+.avatar{width:26px;height:26px;border-radius:50%;background:var(--aa-blue);display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:#fff;}
+.user-name{font-size:13px;color:rgba(255,255,255,0.85);font-weight:600;}
+.user-menu{position:absolute;top:calc(100% + 8px);right:0;background:#fff;border:1px solid var(--aa-med-grey);border-radius:12px;box-shadow:0 8px 24px rgba(7,34,86,0.15);padding:6px;min-width:180px;display:none;z-index:50;}
+.user-menu.open{display:block;}
+.user-menu-email{font-size:11px;color:var(--aa-dark-grey);padding:8px 12px 10px;border-bottom:1px solid var(--aa-light-grey);margin-bottom:6px;word-break:break-all;}
+.user-menu a{display:block;padding:9px 12px;font-size:13px;font-weight:600;color:var(--aa-navy);text-decoration:none;border-radius:8px;}
+.user-menu a:hover{background:var(--aa-light-grey);}
+
+/* Back bar */
+.back-bar{background:var(--aa-light-grey);border-bottom:1px solid var(--aa-med-grey);padding:12px 32px;}
+.back-link{font-size:13px;font-weight:700;color:var(--aa-blue);text-decoration:none;}
+.back-link:hover{text-decoration:underline;}
+
+/* Hero */
+.hero{background:var(--aa-navy);padding:32px 32px 0;text-align:center;}
+.hero-badge{display:inline-block;background:var(--aa-blue);color:#fff;font-size:11px;font-weight:700;letter-spacing:0.07em;text-transform:uppercase;padding:5px 16px;border-radius:999px;margin-bottom:14px;}
+.hero-title{font-family:'Nunito',sans-serif;font-weight:900;font-size:clamp(24px,4.5vw,32px);color:#fff;line-height:1.15;margin-bottom:12px;}
+.hero-title span{color:var(--aa-yellow);}
+.hero-sub{font-size:14px;color:var(--aa-dark-grey);line-height:1.65;max-width:480px;margin:0 auto;}
+.hero-scallop{background:var(--aa-light-grey);height:28px;border-radius:28px 28px 0 0;margin:24px -32px 0;}
+
+/* Body */
+.page-body{background:var(--aa-light-grey);padding:24px 24px 56px;flex:1;}
+.page-inner{max-width:640px;margin:0 auto;}
+
+/* Counter pips */
+.counter-bar{display:flex;align-items:center;justify-content:center;gap:12px;padding:14px 20px;border-radius:20px;margin:0 0 18px;background:#fff;border:1.5px solid var(--aa-med-grey);}
+.counter-label{font-weight:600;font-size:13px;color:var(--aa-navy);}
+.pips{display:flex;gap:7px;}
+.pip{width:12px;height:12px;border-radius:50%;background:#fff;border:2px solid var(--aa-blue);transition:all 0.2s;}
+.pip.filled{background:var(--aa-blue);}
+.counter-num{font-family:'Nunito',sans-serif;font-weight:800;font-size:15px;color:var(--aa-blue);min-width:36px;}
+
+/* Session cards */
+.sessions-grid{display:flex;flex-direction:column;gap:10px;margin-bottom:18px;}
+.session-card{display:flex;align-items:center;gap:14px;padding:16px 18px;background:#fff;border:1.5px solid var(--aa-med-grey);border-radius:16px;cursor:pointer;transition:border-color 0.18s,transform 0.12s,box-shadow 0.18s;user-select:none;}
+.session-card:hover:not(.disabled):not(.full-access-card){border-color:var(--aa-blue);box-shadow:0 3px 14px rgba(0,111,249,0.12);transform:translateY(-1px);}
+.session-card.selected{border:2px solid var(--aa-blue);background:var(--aa-light-blue);}
+.session-card.disabled{opacity:0.38;cursor:not-allowed;}
+.session-card.full-access-card{cursor:default;}
+.session-card.full-access-card:hover{transform:none;box-shadow:none;border-color:var(--aa-med-grey);}
+.checkbox-ring{width:22px;height:22px;border-radius:50%;border:2px solid var(--aa-med-grey);background:#fff;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:12px;font-weight:700;transition:all 0.2s;color:#fff;}
+.checkbox-ring.checked{background:var(--aa-blue);border-color:var(--aa-blue);}
+.session-emoji{font-size:22px;width:46px;height:46px;display:flex;align-items:center;justify-content:center;background:var(--aa-light-grey);border-radius:10px;flex-shrink:0;overflow:hidden;}
+.session-info{flex:1;min-width:0;}
+.session-name{font-family:'Nunito',sans-serif;font-weight:800;font-size:15px;color:var(--aa-navy);margin-bottom:3px;}
+.session-description{font-size:12px;color:var(--aa-dark-grey);line-height:1.45;margin-bottom:5px;word-break:break-word;}
+.session-meta{display:flex;align-items:center;gap:6px;flex-wrap:wrap;}
+.day-chip{display:inline-block;background:var(--aa-navy);color:#fff;font-weight:700;font-size:10px;padding:2px 8px;border-radius:5px;text-transform:uppercase;letter-spacing:0.05em;}
+.session-time{font-size:12px;color:var(--aa-dark-grey);}
+.join-btn{flex-shrink:0;padding:9px 18px;background:var(--aa-blue);color:#fff;border:none;border-radius:999px;font-weight:600;font-size:13px;text-decoration:none;display:inline-flex;align-items:center;gap:5px;transition:opacity 0.15s,transform 0.1s;}
+.join-btn:hover{opacity:0.88;transform:scale(1.03);}
+.join-btn.locked{flex-shrink:0;background:var(--aa-light-yellow);color:#6b3a00;border:1px solid #f0c060;font-size:11px;font-weight:700;padding:7px 12px;cursor:not-allowed;display:inline-flex;align-items:center;gap:4px;line-height:1.2;text-align:center;max-width:170px;}
+.join-btn.locked:hover{opacity:1;transform:none;}
+
+/* Note + CTA */
+.note-box{display:flex;align-items:flex-start;gap:10px;padding:12px 16px;background:var(--aa-light-yellow);border:1.5px solid var(--aa-yellow);border-radius:10px;margin-bottom:18px;font-size:13px;color:var(--aa-navy);line-height:1.55;}
+.cta-btn{width:100%;padding:16px;font-weight:700;font-size:15px;background:var(--aa-blue);color:#fff;border:none;border-radius:999px;cursor:pointer;transition:opacity 0.15s,transform 0.1s;margin-bottom:12px;font-family:inherit;}
+.cta-btn:disabled{opacity:0.3;cursor:not-allowed;}
+.cta-btn:not(:disabled):hover{opacity:0.88;transform:translateY(-1px);}
+
+/* Confirmed state */
+.confirmed-box{display:none;background:var(--aa-light-green);border:2px solid var(--aa-green);border-radius:20px;padding:24px;text-align:center;}
+.confirmed-box.visible{display:block;}
+.confirmed-icon{font-size:36px;margin-bottom:8px;}
+.confirmed-title{font-family:'Nunito',sans-serif;font-weight:900;font-size:20px;color:var(--aa-navy);margin-bottom:6px;}
+.confirmed-sub{font-size:13px;color:var(--aa-dark-grey);margin-bottom:18px;line-height:1.55;}
+.confirmed-links{display:flex;flex-direction:column;gap:8px;text-align:left;}
+.confirmed-link{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;background:#fff;border:1.5px solid var(--aa-green);border-radius:10px;text-decoration:none;color:var(--aa-navy);font-weight:600;font-size:13px;transition:background 0.15s;}
+.confirmed-link:hover{background:var(--aa-light-green);}
+.confirmed-link .arrow{font-size:14px;color:var(--aa-green);}
+
+/* Loading + error */
+.page-loading,.page-error{display:flex;align-items:center;justify-content:center;flex-direction:column;padding:80px 24px;background:var(--aa-light-grey);min-height:60vh;text-align:center;flex:1;}
+.spinner{width:32px;height:32px;border:3px solid var(--aa-med-grey);border-top-color:var(--aa-blue);border-radius:50%;animation:spin 0.7s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg);}}
+.error-icon{font-size:48px;margin-bottom:12px;}
+.error-title{font-family:'Nunito',sans-serif;font-weight:900;font-size:22px;color:var(--aa-navy);margin-bottom:8px;}
+.error-sub{font-size:14px;color:var(--aa-dark-grey);max-width:360px;line-height:1.55;margin-bottom:20px;}
+
+/* Disclaimer */
+.disclaimer{margin-top:18px;padding:10px 14px;background:var(--aa-light-yellow);border:1px solid #f0c060;border-radius:10px;font-size:11px;color:#6b3a00;line-height:1.55;font-weight:600;}
+.disclaimer strong{font-weight:800;}
+
+/* Footer */
+.site-footer{background:var(--aa-navy);padding:20px 32px;text-align:center;border-top:3px solid var(--aa-blue);margin-top:auto;}
+.footer-text{font-size:11px;color:var(--aa-dark-grey);letter-spacing:0.05em;text-transform:uppercase;margin-top:8px;}
+</style>
+</head>
+<body>
+
+<header class="site-header">
+  <div class="header-logo">
+    <svg width="32" height="32" viewBox="0 0 67 55" fill="none"><path d="M66.3126 50.8822L48.3919 1.76245C48.0093 0.703285 46.9977 0 45.867 0H20.6096C19.479 0 18.4673 0.703285 18.0848 1.76245L0.164039 50.8822C-0.473557 52.6277 0.82714 54.4749 2.68892 54.4749H25.9059C27.0366 54.4749 28.0483 53.7716 28.4308 52.7125L33.2426 39.5365L38.0543 52.7125C38.4368 53.7716 39.4485 54.4749 40.5792 54.4749H63.7962C65.658 54.4749 66.9587 52.6277 66.3211 50.8822H66.3126ZM40.9532 51.255L34.9598 34.8253L45.9945 4.58406L63.0226 51.2635H40.9532V51.255Z" fill="white"/></svg>
+    <div class="logo-divider"></div>
+    <div>
+      <div class="logo-text-top">Alpha Experiences</div>
+      <div class="logo-text-sub">Level Up Lounge</div>
+    </div>
+  </div>
+  <div class="user-wrap" id="user-wrap">
+    <button class="user-chip" id="user-chip" aria-haspopup="true" aria-expanded="false">
+      <div class="avatar" id="user-avatar">··</div>
+      <span class="user-name" id="user-handle">…</span>
+    </button>
+    <div class="user-menu" id="user-menu" role="menu">
+      <div class="user-menu-email" id="user-menu-email"></div>
+      <a href="/lounge" role="menuitem">Lounge passes</a>
+      <a href="/trips" role="menuitem">My experiences</a>
+      <a href="/auth/logout" role="menuitem">Sign out</a>
+    </div>
+  </div>
+</header>
+
+<div class="back-bar">
+  <a class="back-link" href="/lounge">← Back to my Lounge passes</a>
+</div>
+
+<div id="page-loading" class="page-loading">
+  <div class="spinner"></div>
+</div>
+
+<div id="page-error" class="page-error" style="display:none;">
+  <div class="error-icon" id="error-icon">🔒</div>
+  <p class="error-title" id="error-title">Pass not found</p>
+  <p class="error-sub" id="error-sub">We couldn't find this pass. Head back to your passes and try again.</p>
+  <a href="/lounge" class="back-link" style="background:var(--aa-blue);color:#fff;padding:10px 22px;border-radius:999px;">← Back to my passes</a>
+</div>
+
+<div id="page-content" style="display:none;">
+  <div class="hero">
+    <div class="hero-badge" id="hero-badge">Level Up Lounge</div>
+    <h1 class="hero-title" id="hero-title">Choose your <span>sessions</span></h1>
+    <p class="hero-sub" id="hero-sub">…</p>
+    <div class="hero-scallop"></div>
+  </div>
+
+  <div class="page-body">
+    <div class="page-inner">
+
+      <div class="counter-bar" id="counter-bar" style="display:none;">
+        <span class="counter-label">Sessions chosen:</span>
+        <div class="pips">
+          <div class="pip" id="pip1"></div>
+          <div class="pip" id="pip2"></div>
+        </div>
+        <span class="counter-num" id="counter-num">0 / 2</span>
+      </div>
+
+      <div class="sessions-grid" id="sessions-grid"></div>
+
+      <div class="note-box" id="note-box">
+        <span style="font-size:15px;flex-shrink:0;">⚠️</span>
+        <span id="note-text">These links are <strong>one-time use only</strong> and expire after 30 days. Click only when you're ready to enter.</span>
+      </div>
+
+      <button class="cta-btn" id="cta-btn" disabled>Lock in my sessions 🔓</button>
+
+      <div class="confirmed-box" id="confirmed-box">
+        <div class="confirmed-icon">🎉</div>
+        <p class="confirmed-title">You're all set!</p>
+        <p class="confirmed-sub">Your sessions are locked in below. Click only when you're ready to enter.</p>
+        <div class="confirmed-links" id="confirmed-links"></div>
+        <p class="disclaimer">⚠️ <strong>Click the Zoom link only when you're ready to enter</strong> — each link is one-time use and expires 30 days from when the pass was issued. All sessions are subject to coach availability.</p>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<footer class="site-footer">
+  <svg width="24" height="20" viewBox="0 0 67 55" fill="none"><path d="M66.3126 50.8822L48.3919 1.76245C48.0093 0.703285 46.9977 0 45.867 0H20.6096C19.479 0 18.4673 0.703285 18.0848 1.76245L0.164039 50.8822C-0.473557 52.6277 0.82714 54.4749 2.68892 54.4749H25.9059C27.0366 54.4749 28.0483 53.7716 28.4308 52.7125L33.2426 39.5365L38.0543 52.7125C38.4368 53.7716 39.4485 54.4749 40.5792 54.4749H63.7962C65.658 54.4749 66.9587 52.6277 66.3211 50.8822H66.3126ZM40.9532 51.255L34.9598 34.8253L45.9945 4.58406L63.0226 51.2635H40.9532V51.255Z" fill="#FAFAFA" opacity="0.4"/></svg>
+  <p class="footer-text" style="margin-top:8px;">Alpha Experiences · Level Up Lounge</p>
+</footer>
+
+<script>
+// ── State ────────────────────────────────────────────────
+var PASS_TOKEN = '';
+var PASS = null;
+var SESSIONS = [];
+var SELECTED = new Set();
+
+// ── Helpers ──────────────────────────────────────────────
+function emailHandle(e){ if(!e) return ''; var i=e.indexOf('@'); return i<0?e:e.slice(0,i); }
+function initialsFor(name, email){
+  var s = (name || emailHandle(email) || '').trim();
+  if (!s) return '··';
+  var parts = s.split(/[\s.]+/).filter(Boolean);
+  if (parts.length === 1) return (parts[0][0] || '·').toUpperCase();
+  return ((parts[0][0] || '·') + (parts[parts.length-1][0] || '')).toUpperCase();
+}
+function decodeHtmlEntities(str){
+  if (!str) return '';
+  var t = document.createElement('textarea');
+  t.innerHTML = String(str);
+  return t.value;
+}
+function firstGrapheme(s){
+  if (!s) return '';
+  var str = String(s);
+  if (typeof Intl !== 'undefined' && Intl.Segmenter) {
+    try {
+      var seg = new Intl.Segmenter(undefined, { granularity:'grapheme' });
+      var it = seg.segment(str)[Symbol.iterator]();
+      var first = it.next();
+      if (!first.done) return first.value.segment;
+    } catch (e) {}
+  }
+  var cp = str.codePointAt(0);
+  return cp ? String.fromCodePoint(cp) : '';
+}
+function esc(s){
+  return String(s||'').replace(/[&<>"']/g, function(c){
+    return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];
+  });
+}
+function passEmojiOnly(raw){
+  return firstGrapheme(decodeHtmlEntities(raw)) || '🎮';
+}
+
+// Local-TZ time formatting (mirrors lul.html / lounge.html)
+function fmtSessionTimes(s) {
+  var rawTime = s.time || '';
+  var rawDay  = s.day  || '';
+  var fallback = { dayChip: rawDay, timeLine: rawTime, unlockAtLine: 'Unlocks 15 min before start' };
+  if (!s.session_start_iso) return fallback;
+  var startMs = Date.parse(s.session_start_iso);
+  if (isNaN(startMs)) return fallback;
+  var unlockMs = startMs - 15 * 60 * 1000;
+  var localTz;
+  try { localTz = Intl.DateTimeFormat().resolvedOptions().timeZone; }
+  catch (e) { return fallback; }
+  var isCT = (localTz === 'America/Chicago');
+  function fDay(ms, tz){ return new Intl.DateTimeFormat('en-US',{weekday:'short',timeZone:tz}).format(new Date(ms)).toUpperCase(); }
+  function fTime(ms, tz, withZone){
+    var opts = { hour:'numeric', minute:'2-digit', hour12:true, timeZone: tz };
+    if (withZone) opts.timeZoneName = 'short';
+    return new Intl.DateTimeFormat('en-US', opts).format(new Date(ms));
+  }
+  if (isCT) {
+    return { dayChip: fDay(startMs,'America/Chicago'), timeLine: rawTime, unlockAtLine: 'Unlocks at ' + fTime(unlockMs,'America/Chicago',false) + ' CT' };
+  }
+  return {
+    dayChip: fDay(startMs, localTz),
+    timeLine: fTime(startMs, localTz, true) + ' (' + rawTime + ')',
+    unlockAtLine: 'Unlocks at ' + fTime(unlockMs, localTz, true)
+  };
+}
+
+// track-join URL — same shape as lul.html so /api/track-join keeps logging
+function trackUrl(zoomLink) {
+  return '/api/track-join?token=' + encodeURIComponent(PASS_TOKEN) +
+         '&dest=' + encodeURIComponent(zoomLink || '');
+}
+
+// ── User chip ──────────────────────────────────────────────
+function setupUserMenu(user){
+  document.getElementById('user-avatar').textContent     = initialsFor(user.name, user.email);
+  document.getElementById('user-handle').textContent     = emailHandle(user.email);
+  document.getElementById('user-menu-email').textContent = user.email;
+  document.getElementById('user-wrap').style.display     = '';
+  var btn  = document.getElementById('user-chip');
+  var menu = document.getElementById('user-menu');
+  btn.addEventListener('click', function(e){
+    e.stopPropagation();
+    var open = menu.classList.toggle('open');
+    btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+  });
+  document.addEventListener('click', function(e){
+    if (!menu.contains(e.target) && e.target !== btn) {
+      menu.classList.remove('open');
+      btn.setAttribute('aria-expanded', 'false');
+    }
+  });
+}
+
+// ── Mode-specific page setup ──────────────────────────────
+function setupForMode(){
+  var mode = PASS.pass_mode;
+  var first = PASS.first_name || 'there';
+  if (mode === 'full') {
+    document.getElementById('hero-badge').textContent = 'Full Week Pass';
+    document.getElementById('hero-title').innerHTML   = 'Hey ' + esc(first) + '! Your <span>full week</span> is unlocked 🎉';
+    document.getElementById('hero-sub').textContent   = 'You have access to all six sessions this week. Click a Join button when you\'re ready to enter.';
+    document.getElementById('counter-bar').style.display = 'none';
+    document.getElementById('cta-btn').textContent       = 'View All My Session Links 🎉';
+    document.getElementById('cta-btn').disabled          = false;
+  } else if (mode === 'celebration') {
+    document.getElementById('hero-badge').textContent = 'Friday Coaching Celebration';
+    document.getElementById('hero-title').innerHTML   = 'Hey ' + esc(first) + '! Your <span>celebration spot</span> is here 🎊';
+    document.getElementById('hero-sub').textContent   = 'You earned a spot at the Friday Coaching Celebration — lock it in below!';
+    document.getElementById('counter-bar').style.display = 'none';
+    document.getElementById('cta-btn').textContent       = 'Lock In My Spot 🎊';
+    document.getElementById('cta-btn').disabled          = false;
+  } else {
+    // 'two'
+    document.getElementById('hero-badge').textContent = '2-Session Pass';
+    document.getElementById('hero-title').innerHTML   = 'Hey ' + esc(first) + '! Choose your <span>2 sessions</span>';
+    document.getElementById('hero-sub').textContent   = 'Pick your two favorites for the week.';
+    document.getElementById('counter-bar').style.display = 'flex';
+  }
+}
+
+// ── Build session card ─────────────────────────────────────
+function buildCard(s, mode, isSelected, isDisabled) {
+  var card = document.createElement('div');
+  var cls  = 'session-card';
+  if (mode === 'full')                          cls += ' full-access-card';
+  if (isSelected || mode === 'celebration')     cls += ' selected';
+  if (isDisabled)                               cls += ' disabled';
+  card.className = cls;
+
+  if (mode !== 'full') {
+    var ring = document.createElement('div');
+    ring.className   = 'checkbox-ring' + (isSelected ? ' checked' : '');
+    ring.textContent = isSelected ? '✓' : '';
+    card.appendChild(ring);
+  }
+
+  var emojiBox = document.createElement('div');
+  emojiBox.className   = 'session-emoji';
+  emojiBox.textContent = passEmojiOnly(s.emoji);
+  card.appendChild(emojiBox);
+
+  var info = document.createElement('div');
+  info.className = 'session-info';
+
+  var nameEl = document.createElement('div');
+  nameEl.className   = 'session-name';
+  nameEl.textContent = s.name || '';
+  info.appendChild(nameEl);
+
+  if (s.description) {
+    var desc = document.createElement('div');
+    desc.className   = 'session-description';
+    desc.textContent = s.description;
+    info.appendChild(desc);
+  }
+
+  var ft = fmtSessionTimes(s);
+  var meta = document.createElement('div');
+  meta.className = 'session-meta';
+  var chip = document.createElement('span');
+  chip.className   = 'day-chip';
+  chip.textContent = ft.dayChip;
+  meta.appendChild(chip);
+  var tEl = document.createElement('span');
+  tEl.className   = 'session-time';
+  tEl.textContent = ft.timeLine + (s.coach ? ' · ' + s.coach : '');
+  meta.appendChild(tEl);
+  info.appendChild(meta);
+
+  card.appendChild(info);
+
+  // Full-mode cards get a Join button; locked sessions get the lock badge
+  if (mode === 'full') {
+    if (s.is_unlocked && s.link) {
+      var btn = document.createElement('a');
+      btn.href        = trackUrl(s.link);
+      btn.target      = '_blank';
+      btn.rel         = 'noopener noreferrer';
+      btn.className   = 'join-btn';
+      btn.textContent = 'Join →';
+      card.appendChild(btn);
+    } else {
+      var lock = document.createElement('span');
+      lock.className   = 'join-btn locked';
+      lock.title       = ft.unlockAtLine;
+      lock.textContent = '🔒 ' + ft.unlockAtLine;
+      card.appendChild(lock);
+    }
+  }
+  return card;
+}
+
+// ── Render sessions for picker view ─────────────────────────
+function renderSessions(){
+  var grid = document.getElementById('sessions-grid');
+  grid.innerHTML = '';
+
+  if (PASS.pass_mode === 'celebration') {
+    // Show the celebration session pre-selected
+    var celeb = SESSIONS.filter(function(s){
+      var n = (s.name || '').toLowerCase();
+      return n.indexOf('celebration') !== -1 || n.indexOf('friday coaching') !== -1;
+    });
+    var list = celeb.length ? celeb : SESSIONS;
+    list.forEach(function(s){ grid.appendChild(buildCard(s, 'celebration', true, false)); });
+    return;
+  }
+
+  SESSIONS.forEach(function(s){
+    var isSel = SELECTED.has(s.session_id);
+    var atMax = SELECTED.size >= 2 && !isSel;
+    var isDis = PASS.pass_mode === 'two' && atMax;
+    var card  = buildCard(s, PASS.pass_mode, isSel, isDis);
+    if (!isDis && PASS.pass_mode === 'two') {
+      (function(id){ card.addEventListener('click', function(){ toggleSession(id); }); })(s.session_id);
+    }
+    grid.appendChild(card);
+  });
+}
+
+function toggleSession(id) {
+  if (SELECTED.has(id)) SELECTED.delete(id);
+  else if (SELECTED.size < 2) SELECTED.add(id);
+  updatePips();
+  document.getElementById('cta-btn').disabled = SELECTED.size < 2;
+  renderSessions();
+}
+
+function updatePips() {
+  var n = SELECTED.size;
+  document.getElementById('pip1').className = 'pip' + (n >= 1 ? ' filled' : '');
+  document.getElementById('pip2').className = 'pip' + (n >= 2 ? ' filled' : '');
+  document.getElementById('counter-num').textContent = n + ' / 2';
+}
+
+// ── Confirmed view ─────────────────────────────────────────
+function showConfirmed(){
+  document.getElementById('counter-bar').style.display = 'none';
+  document.getElementById('cta-btn').style.display     = 'none';
+  document.getElementById('note-box').style.display    = 'none';
+
+  // Hide picker grid for non-full modes (full mode keeps showing all sessions)
+  if (PASS.pass_mode !== 'full') {
+    document.getElementById('sessions-grid').style.display = 'none';
+  }
+
+  var div = document.getElementById('confirmed-links');
+  div.innerHTML = '';
+
+  var show;
+  if (PASS.pass_mode === 'full') {
+    show = SESSIONS;
+  } else {
+    show = SESSIONS.filter(function(s){ return SELECTED.has(s.session_id); });
+  }
+
+  show.forEach(function(s){
+    var ft = fmtSessionTimes(s);
+    if (s.is_unlocked && s.link) {
+      var a = document.createElement('a');
+      a.href      = trackUrl(s.link);
+      a.target    = '_blank';
+      a.rel       = 'noopener noreferrer';
+      a.className = 'confirmed-link';
+      a.innerHTML = '<span>' + passEmojiOnly(s.emoji) + ' <strong>' + esc(s.name) + '</strong> — ' + esc(ft.dayChip) + ' ' + esc(ft.timeLine) + '</span><span class="arrow">→</span>';
+      div.appendChild(a);
+    } else {
+      var d = document.createElement('div');
+      d.className = 'confirmed-link';
+      d.style.cursor  = 'default';
+      d.style.opacity = '0.75';
+      d.innerHTML = '<span>' + passEmojiOnly(s.emoji) + ' <strong>' + esc(s.name) + '</strong> — ' + esc(ft.dayChip) + ' ' + esc(ft.timeLine) + '</span><span class="arrow" style="font-size:11px;color:#6b3a00;background:#FFF7E5;padding:3px 10px;border-radius:999px;border:1px solid #f0c060;">🔒 ' + esc(ft.unlockAtLine) + '</span>';
+      div.appendChild(d);
+    }
+  });
+
+  document.getElementById('confirmed-box').className = 'confirmed-box visible';
+}
+
+// ── Lock-in handler ───────────────────────────────────────
+async function confirmSelections(){
+  var btn = document.getElementById('cta-btn');
+  btn.disabled = true;
+  btn.textContent = 'Saving your spot…';
+
+  // For full mode, select all sessions
+  if (PASS.pass_mode === 'full') {
+    SELECTED = new Set(SESSIONS.map(function(s){ return s.session_id; }));
+  }
+
+  // For celebration, pre-select the celebration session
+  if (PASS.pass_mode === 'celebration') {
+    var celeb = SESSIONS.find(function(s){
+      var n = (s.name || '').toLowerCase();
+      return n.indexOf('celebration') !== -1 || n.indexOf('friday coaching') !== -1;
+    });
+    if (celeb) SELECTED.add(celeb.session_id);
+  }
+
+  try {
+    var r = await fetch('/api/lul/save-pick', {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ pass: PASS_TOKEN, selections: Array.from(SELECTED) })
+    });
+    if (r.status !== 200) {
+      var err = await r.json().catch(function(){ return {}; });
+      throw new Error(err.error || ('save failed: ' + r.status));
+    }
+  } catch (err) {
+    console.error(err);
+    alert('Couldn\'t save your selections. Please try again.');
+    btn.disabled = false;
+    btn.textContent = (PASS.pass_mode === 'celebration') ? 'Lock In My Spot 🎊' : 'Lock in my sessions 🔓';
+    return;
+  }
+
+  showConfirmed();
+}
+
+// ── Init ──────────────────────────────────────────────────
+async function init(){
+  // 1. Auth gate
+  var meRes;
+  try { meRes = await fetch('/auth/me', { credentials: 'same-origin' }); }
+  catch (e) { window.location.href = '/auth/login?return_to=' + encodeURIComponent(window.location.pathname + window.location.search); return; }
+  if (meRes.status !== 200) { window.location.href = '/auth/login?return_to=' + encodeURIComponent(window.location.pathname + window.location.search); return; }
+  var user = await meRes.json();
+  setupUserMenu(user);
+
+  // 2. Get pass token from URL
+  PASS_TOKEN = (new URLSearchParams(window.location.search)).get('pass') || '';
+  if (!PASS_TOKEN) {
+    document.getElementById('page-loading').style.display = 'none';
+    document.getElementById('page-error').style.display = 'flex';
+    return;
+  }
+
+  // 3. Fetch pick-data
+  var data;
+  try {
+    var r = await fetch('/api/lul/pick-data?pass=' + encodeURIComponent(PASS_TOKEN), { credentials: 'same-origin' });
+    if (r.status === 403) {
+      document.getElementById('error-title').textContent = 'Not your pass';
+      document.getElementById('error-sub').textContent   = 'This pass belongs to a different account. Sign in with the email it was issued to.';
+      throw new Error('forbidden');
+    }
+    if (r.status !== 200) throw new Error('pick-data failed: ' + r.status);
+    data = await r.json();
+  } catch (e) {
+    document.getElementById('page-loading').style.display = 'none';
+    document.getElementById('page-error').style.display = 'flex';
+    return;
+  }
+
+  PASS     = data.pass;
+  SESSIONS = data.sessions || [];
+
+  if (PASS.expired) {
+    document.getElementById('error-icon').textContent = '⏱';
+    document.getElementById('error-title').textContent = 'This pass has expired';
+    document.getElementById('error-sub').textContent   = 'Passes expire 30 days from the date they were issued. Talk to your coach about earning a new one.';
+    document.getElementById('page-loading').style.display = 'none';
+    document.getElementById('page-error').style.display = 'flex';
+    return;
+  }
+
+  setupForMode();
+
+  // If already locked, render confirmed view directly
+  if (PASS.locked && PASS.saved_selections.length) {
+    SELECTED = new Set(PASS.saved_selections);
+    if (PASS.pass_mode === 'two') updatePips();
+    renderSessions();
+    showConfirmed();
+  } else {
+    renderSessions();
+  }
+
+  document.getElementById('cta-btn').addEventListener('click', confirmSelections);
+
+  document.getElementById('page-loading').style.display = 'none';
+  document.getElementById('page-content').style.display = '';
+
+  // 4. Poll every 30s for time-lock updates
+  setInterval(async function(){
+    try {
+      var r = await fetch('/api/lul/pick-data?pass=' + encodeURIComponent(PASS_TOKEN), { credentials: 'same-origin' });
+      if (r.status !== 200) return;
+      var d = await r.json();
+      SESSIONS = d.sessions || [];
+      // If we're showing confirmed, re-render the confirmed-links with fresh lock state
+      if (document.getElementById('confirmed-box').classList.contains('visible')) {
+        showConfirmed();
+      } else {
+        renderSessions();
+      }
+    } catch (e) { /* ignore */ }
+  }, 30000);
+}
+
+init();
+</script>
+
+</body>
+</html>
