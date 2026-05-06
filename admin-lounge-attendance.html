@@ -212,8 +212,8 @@ body{font-family:'Nunito Sans',sans-serif;background:var(--aa-white);min-height:
       <div class="section-head">
         <div class="section-title">Attendance by session</div>
         <div class="bar-legend">
-          <span><span class="legend-dot in"></span>Picked</span>
-          <span><span class="legend-dot out"></span>Not picked</span>
+          <span><span class="legend-dot in"></span>In picks</span>
+          <span><span class="legend-dot out"></span>Not in picks</span>
         </div>
       </div>
       <div id="per-session-chart"></div>
@@ -392,7 +392,7 @@ function renderPerSession(){
     var val = document.createElement('div');
     val.className = 'bar-value';
     val.innerHTML = r.total + ' attendee' + (r.total === 1 ? '' : 's') +
-      (r.outside_picks ? '<span class="bar-value-sub">' + r.in_picks + ' picked · ' + r.outside_picks + ' not picked</span>' : '');
+      (r.outside_picks ? '<span class="bar-value-sub">' + r.in_picks + ' in picks · ' + r.outside_picks + ' not in picks</span>' : '');
     row.appendChild(val);
 
     chart.appendChild(row);
@@ -534,7 +534,7 @@ function renderRecent(){
     var tag  = document.createElement('div');
     var tagSpan = document.createElement('span');
     tagSpan.className = 'recent-tag ' + (r.in_picks ? 'in' : 'out');
-    tagSpan.textContent = r.in_picks ? 'picked' : 'not picked';
+    tagSpan.textContent = r.in_picks ? 'in picks' : 'not in picks';
     tag.appendChild(tagSpan);
     row.appendChild(tag);
     el.appendChild(row);

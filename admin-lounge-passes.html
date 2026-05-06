@@ -1075,7 +1075,7 @@ function renderAttendance(data){
 
     var flag = document.createElement('span');
     flag.className = 'att-flag ' + (g.in_picks ? 'in' : 'out');
-    flag.textContent = g.in_picks ? 'in picks' : 'outside picks';
+    flag.textContent = g.in_picks ? 'in picks' : 'not in picks';
     head.appendChild(flag);
 
     var count = document.createElement('span');
