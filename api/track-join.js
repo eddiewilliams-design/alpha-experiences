@@ -157,15 +157,18 @@ module.exports = async (req, res) => {
     const accessToken = tokenRes.access_token;
     if (!accessToken) return res.redirect(302, redirectTo);
 
-    // batchGet: pull Sheet1 (token row) AND Sessions (URL → session match)
-    // in one round trip.
-    const ranges = ['Sheet1!A:M', 'Sessions!A:K'];
+    // batchGet: pull Sheet1 + Sessions (URL → session match) + LUL_Attendance
+    // (so we can compute Fulfilled threshold after this click) + LUL_Pass_Types
+    // (gives us the pick count for this row's pass mode) — one round trip.
+    const ranges = ['Sheet1!A:N', 'Sessions!A:K', 'LUL_Attendance!A:H', 'LUL_Pass_Types!A:E'];
     const params = ranges.map(r => 'ranges=' + encodeURIComponent(r)).join('&');
     const batchUrl = `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values:batchGet?${params}`;
     const batch = await getSheet(batchUrl, accessToken);
-    const valueRanges = (batch && batch.valueRanges) || [];
-    const passRows    = (valueRanges[0] && valueRanges[0].values) || [];
-    const sessionRows = (valueRanges[1] && valueRanges[1].values) || [];
+    const valueRanges    = (batch && batch.valueRanges) || [];
+    const passRows       = (valueRanges[0] && valueRanges[0].values) || [];
+    const sessionRows    = (valueRanges[1] && valueRanges[1].values) || [];
+    const attendanceRows = (valueRanges[2] && valueRanges[2].values) || [];
+    const passTypesRows  = (valueRanges[3] && valueRanges[3].values) || [];
 
     // Find the token row in Sheet1
     let matched = null;
@@ -247,6 +250,80 @@ module.exports = async (req, res) => {
         // Most likely cause: the LUL_Attendance tab doesn't exist yet.
         // Don't block the student — just log so admin sees it in Vercel logs.
         console.error('track-join: LUL_Attendance append failed (does the tab exist?):', err.message);
+      }
+
+      // ── Auto-stamp Fulfilled='Yes' if this click crosses the threshold ──
+      // The threshold is the pick count from LUL_Pass_Types (with legacy
+      // fallback if the row's Experience Type isn't configured). This keeps
+      // Sheet1 col F in sync with reality without admin needing to edit it.
+      try {
+        const expTypeLower = (matched.row[0] || '').toString().toLowerCase().trim();
+
+        let mode = '';
+        let pickCount = null;
+        for (let i = 1; i < passTypesRows.length; i++) {
+          const r = passTypesRows[i] || [];
+          if ((r[0] || '').toString().toLowerCase().trim() === expTypeLower) {
+            mode = (r[1] || '').toString().toLowerCase().trim();
+            const pcRaw = (r[2] == null ? '' : r[2]).toString().trim();
+            pickCount = pcRaw && /^\d+$/.test(pcRaw) ? parseInt(pcRaw, 10) : null;
+            break;
+          }
+        }
+        // Legacy fallback (matches Apps Script's hardcoded detection)
+        if (!mode) {
+          if (expTypeLower.indexOf('friday coaching celebration') !== -1) {
+            mode = 'celebration'; pickCount = 1;
+          } else if (expTypeLower.indexOf('2 sessions') !== -1) {
+            mode = 'pick';        pickCount = 2;
+          } else {
+            mode = 'full';        pickCount = null;
+          }
+        }
+
+        // How many sessions does this pass need attended to be 'Used'?
+        // - pick / celebration: pickCount (or savedSelections length, or 1)
+        // - full: # of sessions saved (if any) — admin doesn't pick for full passes,
+        //         so attendance count vs. saved is the best proxy.
+        let required;
+        if (mode === 'pick' || mode === 'celebration') {
+          required = pickCount || savedSelections.length || 1;
+        } else {
+          required = savedSelections.length;
+        }
+
+        if (required > 0) {
+          // Count UNIQUE attended sessions (in picks) for this student
+          const studentEmailLower = studentEmail.toLowerCase();
+          const attended = new Set();
+          for (let i = 1; i < attendanceRows.length; i++) {
+            const ar = attendanceRows[i] || [];
+            const ae = (ar[1] || '').toString().toLowerCase().trim();
+            const sid = (ar[3] || '').toString().trim();
+            if (ae === studentEmailLower && sid && savedSelections.indexOf(sid) !== -1) {
+              attended.add(sid);
+            }
+          }
+          // Include this current click (just appended above)
+          if (sessionId && savedSelections.indexOf(sessionId) !== -1) {
+            attended.add(sessionId);
+          }
+
+          if (attended.size >= required) {
+            const currentFulfilled = (matched.row[5] || '').toString().trim().toLowerCase();
+            if (currentFulfilled !== 'yes') {
+              const writeRange = `Sheet1!F${matched.rowIndex}`;
+              const writeUrl   = `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/${encodeURIComponent(writeRange)}?valueInputOption=USER_ENTERED`;
+              await putSheet(writeUrl, {
+                range: writeRange,
+                majorDimension: 'ROWS',
+                values: [['Yes']]
+              }, accessToken);
+            }
+          }
+        }
+      } catch (err) {
+        console.error('track-join: Fulfilled auto-stamp failed:', err.message);
       }
     }
   } catch(err) {

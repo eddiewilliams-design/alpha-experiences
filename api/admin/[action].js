@@ -1783,7 +1783,8 @@ async function handleLoungePassCreate(req, res) {
     email,       // C
     parentEmail, // D
     'Yes',       // E Email Sent
-    '',          // F Fulfilled
+    'Pending',   // F Fulfilled — auto-flips to 'Yes' by track-join.js once the
+                 //               student attends all picked sessions
     newToken,    // G Token
     true,        // H Active (boolean checkbox)
     today,       // I Date Sent
@@ -2117,6 +2118,7 @@ async function handleLoungePassCancel(req, res) {
   const updated  = existing + (existing ? '\n' : '') + noteLine;
 
   try {
+    await sheetsUpdate(accessToken, `Sheet1!F${rowNum}`, [['No']]);
     await sheetsUpdate(accessToken, `Sheet1!H${rowNum}`, [[false]]);
     await sheetsUpdate(accessToken, `Sheet1!N${rowNum}`, [[updated]]);
   } catch (err) {

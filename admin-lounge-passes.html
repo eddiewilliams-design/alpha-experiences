@@ -66,7 +66,7 @@ body{font-family:'Nunito Sans',sans-serif;background:var(--aa-white);min-height:
 
 /* Table */
 .passes-table{background:#fff;border-radius:14px;border:1.5px solid var(--aa-med-grey);overflow:hidden;}
-.pass-row{display:grid;grid-template-columns:minmax(150px,1.2fr) minmax(180px,1.4fr) 115px 110px 100px 90px 220px;gap:12px;padding:14px 16px;border-bottom:1px solid var(--aa-light-grey);align-items:center;}
+.pass-row{display:grid;grid-template-columns:minmax(150px,1.2fr) minmax(180px,1.4fr) 115px 100px 90px 240px;gap:12px;padding:14px 16px;border-bottom:1px solid var(--aa-light-grey);align-items:center;}
 .pass-row:last-child{border-bottom:none;}
 .pass-row.header{background:var(--aa-light-grey);font-size:11px;font-weight:800;color:var(--aa-dark-grey);text-transform:uppercase;letter-spacing:0.05em;}
 .pass-name{font-family:'Nunito',sans-serif;font-weight:800;font-size:14px;color:var(--aa-navy);overflow-wrap:anywhere;}
@@ -85,26 +85,24 @@ body{font-family:'Nunito Sans',sans-serif;background:var(--aa-white);min-height:
 .status-cancelled{background:var(--aa-light-grey);color:var(--aa-dark-grey);}
 .status-expiring{background:var(--aa-light-yellow);color:#6b3a00;}
 
-/* Fulfilled chip select */
-.fulfilled-select{
-  font-family:inherit;font-size:10px;font-weight:800;
-  padding:5px 8px;border:1.5px solid var(--aa-med-grey);border-radius:999px;
-  background:#fff;color:var(--aa-dark-grey);width:100%;
-  letter-spacing:0.05em;text-transform:uppercase;cursor:pointer;
-}
-.fulfilled-select.yes{background:var(--aa-light-green);border-color:#a3d291;color:#1a5205;}
-.fulfilled-select.no{background:var(--aa-light-red);border-color:#f3a3a3;color:#7c0d0d;}
-.fulfilled-select.pending{background:var(--aa-light-yellow);border-color:#f0d39b;color:#6b3a00;}
-.fulfilled-select:disabled{opacity:0.5;cursor:wait;}
-
-/* Attendance modal list */
-.att-list{display:flex;flex-direction:column;gap:8px;}
-.att-row{display:grid;grid-template-columns:1fr 100px 80px;gap:12px;align-items:center;background:var(--aa-light-grey);border-radius:10px;padding:10px 14px;}
-.att-when{font-size:13px;font-weight:700;color:var(--aa-navy);}
-.att-name{font-size:11px;color:var(--aa-dark-grey);margin-top:2px;}
-.att-flag{font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:0.05em;text-align:center;padding:3px 8px;border-radius:999px;}
+/* Click log modal: grouped-by-session view */
+.att-list{display:flex;flex-direction:column;gap:10px;}
+.att-group{background:var(--aa-light-grey);border-radius:12px;overflow:hidden;border:1.5px solid var(--aa-med-grey);}
+.att-group-head{display:grid;grid-template-columns:24px 1fr auto auto;gap:10px;align-items:center;padding:10px 14px;cursor:pointer;user-select:none;}
+.att-group-head:hover{background:#e6ebf2;}
+.att-caret{font-size:10px;color:var(--aa-dark-grey);width:14px;text-align:center;transition:transform 0.15s;}
+.att-group.open .att-caret{transform:rotate(90deg);}
+.att-name{font-family:'Nunito',sans-serif;font-weight:800;font-size:14px;color:var(--aa-navy);overflow-wrap:anywhere;}
+.att-meta{font-size:11px;color:var(--aa-dark-grey);margin-top:2px;}
+.att-flag{font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:0.05em;padding:3px 8px;border-radius:999px;white-space:nowrap;}
 .att-flag.in{background:var(--aa-light-green);color:#1a5205;}
 .att-flag.out{background:var(--aa-light-yellow);color:#6b3a00;}
+.att-count{font-size:11px;font-weight:800;color:var(--aa-navy);background:#fff;border:1.5px solid var(--aa-med-grey);border-radius:999px;padding:3px 9px;}
+.att-clicks{display:none;border-top:1px solid var(--aa-med-grey);background:#fff;}
+.att-group.open .att-clicks{display:block;}
+.att-click-row{display:grid;grid-template-columns:1fr 70px;gap:10px;align-items:center;padding:8px 14px 8px 38px;border-bottom:1px solid var(--aa-light-grey);}
+.att-click-row:last-child{border-bottom:none;}
+.att-when{font-size:13px;color:var(--aa-navy);font-weight:600;}
 .att-empty{color:var(--aa-dark-grey);font-size:13px;padding:18px;text-align:center;}
 
 .pass-actions{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end;}
@@ -161,12 +159,11 @@ body{font-family:'Nunito Sans',sans-serif;background:var(--aa-white);min-height:
 
 @media(max-width:900px){
   .pass-row{grid-template-columns:1fr 110px 100px;gap:10px;}
-  .pass-row .col-type,.pass-row .col-fulfilled,.pass-row .col-date,.pass-row .col-days,.pass-row .col-actions-h{display:none;}
-  .pass-row.header .col-type,.pass-row.header .col-fulfilled,.pass-row.header .col-date,.pass-row.header .col-days{display:none;}
+  .pass-row .col-type,.pass-row .col-date,.pass-row .col-days,.pass-row .col-actions-h{display:none;}
+  .pass-row.header .col-type,.pass-row.header .col-date,.pass-row.header .col-days{display:none;}
   .pass-actions{justify-content:flex-start;margin-top:6px;grid-column:1 / -1;}
   .field-row{grid-template-columns:1fr;}
-  .att-row{grid-template-columns:1fr 70px;}
-  .att-row .att-flag{display:none;}
+  .att-group{font-size:13px;}
 }
 </style>
 </head>
@@ -394,13 +391,13 @@ body{font-family:'Nunito Sans',sans-serif;background:var(--aa-white);min-height:
 <div class="modal-backdrop" id="modal-attendance-backdrop">
   <div class="modal" role="dialog" aria-modal="true" style="max-width:640px;">
     <div class="modal-head">
-      <div class="modal-title">Attendance log</div>
+      <div class="modal-title">Click log</div>
       <button class="modal-close" id="modal-attendance-close" aria-label="Close">×</button>
     </div>
     <div class="modal-body">
       <div class="confirm-summary" id="attendance-summary"></div>
       <div class="field-help" style="margin-bottom:12px;">
-        Each row is a Zoom-link click logged in <code>LUL_Attendance</code>. Delete an entry if it shouldn't count toward the student's "Used" status (for example, a click that happened before the time-lock was active).
+        Every click on this student's Zoom links, grouped by session. Click a session to expand and see each click's timestamp. Delete an entry if it shouldn't count toward "Used" (for example, a click before the time-lock was active).
       </div>
       <div id="attendance-list"></div>
     </div>
@@ -540,7 +537,6 @@ function renderPasses(){
   hdr.innerHTML =
     '<div>Student</div>' +
     '<div class="col-type">Pass Type</div>' +
-    '<div class="col-fulfilled">Fulfilled</div>' +
     '<div>Status</div>' +
     '<div class="col-date">Sent</div>' +
     '<div class="col-days">Days left</div>' +
@@ -574,12 +570,6 @@ function renderPasses(){
     ty.className = 'pass-type col-type';
     ty.textContent = p.exp_type || '—';
     row.appendChild(ty);
-
-    // Fulfilled chip (inline-editable dropdown, auto-saves)
-    var fu = document.createElement('div');
-    fu.className = 'col-fulfilled';
-    fu.appendChild(buildFulfilledChip(p));
-    row.appendChild(fu);
 
     // Status
     var st = document.createElement('div');
@@ -618,9 +608,9 @@ function renderPasses(){
 
     var attBtn = document.createElement('button');
     attBtn.className = 'btn-mini';
-    attBtn.textContent = 'Attendance';
+    attBtn.textContent = 'Click log';
     attBtn.disabled = !p.token;
-    attBtn.title = p.token ? 'View / edit click log' : 'No token on this row';
+    attBtn.title = p.token ? 'See every Zoom click logged for this student. Delete erroneous clicks to fix the Used status.' : 'No token on this row';
     attBtn.addEventListener('click', function(){ openAttendanceModal(p); });
     actions.appendChild(attBtn);
 
@@ -863,55 +853,115 @@ async function loadAttendance(p){
     listEl.innerHTML = '<div style="color:#7c0d0d;font-size:13px;padding:14px;">Could not load attendance: ' + e.message + '</div>';
   }
 }
+function fmtClickTime(s){
+  try {
+    var d = new Date(s);
+    if (!isNaN(d.getTime())) {
+      return d.toLocaleString(undefined, { month:'short', day:'numeric', year:'numeric', hour:'numeric', minute:'2-digit' });
+    }
+  } catch(_){}
+  return s;
+}
+
 function renderAttendance(data){
   var listEl = document.getElementById('attendance-list');
   if (!data.entries || !data.entries.length){
-    listEl.innerHTML = '<div class="att-empty">No attendance entries logged for this student yet.</div>';
+    listEl.innerHTML = '<div class="att-empty">No clicks logged for this student yet.</div>';
     return;
   }
 
+  // Group by session_id (fall back to session_name for older rows missing id)
+  var groupMap = {};
+  var orderedKeys = [];
+  data.entries.forEach(function(e){
+    var key = e.session_id || ('name:' + (e.session_name || ''));
+    if (!groupMap[key]){
+      groupMap[key] = {
+        session_id:   e.session_id || '',
+        session_name: e.session_name || '(unknown session)',
+        in_picks:     e.in_picks,
+        clicks:       []
+      };
+      orderedKeys.push(key);
+    }
+    groupMap[key].clicks.push(e);
+  });
+
+  // Sort keys by latest click descending
+  orderedKeys.sort(function(a, b){
+    var aLatest = groupMap[a].clicks[0].clicked_at || '';
+    var bLatest = groupMap[b].clicks[0].clicked_at || '';
+    return (bLatest).localeCompare(aLatest);
+  });
+
   var wrap = document.createElement('div');
   wrap.className = 'att-list';
-  data.entries.forEach(function(e){
-    var when = e.clicked_at;
-    try {
-      var d = new Date(e.clicked_at);
-      if (!isNaN(d.getTime())) {
-        when = d.toLocaleString(undefined, { month:'short', day:'numeric', year:'numeric', hour:'numeric', minute:'2-digit' });
-      }
-    } catch(_) {}
 
-    var row = document.createElement('div');
-    row.className = 'att-row';
+  orderedKeys.forEach(function(key){
+    var g = groupMap[key];
+    var box = document.createElement('div');
+    box.className = 'att-group';
+
+    var head = document.createElement('div');
+    head.className = 'att-group-head';
+
+    var caret = document.createElement('div');
+    caret.className = 'att-caret';
+    caret.textContent = '▶';
+    head.appendChild(caret);
 
     var info = document.createElement('div');
-    var w = document.createElement('div');
-    w.className = 'att-when';
-    w.textContent = when;
-    info.appendChild(w);
-    var n = document.createElement('div');
-    n.className = 'att-name';
-    n.textContent = e.session_name || e.session_id || '(unknown session)';
-    info.appendChild(n);
-    row.appendChild(info);
+    var nm = document.createElement('div');
+    nm.className = 'att-name';
+    nm.textContent = g.session_name;
+    info.appendChild(nm);
+    var meta = document.createElement('div');
+    meta.className = 'att-meta';
+    meta.textContent = 'Latest ' + fmtClickTime(g.clicks[0].clicked_at);
+    info.appendChild(meta);
+    head.appendChild(info);
 
-    var flag = document.createElement('div');
-    var flagSpan = document.createElement('span');
-    flagSpan.className = 'att-flag ' + (e.in_picks ? 'in' : 'out');
-    flagSpan.textContent = e.in_picks ? 'in picks' : 'outside picks';
-    flag.appendChild(flagSpan);
-    row.appendChild(flag);
+    var flag = document.createElement('span');
+    flag.className = 'att-flag ' + (g.in_picks ? 'in' : 'out');
+    flag.textContent = g.in_picks ? 'in picks' : 'outside picks';
+    head.appendChild(flag);
 
-    var del = document.createElement('button');
-    del.className = 'btn-mini danger';
-    del.textContent = 'Delete';
-    del.addEventListener('click', function(){
-      if (!confirm('Delete this attendance entry? If the student was marked "Used", their status may flip back to "Locked in".')) return;
-      deleteAttendance(e.row_index, del);
+    var count = document.createElement('span');
+    count.className = 'att-count';
+    count.textContent = g.clicks.length + (g.clicks.length === 1 ? ' click' : ' clicks');
+    head.appendChild(count);
+
+    head.addEventListener('click', function(){
+      box.classList.toggle('open');
     });
-    row.appendChild(del);
+    box.appendChild(head);
 
-    wrap.appendChild(row);
+    var clicksWrap = document.createElement('div');
+    clicksWrap.className = 'att-clicks';
+    g.clicks.forEach(function(e){
+      var clickRow = document.createElement('div');
+      clickRow.className = 'att-click-row';
+      var when = document.createElement('div');
+      when.className = 'att-when';
+      when.textContent = fmtClickTime(e.clicked_at);
+      clickRow.appendChild(when);
+      var del = document.createElement('button');
+      del.className = 'btn-mini danger';
+      del.textContent = 'Delete';
+      del.addEventListener('click', function(ev){
+        ev.stopPropagation();
+        if (!confirm("Delete this click? If the student was marked \"Used\", their status may flip back to \"Locked in\".")) return;
+        deleteAttendance(e.row_index, del);
+      });
+      clickRow.appendChild(del);
+      clicksWrap.appendChild(clickRow);
+    });
+    box.appendChild(clicksWrap);
+
+    // Auto-expand groups with >1 click (where duplicates are most likely the issue)
+    if (g.clicks.length > 1) box.classList.add('open');
+
+    wrap.appendChild(box);
   });
 
   listEl.innerHTML = '';
