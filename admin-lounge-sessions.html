@@ -62,7 +62,7 @@ body{font-family:'Nunito Sans',sans-serif;background:var(--aa-white);min-height:
 
 /* ── Sessions Table ── */
 .sessions-table{background:#fff;border-radius:14px;border:1.5px solid var(--aa-med-grey);overflow:hidden;}
-.sess-row{display:grid;grid-template-columns:46px minmax(140px,1.6fr) minmax(110px,1fr) minmax(130px,1fr) 90px 130px 80px;gap:12px;padding:14px 16px;border-bottom:1px solid var(--aa-light-grey);align-items:center;}
+.sess-row{display:grid;grid-template-columns:46px minmax(140px,1.6fr) minmax(110px,1fr) minmax(130px,1fr) 90px 175px 80px;gap:12px;padding:14px 16px;border-bottom:1px solid var(--aa-light-grey);align-items:center;}
 .sess-row:last-child{border-bottom:none;}
 .sess-row.header{background:var(--aa-light-grey);font-size:11px;font-weight:800;color:var(--aa-dark-grey);text-transform:uppercase;letter-spacing:0.05em;}
 .sess-row.inactive{opacity:0.6;background:var(--aa-light-grey);}
@@ -71,7 +71,21 @@ body{font-family:'Nunito Sans',sans-serif;background:var(--aa-white);min-height:
 .sess-coach{font-size:13px;color:var(--aa-navy);}
 .sess-when{font-size:13px;color:var(--aa-navy);}
 .sess-blackout{font-size:11px;color:var(--aa-dark-grey);font-weight:600;}
-.sess-blackout.has-dates{color:var(--aa-yellow);}
+
+/* Inline blackout editor */
+.bo-stack{display:flex;flex-direction:column;gap:3px;}
+.bo-row{display:flex;align-items:center;gap:6px;}
+.bo-label{font-size:9px;font-weight:800;color:var(--aa-dark-grey);text-transform:uppercase;letter-spacing:0.05em;width:28px;}
+.inline-date{font-size:11px;padding:3px 5px;border:1px solid var(--aa-med-grey);border-radius:6px;width:130px;font-family:inherit;color:var(--aa-navy);background:#fff;}
+.inline-date:focus{outline:none;border-color:var(--aa-blue);}
+.inline-date.invalid{border-color:#b45309;background:#fff7e5;}
+.bo-clear{font-size:10px;color:var(--aa-dark-grey);background:none;border:none;cursor:pointer;padding:0;font-family:inherit;font-weight:700;text-decoration:underline;}
+.bo-clear:hover{color:var(--aa-blue);}
+.inline-status{font-size:9px;font-weight:800;color:var(--aa-dark-grey);letter-spacing:0.05em;text-transform:uppercase;min-height:11px;}
+.inline-status.warn{color:#b45309;}
+.inline-status.ok{color:#1a5205;}
+.inline-status.err{color:#b91c1c;}
+.inline-status.muted{color:var(--aa-dark-grey);}
 
 /* Toggle pill */
 .toggle-pill{display:inline-flex;align-items:center;gap:6px;border:1.5px solid var(--aa-med-grey);background:#fff;border-radius:999px;padding:5px 12px;font-size:11px;font-weight:800;color:var(--aa-dark-grey);cursor:pointer;font-family:inherit;letter-spacing:0.04em;text-transform:uppercase;}
@@ -449,11 +463,10 @@ function renderSessions(sessions){
     togWrap.appendChild(tog);
     row.appendChild(togWrap);
 
-    // Blackout
+    // Blackout — inline editable, auto-saves on change
     var bo = document.createElement('div');
-    var hasBlackout = (s.blackout_start && s.blackout_end);
-    bo.className = 'sess-blackout col-blackout' + (hasBlackout ? ' has-dates' : '');
-    bo.textContent = hasBlackout ? (s.blackout_start + ' → ' + s.blackout_end) : '—';
+    bo.className = 'sess-blackout col-blackout';
+    bo.appendChild(buildInlineBlackout(s));
     row.appendChild(bo);
 
     // Edit button
@@ -469,6 +482,142 @@ function renderSessions(sessions){
   });
 
   list.appendChild(table);
+}
+
+// ── Inline blackout editor ──
+function buildInlineBlackout(s){
+  var stack = document.createElement('div');
+  stack.className = 'bo-stack';
+
+  var startRow = document.createElement('div');
+  startRow.className = 'bo-row';
+  var startLbl = document.createElement('span');
+  startLbl.className = 'bo-label';
+  startLbl.textContent = 'From';
+  var startInp = document.createElement('input');
+  startInp.type = 'date';
+  startInp.className = 'inline-date';
+  startInp.value = s.blackout_start || '';
+  startRow.appendChild(startLbl);
+  startRow.appendChild(startInp);
+
+  var endRow = document.createElement('div');
+  endRow.className = 'bo-row';
+  var endLbl = document.createElement('span');
+  endLbl.className = 'bo-label';
+  endLbl.textContent = 'To';
+  var endInp = document.createElement('input');
+  endInp.type = 'date';
+  endInp.className = 'inline-date';
+  endInp.value = s.blackout_end || '';
+  endRow.appendChild(endLbl);
+  endRow.appendChild(endInp);
+
+  var statusEl = document.createElement('div');
+  statusEl.className = 'inline-status';
+
+  var clearBtn = document.createElement('button');
+  clearBtn.type = 'button';
+  clearBtn.className = 'bo-clear';
+  clearBtn.textContent = 'Clear';
+  clearBtn.style.display = (s.blackout_start || s.blackout_end) ? '' : 'none';
+  clearBtn.addEventListener('click', function(){
+    startInp.value = '';
+    endInp.value   = '';
+    onChange();
+  });
+
+  function onChange(){
+    var start = startInp.value;
+    var end   = endInp.value;
+
+    // both empty → save (clear)
+    if (!start && !end){
+      startInp.classList.remove('invalid');
+      endInp.classList.remove('invalid');
+      if ((s.blackout_start || '') === '' && (s.blackout_end || '') === ''){
+        statusEl.textContent = '';
+        return;
+      }
+      saveBlackout(s, '', '', statusEl, clearBtn);
+      return;
+    }
+
+    // one empty → invalid
+    if (!start || !end){
+      startInp.classList.toggle('invalid', !start);
+      endInp.classList.toggle('invalid', !end);
+      statusEl.textContent = 'need both dates';
+      statusEl.className = 'inline-status warn';
+      return;
+    }
+
+    // both filled → validate range
+    if (start > end){
+      startInp.classList.add('invalid');
+      endInp.classList.add('invalid');
+      statusEl.textContent = 'end before start';
+      statusEl.className = 'inline-status warn';
+      return;
+    }
+
+    startInp.classList.remove('invalid');
+    endInp.classList.remove('invalid');
+
+    // No change?
+    if (start === (s.blackout_start || '') && end === (s.blackout_end || '')){
+      statusEl.textContent = '';
+      return;
+    }
+    saveBlackout(s, start, end, statusEl, clearBtn);
+  }
+
+  startInp.addEventListener('change', onChange);
+  endInp.addEventListener('change', onChange);
+
+  stack.appendChild(startRow);
+  stack.appendChild(endRow);
+  stack.appendChild(statusEl);
+  stack.appendChild(clearBtn);
+  return stack;
+}
+
+async function saveBlackout(s, newStart, newEnd, statusEl, clearBtn){
+  statusEl.textContent = 'saving…';
+  statusEl.className = 'inline-status muted';
+  try {
+    var r = await fetch('/api/admin/lounge-session-save', {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        session_id:     s.session_id,
+        name:           s.name,
+        emoji:          s.emoji,
+        coach:          s.coach,
+        day:            s.day,
+        time:           s.time,
+        description:    s.description,
+        link:           s.link,
+        active:         s.active,
+        blackout_start: newStart,
+        blackout_end:   newEnd
+      })
+    });
+    if (r.status !== 200) throw new Error('save failed (' + r.status + ')');
+    s.blackout_start = newStart;
+    s.blackout_end   = newEnd;
+    statusEl.textContent = (newStart || newEnd) ? '✓ saved' : '✓ cleared';
+    statusEl.className = 'inline-status ok';
+    clearBtn.style.display = (newStart || newEnd) ? '' : 'none';
+    setTimeout(function(){
+      statusEl.textContent = '';
+      statusEl.className = 'inline-status';
+    }, 2500);
+  } catch (e) {
+    statusEl.textContent = '× ' + e.message;
+    statusEl.className = 'inline-status err';
+  }
 }
 
 // ── Toggle active ──
