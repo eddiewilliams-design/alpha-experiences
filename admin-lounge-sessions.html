@@ -293,20 +293,8 @@ body{font-family:'Nunito Sans',sans-serif;background:var(--aa-white);min-height:
         <div class="field-help">Students see this only during the unlock window (15 min before → 45 min after start).</div>
       </div>
 
-      <div class="field-row">
-        <div class="field">
-          <label for="f-blackout-start">Blackout start</label>
-          <input id="f-blackout-start" type="date" />
-        </div>
-        <div class="field">
-          <label for="f-blackout-end">Blackout end</label>
-          <input id="f-blackout-end" type="date" />
-        </div>
-      </div>
-      <div class="field-help warn">
-        Tip: set <b>blackout start</b> to the day after the previous session before the gap, so students
-        looking ahead can't lock in dates inside the blackout. End on the last day the coach is unavailable.
-        Leave both blank if there's no break coming up.
+      <div class="field-help" style="margin-bottom:0;">
+        Blackout dates are edited directly on the session row in the list — no need to open this dialog for them.
       </div>
 
       <input type="hidden" id="f-session-id" />
@@ -664,8 +652,6 @@ function openEditModal(s){
   document.getElementById('f-description').value    = s ? (s.description || '') : '';
   document.getElementById('f-link').value           = s ? (s.link        || '') : '';
   document.getElementById('f-active').value         = s ? (s.active ? 'YES' : 'NO') : 'YES';
-  document.getElementById('f-blackout-start').value = s ? (s.blackout_start || '') : '';
-  document.getElementById('f-blackout-end').value   = s ? (s.blackout_end   || '') : '';
   document.getElementById('f-session-id').value     = s ? (s.session_id || '') : '';
   document.getElementById('modal-error').style.display = 'none';
   document.getElementById('modal-backdrop').classList.add('open');
@@ -678,8 +664,12 @@ async function saveModal(){
   var err = document.getElementById('modal-error');
   err.style.display = 'none';
 
+  var sid = document.getElementById('f-session-id').value.trim();
+  // Preserve existing blackout dates set inline on the row — modal doesn't touch them
+  var existing = sid ? STATE.sessions.find(function(x){ return x.session_id === sid; }) : null;
+
   var payload = {
-    session_id:     document.getElementById('f-session-id').value.trim(),
+    session_id:     sid,
     name:           document.getElementById('f-name').value.trim(),
     emoji:          document.getElementById('f-emoji').value.trim(),
     coach:          document.getElementById('f-coach').value.trim(),
@@ -688,23 +678,13 @@ async function saveModal(){
     description:    document.getElementById('f-description').value,
     link:           document.getElementById('f-link').value.trim(),
     active:         (document.getElementById('f-active').value === 'YES'),
-    blackout_start: document.getElementById('f-blackout-start').value.trim(),
-    blackout_end:   document.getElementById('f-blackout-end').value.trim()
+    blackout_start: (existing && existing.blackout_start) || '',
+    blackout_end:   (existing && existing.blackout_end)   || ''
   };
 
   if (!payload.name) { setBanner(err, 'Session name is required.', 'error'); return; }
   if (!payload.day)  { setBanner(err, 'Pick a day of the week.', 'error'); return; }
   if (!payload.time) { setBanner(err, 'Time is required (e.g. "12:00 PM CT").', 'error'); return; }
-
-  // Both blackout dates or neither
-  if ((payload.blackout_start && !payload.blackout_end) || (!payload.blackout_start && payload.blackout_end)){
-    setBanner(err, 'Blackout needs both a start and an end date (or leave both blank).', 'error');
-    return;
-  }
-  if (payload.blackout_start && payload.blackout_end && payload.blackout_start > payload.blackout_end){
-    setBanner(err, 'Blackout end must be on or after blackout start.', 'error');
-    return;
-  }
 
   var btn = document.getElementById('btn-save');
   btn.disabled = true; btn.textContent = 'Saving…';
