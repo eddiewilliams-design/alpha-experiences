@@ -463,7 +463,7 @@ async function submitProject(){
     btn.disabled = false;
     var msg = String(err.message || err);
     if (msg === 'not_purchased') {
-      showError('You\'re not registered for this trip. Reach out to your coach if you think this is wrong.');
+      showError("You're not registered for this trip.");
     } else if (msg === 'not_authenticated') {
       window.location.href = '/auth/login?return_to=' + encodeURIComponent(window.location.pathname + window.location.search);
     } else {
