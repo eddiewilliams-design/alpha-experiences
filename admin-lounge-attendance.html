@@ -6,7 +6,8 @@
 <title>Admin — Lounge Attendance</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@700;800;900&family=Nunito+Sans:wght@300;400;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/brand-fonts.css">
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
 :root{
@@ -16,12 +17,12 @@
   --aa-green:#2C8707;--aa-light-green:#EEFDE8;--aa-pink:#CD1D80;--aa-light-pink:#FBEBFF;--media-white:#FFFFFF;--aa-red:#B91C1C;--aa-light-red:#FEE2E2;
   --aa-purple:#5B2D8E;--aa-light-purple:#F1E8FB;
 }
-body{font-family:'Nunito Sans',sans-serif;background:var(--aa-white);min-height:100vh;color:var(--aa-navy);display:flex;flex-direction:column;}
+body{font-family:'Be Vietnam Pro',sans-serif;background:var(--aa-white);min-height:100vh;color:var(--aa-navy);display:flex;flex-direction:column;}
 
 .site-header{background:var(--aa-navy);padding:16px 32px;display:flex;align-items:center;justify-content:space-between;}
 .header-logo{display:flex;align-items:center;gap:12px;}
 .logo-divider{width:1px;height:28px;background:rgba(255,255,255,0.2);}
-.logo-text-top{font-family:'Nunito',sans-serif;font-weight:900;font-size:14px;color:#fff;line-height:1.1;}
+.logo-text-top{font-family:'AF Sobremesa','Be Vietnam Pro',sans-serif;font-weight:900;font-size:14px;color:#fff;line-height:1.1;}
 .logo-text-sub{font-size:10px;color:rgba(255,255,255,0.5);font-weight:600;letter-spacing:0.05em;text-transform:uppercase;}
 .header-right{display:flex;align-items:center;gap:10px;}
 .admin-badge{background:var(--aa-yellow);color:#3a2000;font-size:10px;font-weight:800;padding:4px 12px;border-radius:999px;letter-spacing:0.04em;text-transform:uppercase;}
@@ -52,7 +53,7 @@ body{font-family:'Nunito Sans',sans-serif;background:var(--aa-white);min-height:
 
 /* Toolbar / filters */
 .toolbar{display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;gap:12px;flex-wrap:wrap;}
-.toolbar-title{font-family:'Nunito',sans-serif;font-weight:800;font-size:18px;color:var(--aa-navy);}
+.toolbar-title{font-family:'AF Sobremesa','Be Vietnam Pro',sans-serif;font-weight:800;font-size:18px;color:var(--aa-navy);}
 .period-pills{display:flex;background:#fff;border:1.5px solid var(--aa-med-grey);border-radius:999px;padding:3px;}
 .period-pill{font-size:12px;font-weight:700;color:var(--aa-dark-grey);padding:7px 16px;border-radius:999px;border:none;background:transparent;cursor:pointer;font-family:inherit;}
 .period-pill.active{background:var(--aa-blue);color:#fff;}
@@ -62,7 +63,7 @@ body{font-family:'Nunito Sans',sans-serif;background:var(--aa-white);min-height:
 .kpi-row{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:24px;}
 .kpi-card{background:#fff;border:1.5px solid var(--aa-med-grey);border-radius:14px;padding:18px 20px;}
 .kpi-label{font-size:11px;font-weight:800;color:var(--aa-dark-grey);text-transform:uppercase;letter-spacing:0.06em;}
-.kpi-value{font-family:'Nunito',sans-serif;font-weight:900;font-size:32px;color:var(--aa-navy);margin:6px 0 4px;line-height:1;}
+.kpi-value{font-family:'AF Sobremesa','Be Vietnam Pro',sans-serif;font-weight:900;font-size:32px;color:var(--aa-navy);margin:6px 0 4px;line-height:1;}
 .kpi-delta{font-size:12px;font-weight:700;color:var(--aa-dark-grey);min-height:16px;}
 .kpi-delta.up{color:#1a5205;}
 .kpi-delta.down{color:#7c0d0d;}
@@ -72,7 +73,7 @@ body{font-family:'Nunito Sans',sans-serif;background:var(--aa-white);min-height:
 /* Section card */
 .section{background:#fff;border:1.5px solid var(--aa-med-grey);border-radius:14px;padding:20px 22px;margin-bottom:18px;}
 .section-head{display:flex;justify-content:space-between;align-items:baseline;gap:12px;margin-bottom:14px;}
-.section-title{font-family:'Nunito',sans-serif;font-weight:800;font-size:15px;color:var(--aa-navy);}
+.section-title{font-family:'AF Sobremesa','Be Vietnam Pro',sans-serif;font-weight:800;font-size:15px;color:var(--aa-navy);}
 .section-meta{font-size:11px;color:var(--aa-dark-grey);font-weight:600;}
 
 /* Horizontal bar chart */
@@ -127,7 +128,7 @@ body{font-family:'Nunito Sans',sans-serif;background:var(--aa-white);min-height:
 .spinner{width:32px;height:32px;border:3px solid var(--aa-med-grey);border-top-color:var(--aa-blue);border-radius:50%;animation:spin 0.7s linear infinite;}
 @keyframes spin{to{transform:rotate(360deg);}}
 .denied-icon{font-size:48px;margin-bottom:12px;}
-.denied-title{font-family:'Nunito',sans-serif;font-weight:900;font-size:22px;color:var(--aa-navy);margin-bottom:8px;}
+.denied-title{font-family:'AF Sobremesa','Be Vietnam Pro',sans-serif;font-weight:900;font-size:22px;color:var(--aa-navy);margin-bottom:8px;}
 .denied-sub{font-size:14px;color:var(--aa-dark-grey);max-width:360px;line-height:1.55;margin-bottom:20px;}
 
 .site-footer{background:var(--aa-navy);padding:20px 32px;text-align:center;border-top:3px solid var(--aa-blue);margin-top:auto;}

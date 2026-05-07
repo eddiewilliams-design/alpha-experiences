@@ -6,7 +6,8 @@
 <title>Submit Your Project — Alpha Experiences</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@700;800;900&family=Nunito+Sans:wght@300;400;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/brand-fonts.css">
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
 :root{
@@ -15,13 +16,13 @@
   --aa-med-grey:#DADFE7;--aa-dark-grey:#8291AA;--aa-light-grey:#EEF0F3;
   --aa-green:#2C8707;--aa-light-green:#EEFDE8;--aa-pink:#CD1D80;--aa-light-pink:#FBEBFF;--media-white:#FFFFFF;
 }
-body{font-family:'Nunito Sans',sans-serif;background:var(--aa-white);min-height:100vh;color:var(--aa-navy);display:flex;flex-direction:column;}
+body{font-family:'Be Vietnam Pro',sans-serif;background:var(--aa-white);min-height:100vh;color:var(--aa-navy);display:flex;flex-direction:column;}
 
 /* ── Header ── */
 .site-header{background:var(--aa-navy);padding:16px 32px;display:flex;align-items:center;justify-content:space-between;}
 .header-logo{display:flex;align-items:center;gap:12px;}
 .logo-divider{width:1px;height:28px;background:rgba(255,255,255,0.2);}
-.logo-text-top{font-family:'Nunito',sans-serif;font-weight:900;font-size:14px;color:#fff;line-height:1.1;}
+.logo-text-top{font-family:'AF Sobremesa','Be Vietnam Pro',sans-serif;font-weight:900;font-size:14px;color:#fff;line-height:1.1;}
 .logo-text-sub{font-size:10px;color:rgba(255,255,255,0.5);font-weight:600;letter-spacing:0.05em;text-transform:uppercase;}
 .user-wrap{position:relative;}
 .user-chip{display:flex;align-items:center;gap:8px;background:rgba(255,255,255,0.12);border:none;border-radius:999px;padding:6px 14px 6px 7px;cursor:pointer;font-family:inherit;}
@@ -42,7 +43,7 @@ body{font-family:'Nunito Sans',sans-serif;background:var(--aa-white);min-height:
 /* ── Hero ── */
 .hero{background:var(--aa-navy);padding:36px 32px 0;text-align:center;}
 .hero-badge{display:inline-block;background:rgba(255,255,255,0.12);color:rgba(255,255,255,0.85);font-size:11px;font-weight:700;letter-spacing:0.07em;padding:5px 16px;border-radius:999px;margin-bottom:14px;}
-.hero-title{font-family:'Nunito',sans-serif;font-weight:900;font-size:clamp(22px,4vw,32px);color:#fff;line-height:1.12;margin-bottom:10px;}
+.hero-title{font-family:'AF Sobremesa','Be Vietnam Pro',sans-serif;font-weight:900;font-size:clamp(22px,4vw,32px);color:#fff;line-height:1.12;margin-bottom:10px;}
 .hero-sub{font-size:13px;color:rgba(255,255,255,0.5);line-height:1.6;}
 .hero-scallop{background:var(--aa-light-grey);height:28px;border-radius:28px 28px 0 0;margin:24px -32px 0;}
 
@@ -71,11 +72,11 @@ body{font-family:'Nunito Sans',sans-serif;background:var(--aa-white);min-height:
 
 .field-group{margin-bottom:16px;}
 label{display:block;font-size:12px;font-weight:700;color:var(--aa-dark-grey);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:6px;}
-input[type="text"]{width:100%;padding:12px 16px;border:1.5px solid var(--aa-med-grey);border-radius:10px;font-family:'Nunito Sans',sans-serif;font-size:14px;color:var(--aa-navy);background:#fff;outline:none;transition:border-color 0.15s;}
+input[type="text"]{width:100%;padding:12px 16px;border:1.5px solid var(--aa-med-grey);border-radius:10px;font-family:'Be Vietnam Pro',sans-serif;font-size:14px;color:var(--aa-navy);background:#fff;outline:none;transition:border-color 0.15s;}
 input[type="text"]:focus{border-color:var(--aa-blue);}
 input[type="text"]::placeholder{color:var(--aa-dark-grey);}
 
-.submit-btn{width:100%;padding:14px;background:var(--aa-blue);color:#fff;border:none;border-radius:999px;font-family:'Nunito',sans-serif;font-weight:800;font-size:16px;cursor:pointer;margin-top:8px;transition:opacity 0.15s;}
+.submit-btn{width:100%;padding:14px;background:var(--aa-blue);color:#fff;border:none;border-radius:999px;font-family:'AF Sobremesa','Be Vietnam Pro',sans-serif;font-weight:800;font-size:16px;cursor:pointer;margin-top:8px;transition:opacity 0.15s;}
 .submit-btn:disabled{opacity:0.4;cursor:not-allowed;}
 .submit-btn:not(:disabled):hover{opacity:0.9;}
 .submit-note{text-align:center;font-size:11px;color:var(--aa-dark-grey);margin-top:12px;line-height:1.5;}
@@ -93,7 +94,7 @@ input[type="text"]::placeholder{color:var(--aa-dark-grey);}
 /* ── Success state ── */
 .success-card{background:#fff;border:2px solid var(--aa-green);border-radius:20px;padding:36px 32px;text-align:center;}
 .success-icon{font-size:42px;margin-bottom:8px;}
-.success-title{font-family:'Nunito',sans-serif;font-weight:900;font-size:22px;color:var(--aa-navy);margin-bottom:8px;}
+.success-title{font-family:'AF Sobremesa','Be Vietnam Pro',sans-serif;font-weight:900;font-size:22px;color:var(--aa-navy);margin-bottom:8px;}
 .success-sub{font-size:14px;color:var(--aa-dark-grey);line-height:1.6;margin-bottom:24px;max-width:380px;margin-left:auto;margin-right:auto;}
 .success-actions{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;}
 .btn-primary{background:var(--aa-yellow);color:#3a2000;font-size:13px;font-weight:700;padding:11px 22px;border-radius:999px;text-decoration:none;display:inline-block;border:none;cursor:pointer;}
@@ -108,7 +109,7 @@ input[type="text"]::placeholder{color:var(--aa-dark-grey);}
 .spinner{width:32px;height:32px;border:3px solid var(--aa-med-grey);border-top-color:var(--aa-blue);border-radius:50%;animation:spin 0.7s linear infinite;}
 @keyframes spin{to{transform:rotate(360deg);}}
 .error-icon{font-size:48px;margin-bottom:12px;}
-.error-title{font-family:'Nunito',sans-serif;font-weight:900;font-size:22px;color:var(--aa-navy);margin-bottom:8px;}
+.error-title{font-family:'AF Sobremesa','Be Vietnam Pro',sans-serif;font-weight:900;font-size:22px;color:var(--aa-navy);margin-bottom:8px;}
 .error-sub{font-size:14px;color:var(--aa-dark-grey);max-width:360px;line-height:1.55;margin-bottom:20px;}
 </style>
 </head>
