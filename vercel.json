@@ -14,6 +14,8 @@
     { "source": "/admin/registrations", "destination": "/admin-registrations.html" },
     { "source": "/admin/submissions", "destination": "/admin-submissions.html" },
     { "source": "/admin/access", "destination": "/admin-access.html" },
+    { "source": "/admin/suggestions", "destination": "/admin-suggestions.html" },
+    { "source": "/admin/notifications", "destination": "/admin-notifications.html" },
     { "source": "/admin/lounge", "destination": "/admin-lounge-sessions.html" },
     { "source": "/admin/lounge/types", "destination": "/admin-lounge-types.html" },
     { "source": "/admin/lounge/passes", "destination": "/admin-lounge-passes.html" },

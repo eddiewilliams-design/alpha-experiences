@@ -37,9 +37,11 @@ body{font-family:'Nunito Sans',sans-serif;background:var(--aa-white);min-height:
 .user-menu a:hover{background:var(--aa-light-grey);}
 
 .admin-nav{background:#fff;border-bottom:1.5px solid var(--aa-med-grey);padding:0 32px;display:flex;gap:4px;overflow-x:auto;}
-.admin-tab{font-size:13px;font-weight:600;color:var(--aa-dark-grey);padding:14px 16px;border-bottom:2.5px solid transparent;cursor:pointer;white-space:nowrap;text-decoration:none;}
+.admin-tab{font-size:13px;font-weight:600;color:var(--aa-dark-grey);padding:14px 16px;border-bottom:2.5px solid transparent;cursor:pointer;white-space:nowrap;text-decoration:none;display:inline-flex;align-items:center;gap:8px;}
 .admin-tab.active{color:var(--aa-blue);border-bottom-color:var(--aa-blue);}
 .admin-tab:hover:not(.active){color:var(--aa-navy);}
+.notif-badge{display:none;background:var(--aa-red);color:#fff;font-size:10px;font-weight:800;padding:1px 7px;border-radius:999px;min-width:18px;text-align:center;}
+.notif-badge.show{display:inline-block;}
 
 .sub-nav{background:var(--aa-light-grey);padding:14px 32px 0;display:flex;gap:6px;flex-wrap:wrap;border-bottom:1px solid var(--aa-med-grey);}
 .sub-tab{font-size:12px;font-weight:700;color:var(--aa-dark-grey);background:#fff;border:1.5px solid var(--aa-med-grey);border-bottom:none;border-radius:10px 10px 0 0;padding:8px 16px;cursor:pointer;text-decoration:none;letter-spacing:0.02em;}
@@ -228,6 +230,7 @@ body{font-family:'Nunito Sans',sans-serif;background:var(--aa-white);min-height:
 <nav class="admin-nav">
   <a class="admin-tab" href="/admin">Virtual Field Trips</a>
   <a class="admin-tab active" href="/admin/lounge">Lounge</a>
+  <a class="admin-tab" href="/admin/notifications">Notifications<span class="notif-badge" id="notif-badge">0</span></a>
   <a class="admin-tab" href="/admin/access">Admin Access</a>
 </nav>
 
@@ -1290,5 +1293,6 @@ async function init(){
 init();
 </script>
 
+<script src="/admin-notif-badge.js"></script>
 </body>
 </html>

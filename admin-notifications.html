@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Admin — Notifications</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@700;800;900&family=Nunito+Sans:wght@300;400;600;700&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+:root{
+  --aa-navy:#072256;--aa-blue:#006FF9;--aa-yellow:#E59500;
+  --aa-white:#FAFAFA;--aa-light-blue:#E5F6FD;--aa-light-yellow:#FFF7E5;
+  --aa-med-grey:#DADFE7;--aa-dark-grey:#8291AA;--aa-light-grey:#EEF0F3;
+  --aa-green:#2C8707;--aa-light-green:#EEFDE8;--aa-red:#B91C1C;--aa-light-red:#FEE2E2;
+}
+body{font-family:'Nunito Sans',sans-serif;background:var(--aa-white);min-height:100vh;color:var(--aa-navy);display:flex;flex-direction:column;}
+
+.site-header{background:var(--aa-navy);padding:16px 32px;display:flex;align-items:center;justify-content:space-between;}
+.header-logo{display:flex;align-items:center;gap:12px;}
+.logo-divider{width:1px;height:28px;background:rgba(255,255,255,0.2);}
+.logo-text-top{font-family:'Nunito',sans-serif;font-weight:900;font-size:14px;color:#fff;line-height:1.1;}
+.logo-text-sub{font-size:10px;color:rgba(255,255,255,0.5);font-weight:600;letter-spacing:0.05em;text-transform:uppercase;}
+.header-right{display:flex;align-items:center;gap:10px;}
+.admin-badge{background:var(--aa-yellow);color:#3a2000;font-size:10px;font-weight:800;padding:4px 12px;border-radius:999px;letter-spacing:0.04em;text-transform:uppercase;}
+.user-wrap{position:relative;}
+.user-chip{display:flex;align-items:center;gap:8px;background:rgba(255,255,255,0.12);border:none;border-radius:999px;padding:6px 14px 6px 7px;cursor:pointer;font-family:inherit;}
+.user-chip:hover{background:rgba(255,255,255,0.18);}
+.avatar{width:26px;height:26px;border-radius:50%;background:var(--aa-blue);display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:#fff;}
+.user-name{font-size:13px;color:rgba(255,255,255,0.85);font-weight:600;}
+.user-menu{position:absolute;top:calc(100% + 8px);right:0;background:#fff;border:1px solid var(--aa-med-grey);border-radius:12px;box-shadow:0 8px 24px rgba(7,34,86,0.15);padding:6px;min-width:180px;display:none;z-index:50;}
+.user-menu.open{display:block;}
+.user-menu-email{font-size:11px;color:var(--aa-dark-grey);padding:8px 12px 10px;border-bottom:1px solid var(--aa-light-grey);margin-bottom:6px;word-break:break-all;}
+.user-menu a{display:block;padding:9px 12px;font-size:13px;font-weight:600;color:var(--aa-navy);text-decoration:none;border-radius:8px;}
+.user-menu a:hover{background:var(--aa-light-grey);}
+
+.admin-nav{background:#fff;border-bottom:1.5px solid var(--aa-med-grey);padding:0 32px;display:flex;gap:4px;overflow-x:auto;}
+.admin-tab{font-size:13px;font-weight:600;color:var(--aa-dark-grey);padding:14px 16px;border-bottom:2.5px solid transparent;cursor:pointer;white-space:nowrap;text-decoration:none;display:inline-flex;align-items:center;gap:8px;}
+.admin-tab.active{color:var(--aa-blue);border-bottom-color:var(--aa-blue);}
+.admin-tab:hover:not(.active){color:var(--aa-navy);}
+.notif-badge{display:none;background:var(--aa-red);color:#fff;font-size:10px;font-weight:800;padding:1px 7px;border-radius:999px;min-width:18px;text-align:center;}
+.notif-badge.show{display:inline-block;}
+
+.page-body{background:var(--aa-light-grey);padding:24px 24px 56px;min-height:60vh;}
+.page-inner{max-width:1080px;margin:0 auto;}
+
+.toolbar{display:flex;align-items:baseline;justify-content:space-between;gap:12px;margin-bottom:18px;flex-wrap:wrap;}
+.toolbar-title{font-family:'Nunito',sans-serif;font-weight:800;font-size:18px;color:var(--aa-navy);}
+.toolbar-sub{font-size:12px;color:var(--aa-dark-grey);}
+
+.summary-row{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:24px;}
+.summary-card{background:#fff;border:1.5px solid var(--aa-med-grey);border-radius:14px;padding:16px 18px;}
+.summary-card.alert{border-color:var(--aa-yellow);background:var(--aa-light-yellow);}
+.summary-card.danger{border-color:#f3a3a3;background:var(--aa-light-red);}
+.summary-icon{font-size:18px;}
+.summary-label{font-size:11px;font-weight:800;color:var(--aa-dark-grey);text-transform:uppercase;letter-spacing:0.06em;margin-top:6px;}
+.summary-card.alert .summary-label{color:#6b3a00;}
+.summary-card.danger .summary-label{color:#7c0d0d;}
+.summary-value{font-family:'Nunito',sans-serif;font-weight:900;font-size:32px;color:var(--aa-navy);margin:4px 0;line-height:1;}
+.summary-card.alert .summary-value{color:#6b3a00;}
+.summary-card.danger .summary-value{color:#7c0d0d;}
+.summary-link{font-size:12px;font-weight:700;color:var(--aa-blue);text-decoration:none;}
+.summary-link:hover{text-decoration:underline;}
+
+.section{background:#fff;border:1.5px solid var(--aa-med-grey);border-radius:14px;padding:18px 22px;margin-bottom:18px;}
+.section-head{display:flex;justify-content:space-between;align-items:baseline;gap:12px;margin-bottom:14px;}
+.section-title{font-family:'Nunito',sans-serif;font-weight:800;font-size:15px;color:var(--aa-navy);}
+
+.feed{display:flex;flex-direction:column;gap:8px;}
+.feed-row{display:grid;grid-template-columns:auto 1fr auto auto;gap:12px;align-items:center;padding:12px 14px;border-radius:10px;background:var(--aa-light-grey);text-decoration:none;color:inherit;border:1.5px solid transparent;}
+.feed-row:hover{border-color:var(--aa-blue);background:#fff;}
+.feed-icon{font-size:20px;width:32px;height:32px;display:flex;align-items:center;justify-content:center;background:#fff;border-radius:10px;border:1.5px solid var(--aa-med-grey);}
+.feed-row.danger .feed-icon{background:var(--aa-light-red);border-color:#f3a3a3;}
+.feed-row.alert .feed-icon{background:var(--aa-light-yellow);border-color:#f0d39b;}
+.feed-info .feed-title{font-family:'Nunito',sans-serif;font-weight:800;font-size:14px;color:var(--aa-navy);overflow-wrap:anywhere;}
+.feed-info .feed-meta{font-size:11px;color:var(--aa-dark-grey);font-weight:600;margin-top:2px;}
+.feed-when{font-size:11px;font-weight:700;color:var(--aa-dark-grey);white-space:nowrap;}
+.feed-arrow{font-size:14px;color:var(--aa-dark-grey);}
+.feed-row:hover .feed-arrow{color:var(--aa-blue);}
+
+.empty-state{background:#fff;border:1.5px solid var(--aa-med-grey);border-radius:18px;padding:40px 28px;text-align:center;}
+.empty-icon{font-size:34px;margin-bottom:8px;}
+.empty-title{font-family:'Nunito',sans-serif;font-weight:800;font-size:16px;color:var(--aa-navy);margin-bottom:6px;}
+.empty-sub{font-size:13px;color:var(--aa-dark-grey);max-width:420px;margin:0 auto;line-height:1.55;}
+
+.page-loading,.page-denied{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:80px 24px;background:var(--aa-light-grey);min-height:60vh;text-align:center;}
+.spinner{width:32px;height:32px;border:3px solid var(--aa-med-grey);border-top-color:var(--aa-blue);border-radius:50%;animation:spin 0.7s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg);}}
+.denied-icon{font-size:48px;margin-bottom:12px;}
+.denied-title{font-family:'Nunito',sans-serif;font-weight:900;font-size:22px;color:var(--aa-navy);margin-bottom:8px;}
+.denied-sub{font-size:14px;color:var(--aa-dark-grey);max-width:360px;line-height:1.55;margin-bottom:20px;}
+.btn-blue{background:var(--aa-blue);color:#fff;font-size:13px;font-weight:700;padding:10px 20px;border-radius:999px;border:none;cursor:pointer;text-decoration:none;display:inline-block;}
+
+.site-footer{background:var(--aa-navy);padding:20px 32px;text-align:center;border-top:3px solid var(--aa-blue);margin-top:auto;}
+.footer-text{font-size:11px;color:var(--aa-dark-grey);letter-spacing:0.05em;text-transform:uppercase;margin-top:8px;}
+
+@media(max-width:760px){
+  .summary-row{grid-template-columns:1fr;}
+  .feed-row{grid-template-columns:auto 1fr auto;}
+  .feed-row .feed-when{display:none;}
+}
+</style>
+</head>
+<body>
+
+<header class="site-header">
+  <div class="header-logo">
+    <svg width="32" height="32" viewBox="0 0 67 55" fill="none"><path d="M66.3126 50.8822L48.3919 1.76245C48.0093 0.703285 46.9977 0 45.867 0H20.6096C19.479 0 18.4673 0.703285 18.0848 1.76245L0.164039 50.8822C-0.473557 52.6277 0.82714 54.4749 2.68892 54.4749H25.9059C27.0366 54.4749 28.0483 53.7716 28.4308 52.7125L33.2426 39.5365L38.0543 52.7125C38.4368 53.7716 39.4485 54.4749 40.5792 54.4749H63.7962C65.658 54.4749 66.9587 52.6277 66.3211 50.8822H66.3126ZM40.9532 51.255L34.9598 34.8253L45.9945 4.58406L63.0226 51.2635H40.9532V51.255Z" fill="white"/></svg>
+    <div class="logo-divider"></div>
+    <div>
+      <div class="logo-text-top">Alpha Experiences</div>
+      <div class="logo-text-sub">Admin Dashboard</div>
+    </div>
+  </div>
+  <div class="header-right">
+    <span class="admin-badge">Admin</span>
+    <div class="user-wrap">
+      <button class="user-chip" id="user-chip" aria-haspopup="true" aria-expanded="false">
+        <div class="avatar" id="user-avatar">··</div>
+        <span class="user-name" id="user-handle">…</span>
+      </button>
+      <div class="user-menu" id="user-menu" role="menu">
+        <div class="user-menu-email" id="user-menu-email"></div>
+        <a href="/trips" role="menuitem">Student view</a>
+        <a href="/gallery" role="menuitem">Gallery</a>
+        <a href="/auth/logout" role="menuitem">Sign out</a>
+      </div>
+    </div>
+  </div>
+</header>
+
+<nav class="admin-nav">
+  <a class="admin-tab" href="/admin">Virtual Field Trips</a>
+  <a class="admin-tab" href="/admin/lounge">Lounge</a>
+  <a class="admin-tab active" href="/admin/notifications">Notifications<span class="notif-badge" id="notif-badge">0</span></a>
+  <a class="admin-tab" href="/admin/access">Admin Access</a>
+</nav>
+
+<div id="page-loading" class="page-loading"><div class="spinner"></div></div>
+
+<div id="page-denied" class="page-denied" style="display:none;">
+  <div class="denied-icon">🔒</div>
+  <p class="denied-title">Admins only</p>
+  <p class="denied-sub">This area is for Alpha Anywhere staff. Ask Eddie to add your email to the admins list.</p>
+  <a href="/trips" class="btn-blue">← Back to my trips</a>
+</div>
+
+<div id="page-body" class="page-body" style="display:none;">
+  <div class="page-inner">
+
+    <div class="toolbar">
+      <div>
+        <div class="toolbar-title">Notifications</div>
+        <div class="toolbar-sub" id="toolbar-sub">Things that need your attention</div>
+      </div>
+    </div>
+
+    <div class="summary-row" id="summary-row"></div>
+
+    <div class="section">
+      <div class="section-head">
+        <div class="section-title">Recent items</div>
+      </div>
+      <div id="feed" class="feed"></div>
+    </div>
+
+  </div>
+</div>
+
+<footer class="site-footer">
+  <svg width="24" height="20" viewBox="0 0 67 55" fill="none"><path d="M66.3126 50.8822L48.3919 1.76245C48.0093 0.703285 46.9977 0 45.867 0H20.6096C19.479 0 18.4673 0.703285 18.0848 1.76245L0.164039 50.8822C-0.473557 52.6277 0.82714 54.4749 2.68892 54.4749H25.9059C27.0366 54.4749 28.0483 53.7716 28.4308 52.7125L33.2426 39.5365L38.0543 52.7125C38.4368 53.7716 39.4485 54.4749 40.5792 54.4749H63.7962C65.658 54.4749 66.9587 52.6277 66.3211 50.8822H66.3126ZM40.9532 51.255L34.9598 34.8253L45.9945 4.58406L63.0226 51.2635H40.9532V51.255Z" fill="#FAFAFA" opacity="0.4"/></svg>
+  <p class="footer-text">Alpha Experiences · Admin</p>
+</footer>
+
+<script>
+function emailHandle(e){ if(!e) return ''; var i=e.indexOf('@'); return i<0?e:e.slice(0,i); }
+function initialsFor(name, email){
+  var s = (name || emailHandle(email) || '').trim();
+  if (!s) return '··';
+  var parts = s.split(/[\s.]+/).filter(Boolean);
+  if (parts.length === 1) return (parts[0][0] || '·').toUpperCase();
+  return ((parts[0][0] || '·') + (parts[parts.length-1][0] || '')).toUpperCase();
+}
+function fmtWhen(s){
+  try {
+    var d = new Date(s);
+    if (!isNaN(d.getTime())) {
+      return d.toLocaleString(undefined, { month:'short', day:'numeric', hour:'numeric', minute:'2-digit' });
+    }
+  } catch(_){}
+  return s || '';
+}
+function setupUserMenu(user){
+  document.getElementById('user-avatar').textContent     = initialsFor(user.name, user.email);
+  document.getElementById('user-handle').textContent     = emailHandle(user.email);
+  document.getElementById('user-menu-email').textContent = user.email;
+  var btn = document.getElementById('user-chip');
+  var menu = document.getElementById('user-menu');
+  btn.addEventListener('click', function(e){ e.stopPropagation(); var open = menu.classList.toggle('open'); btn.setAttribute('aria-expanded', open ? 'true' : 'false'); });
+  document.addEventListener('click', function(e){ if (!menu.contains(e.target) && e.target !== btn) { menu.classList.remove('open'); btn.setAttribute('aria-expanded', 'false'); }});
+}
+
+function renderSummary(counts){
+  var row = document.getElementById('summary-row');
+  row.innerHTML = '';
+
+  var defs = [
+    {
+      key: 'total',
+      label: 'All notifications',
+      icon: '🔔',
+      cls:  counts.total > 0 ? 'alert' : '',
+      link: null
+    },
+    {
+      key: 'new_suggestions',
+      label: 'New suggestions',
+      icon: '💡',
+      cls:  counts.new_suggestions > 0 ? 'alert' : '',
+      link: { href: '/admin/suggestions', label: 'Review →' }
+    },
+    {
+      key: 'failed_emails',
+      label: 'Failed pass emails',
+      icon: '✉️',
+      cls:  counts.failed_emails > 0 ? 'danger' : '',
+      link: { href: '/admin/lounge/passes', label: 'Open passes →' }
+    }
+  ];
+
+  defs.forEach(function(def){
+    var card = document.createElement('div');
+    card.className = 'summary-card' + (def.cls ? ' ' + def.cls : '');
+    var icon = document.createElement('div');
+    icon.className = 'summary-icon';
+    icon.textContent = def.icon;
+    card.appendChild(icon);
+    var lbl = document.createElement('div');
+    lbl.className = 'summary-label';
+    lbl.textContent = def.label;
+    card.appendChild(lbl);
+    var val = document.createElement('div');
+    val.className = 'summary-value';
+    val.textContent = counts[def.key] || 0;
+    card.appendChild(val);
+    if (def.link && counts[def.key] > 0) {
+      var a = document.createElement('a');
+      a.className = 'summary-link';
+      a.href = def.link.href;
+      a.textContent = def.link.label;
+      card.appendChild(a);
+    }
+    row.appendChild(card);
+  });
+}
+
+function renderFeed(items){
+  var feed = document.getElementById('feed');
+  feed.innerHTML = '';
+  if (!items || !items.length) {
+    var empty = document.createElement('div');
+    empty.className = 'empty-state';
+    empty.innerHTML =
+      '<div class="empty-icon">✨</div>' +
+      '<p class="empty-title">All caught up</p>' +
+      '<p class="empty-sub">No suggestions to review and no failed emails. Everything looks good.</p>';
+    feed.appendChild(empty);
+    return;
+  }
+
+  items.forEach(function(it){
+    var a = document.createElement('a');
+    a.className = 'feed-row' + (it.kind === 'failed_email' ? ' danger' : ' alert');
+    a.href = it.href || '#';
+
+    var icon = document.createElement('div');
+    icon.className = 'feed-icon';
+    icon.textContent = it.kind === 'failed_email' ? '✉️' : '💡';
+    a.appendChild(icon);
+
+    var info = document.createElement('div');
+    info.className = 'feed-info';
+    var t = document.createElement('div');
+    t.className = 'feed-title';
+    t.textContent = it.title;
+    info.appendChild(t);
+    var meta = document.createElement('div');
+    meta.className = 'feed-meta';
+    var who = it.student_name || it.student_email || '(unknown)';
+    var typeStr = it.type ? ' · ' + it.type : '';
+    meta.textContent = who + typeStr;
+    info.appendChild(meta);
+    a.appendChild(info);
+
+    var when = document.createElement('div');
+    when.className = 'feed-when';
+    when.textContent = fmtWhen(it.submitted_at);
+    a.appendChild(when);
+
+    var arrow = document.createElement('div');
+    arrow.className = 'feed-arrow';
+    arrow.textContent = '→';
+    a.appendChild(arrow);
+
+    feed.appendChild(a);
+  });
+}
+
+async function refreshNotificationBadge(counts){
+  var badge = document.getElementById('notif-badge');
+  if (!badge) return;
+  var n = (counts && counts.total) || 0;
+  if (n > 0) { badge.textContent = n; badge.classList.add('show'); }
+  else      { badge.classList.remove('show'); }
+}
+
+async function load(){
+  var r = await fetch('/api/admin/notifications-feed', { credentials:'same-origin' });
+  if (r.status !== 200){
+    document.getElementById('summary-row').innerHTML = '<div style="grid-column:1/-1;color:#7c0d0d;background:#fff;padding:20px;border-radius:14px;border:1.5px solid #f3a3a3;">Could not load notifications.</div>';
+    return;
+  }
+  var data = await r.json();
+  renderSummary(data.counts || {});
+  renderFeed(data.items || []);
+  refreshNotificationBadge(data.counts || {});
+
+  var n = (data.counts && data.counts.total) || 0;
+  document.getElementById('toolbar-sub').textContent =
+    n === 0 ? 'All clear ✨' : n + ' item' + (n === 1 ? '' : 's') + ' need attention';
+}
+
+async function init(){
+  var meRes;
+  try { meRes = await fetch('/auth/me', { credentials:'same-origin' }); }
+  catch (e) { window.location.href = '/auth/login?return_to=' + encodeURIComponent(window.location.pathname + window.location.search); return; }
+  if (meRes.status !== 200) { window.location.href = '/auth/login?return_to=' + encodeURIComponent(window.location.pathname + window.location.search); return; }
+  var user = await meRes.json();
+  if (!user.isAdmin) {
+    document.getElementById('page-loading').style.display = 'none';
+    document.getElementById('page-denied').style.display = 'flex';
+    return;
+  }
+  setupUserMenu(user);
+
+  document.getElementById('page-loading').style.display = 'none';
+  document.getElementById('page-body').style.display    = '';
+
+  await load();
+}
+init();
+</script>
+
+</body>
+</html>

@@ -2420,6 +2420,178 @@ async function handleLoungeAttendanceStats(req, res) {
   });
 }
 
+// ── Experience Suggestions admin (Phase 2d) ─────────────────
+//
+// Experience_Suggestions tab schema:
+//   A Submitted At | B Student Name | C Student Email
+//   D Type         | E Title        | F Description
+//   G Status       | H Admin Notes
+//
+// Status: New / Reviewing / Approved / Declined
+
+const VALID_SUGGESTION_STATUS = ['New', 'Reviewing', 'Approved', 'Declined'];
+
+async function readSuggestions(token) {
+  const sheet = await batchGet(token, ['Experience_Suggestions!A:H']);
+  return (sheet && sheet.valueRanges && sheet.valueRanges[0] && sheet.valueRanges[0].values) || [];
+}
+
+async function handleSuggestionsList(req, res) {
+  const statusFilter = (req.query.status || '').toString().trim();
+
+  let token;
+  try { token = await getAccessToken(); }
+  catch (err) { console.error('suggestions-list token:', err.message); return res.status(500).json({ error: 'server_error' }); }
+
+  let rows;
+  try { rows = await readSuggestions(token); }
+  catch (err) {
+    console.error('suggestions-list read:', err.message);
+    return res.status(500).json({ error: 'server_error', detail: 'Make sure the Experience_Suggestions tab exists.' });
+  }
+
+  const items = [];
+  for (let i = 1; i < rows.length; i++) {
+    const r = rows[i] || [];
+    if (!r[0] && !r[2] && !r[4]) continue;
+    const status = (r[6] || 'New').toString().trim() || 'New';
+    if (statusFilter && status.toLowerCase() !== statusFilter.toLowerCase()) continue;
+    items.push({
+      row_index:     i + 1,
+      submitted_at:  (r[0] || '').toString(),
+      student_name:  (r[1] || '').toString(),
+      student_email: (r[2] || '').toString(),
+      type:          (r[3] || '').toString(),
+      title:         (r[4] || '').toString(),
+      description:   (r[5] || '').toString(),
+      status:        status,
+      admin_notes:   (r[7] || '').toString()
+    });
+  }
+  items.sort((a, b) => (b.submitted_at || '').localeCompare(a.submitted_at || ''));
+  return res.status(200).json({ suggestions: items });
+}
+
+async function handleSuggestionUpdate(req, res) {
+  if (req.method !== 'POST') return res.status(405).json({ error: 'method_not_allowed' });
+
+  let body;
+  try { body = await readJsonBody(req); }
+  catch (e) { return res.status(400).json({ error: 'bad_json' }); }
+
+  const rowIdx = parseInt(body.row_index, 10);
+  if (!rowIdx || rowIdx < 2) {
+    return res.status(400).json({ error: 'bad_request', detail: 'row_index must be >= 2' });
+  }
+
+  let status = null;
+  if (body.status !== undefined) {
+    const s = String(body.status).trim();
+    const match = VALID_SUGGESTION_STATUS.find(v => v.toLowerCase() === s.toLowerCase());
+    if (!match) return res.status(400).json({ error: 'bad_request', detail: 'status must be New / Reviewing / Approved / Declined' });
+    status = match;
+  }
+  let notes = null;
+  if (body.admin_notes !== undefined) {
+    notes = String(body.admin_notes == null ? '' : body.admin_notes);
+    if (notes.length > 4000) return res.status(400).json({ error: 'bad_request', detail: 'admin_notes too long' });
+  }
+  if (status === null && notes === null) {
+    return res.status(400).json({ error: 'bad_request', detail: 'no fields to update' });
+  }
+
+  let token;
+  try { token = await getAccessToken('https://www.googleapis.com/auth/spreadsheets'); }
+  catch (err) { return res.status(500).json({ error: 'server_error' }); }
+
+  try {
+    if (status !== null) {
+      await sheetsUpdate(token, `Experience_Suggestions!G${rowIdx}`, [[status]]);
+    }
+    if (notes !== null) {
+      await sheetsUpdate(token, `Experience_Suggestions!H${rowIdx}`, [[notes]]);
+    }
+  } catch (err) {
+    console.error('suggestion-update write:', err.message);
+    return res.status(500).json({ error: 'server_error' });
+  }
+  return res.status(200).json({ ok: true });
+}
+
+// ── Notifications feed (admin) ──────────────────────────────
+//
+// Aggregates everything the admin should be aware of:
+//   - New experience suggestions (Status = New)
+//   - Pass welcome emails that failed to send (Email Sent = FAILED)
+//
+// Returns counts (for the nav badge) + recent items (for the
+// /admin/notifications page). Cheap enough that every admin page
+// can hit it on load to update its badge.
+
+async function handleNotificationsFeed(req, res) {
+  let token;
+  try { token = await getAccessToken(); }
+  catch (err) {
+    return res.status(200).json({ counts: { new_suggestions: 0, failed_emails: 0, total: 0 }, items: [] });
+  }
+
+  let suggestionRows = [], sheet1Rows = [];
+  try {
+    const sheet = await batchGet(token, ['Experience_Suggestions!A:H', 'Sheet1!A:N']);
+    const ranges = (sheet && sheet.valueRanges) || [];
+    suggestionRows = (ranges[0] && ranges[0].values) || [];
+    sheet1Rows     = (ranges[1] && ranges[1].values) || [];
+  } catch (_) { /* tab may not exist; skip silently */ }
+
+  const items = [];
+
+  for (let i = 1; i < suggestionRows.length; i++) {
+    const r = suggestionRows[i] || [];
+    if (!r[4]) continue;
+    const status = (r[6] || 'New').toString().trim() || 'New';
+    if (status !== 'New') continue;
+    items.push({
+      kind:          'suggestion',
+      submitted_at:  (r[0] || '').toString(),
+      student_name:  (r[1] || '').toString(),
+      student_email: (r[2] || '').toString(),
+      type:          (r[3] || '').toString(),
+      title:         (r[4] || '').toString(),
+      href:          '/admin/suggestions'
+    });
+  }
+
+  for (let i = 1; i < sheet1Rows.length; i++) {
+    const r = sheet1Rows[i] || [];
+    const emailSent = (r[4] || '').toString().toUpperCase().trim();
+    if (emailSent !== 'FAILED') continue;
+    items.push({
+      kind:          'failed_email',
+      submitted_at:  (r[8] || '').toString(),
+      student_name:  (r[1] || '').toString(),
+      student_email: (r[2] || '').toString(),
+      type:          (r[0] || '').toString(),
+      title:         'Welcome email failed to send',
+      pass_token:    (r[6] || '').toString(),
+      href:          '/admin/lounge/passes'
+    });
+  }
+
+  items.sort((a, b) => (b.submitted_at || '').localeCompare(a.submitted_at || ''));
+
+  const newSuggCount   = items.filter(x => x.kind === 'suggestion').length;
+  const failedMailCount = items.filter(x => x.kind === 'failed_email').length;
+
+  return res.status(200).json({
+    counts: {
+      new_suggestions: newSuggCount,
+      failed_emails:   failedMailCount,
+      total:           newSuggCount + failedMailCount
+    },
+    items
+  });
+}
+
 // ── Dispatch ────────────────────────────────────────────────
 module.exports = async (req, res) => {
   res.setHeader('Cache-Control', 'no-store');
@@ -2459,6 +2631,9 @@ module.exports = async (req, res) => {
     case 'lounge-attendance-list':   return handleLoungeAttendanceList(req, res);
     case 'lounge-attendance-delete': return handleLoungeAttendanceDelete(req, res);
     case 'lounge-attendance-stats':  return handleLoungeAttendanceStats(req, res);
+    case 'suggestions-list':         return handleSuggestionsList(req, res);
+    case 'suggestion-update':        return handleSuggestionUpdate(req, res);
+    case 'notifications-feed':       return handleNotificationsFeed(req, res);
     default:                      return res.status(404).json({ error: 'not_found', detail: action });
   }
 };
