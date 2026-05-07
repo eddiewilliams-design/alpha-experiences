@@ -217,12 +217,26 @@ async function handleLoungeData(req, res) {
 
   let passes = [];
   let sessions = [];
+  let pageCopy = {};
   try {
     const token = await getAccessToken();
     const sheet = await batchGet(token, [PASS_RANGE, SESSIONS_RANGE]);
     const ranges = (sheet && sheet.valueRanges) || [];
     const passRows    = (ranges[0] && ranges[0].values) || [];
     const sessionRows = (ranges[1] && ranges[1].values) || [];
+
+    // Page copy: fetched separately so a missing LUL_Page_Copy tab doesn't
+    // break the page (defaults already live in the HTML as fallback).
+    try {
+      const copyResult = await batchGet(token, ['LUL_Page_Copy!A:C']);
+      const copyRows   = (copyResult && copyResult.valueRanges && copyResult.valueRanges[0] && copyResult.valueRanges[0].values) || [];
+      for (let i = 1; i < copyRows.length; i++) {
+        const r = copyRows[i] || [];
+        const key = (r[0] || '').toString().trim();
+        const val = (r[1] || '').toString();
+        if (key && val) pageCopy[key] = val;
+      }
+    } catch (_) { /* tab may not exist; leave pageCopy empty */ }
 
     // Build session list (filtered to active + not in blackout for the lounge page)
     for (let i = 1; i < sessionRows.length; i++) {
@@ -318,7 +332,7 @@ async function handleLoungeData(req, res) {
     passes = []; sessions = [];
   }
 
-  return res.status(200).json({ passes, sessions });
+  return res.status(200).json({ passes, sessions, page_copy: pageCopy });
 }
 
 // ── readJsonBody helper ───────────────────────────────────

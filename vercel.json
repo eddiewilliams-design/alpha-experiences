@@ -20,6 +20,7 @@
     { "source": "/admin/lounge/types", "destination": "/admin-lounge-types.html" },
     { "source": "/admin/lounge/passes", "destination": "/admin-lounge-passes.html" },
     { "source": "/admin/lounge/attendance", "destination": "/admin-lounge-attendance.html" },
+    { "source": "/admin/lounge/copy", "destination": "/admin-lounge-copy.html" },
     { "source": "/auth/google", "destination": "/api/auth/google" },
     { "source": "/auth/callback", "destination": "/api/auth/callback" },
     { "source": "/auth/me", "destination": "/api/auth/me" },

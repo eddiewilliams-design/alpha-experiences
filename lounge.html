@@ -179,8 +179,8 @@ body{font-family:'Nunito Sans',sans-serif;background:var(--aa-white);min-height:
     <section>
       <p class="section-heading">What is Level Up Lounge?</p>
       <div class="explainer-card">
-        <p>Live, themed game sessions over Zoom — Blooket battles, Jeopardy, Improv, Drawing, and more — hosted by your Alpha Anywhere coaches every week.</p>
-        <p>Pick the ones that look fun, show up at the time, and bring your energy. It's the easiest way to connect with your crew between trips.</p>
+        <p id="lul-hero-p1">Live, themed game sessions over Zoom — Blooket battles, Jeopardy, Improv, Drawing, and more — hosted by your Alpha Anywhere coaches every week.</p>
+        <p id="lul-hero-p2">Pick the ones that look fun, show up at the time, and bring your energy. It's the easiest way to connect with your crew in your free time.</p>
       </div>
     </section>
 
@@ -516,15 +516,14 @@ async function init(){
   var user = await meRes.json();
   setupUserMenu(user);
 
-  var passes = [], sessions = [];
+  var passes = [], sessions = [], pageCopy = {};
   try {
     var r = await fetch('/api/lul/lounge-data', { credentials:'same-origin' });
     if (r.status === 200) {
       var data = await r.json();
-      passes   = (data && data.passes)   || [];
-      sessions = (data && data.sessions) || [];
-      // Debug: helps diagnose "missing pass" reports.
-      // Open DevTools → Console to see how many rows the server matched.
+      passes   = (data && data.passes)    || [];
+      sessions = (data && data.sessions)  || [];
+      pageCopy = (data && data.page_copy) || {};
       console.log('[lounge] API returned ' + passes.length + ' pass(es), ' + sessions.length + ' session(s) for', user.email);
       if (passes.length) console.log('[lounge] passes:', passes);
     } else {
@@ -532,6 +531,17 @@ async function init(){
     }
   } catch (e) {
     console.warn('[lounge] fetch failed:', e);
+  }
+
+  // Apply admin-editable page copy if present (falls back to the default
+  // text already in the HTML when the LUL_Page_Copy sheet tab is empty).
+  if (pageCopy.lul_hero_p1) {
+    var p1 = document.getElementById('lul-hero-p1');
+    if (p1) p1.textContent = pageCopy.lul_hero_p1;
+  }
+  if (pageCopy.lul_hero_p2) {
+    var p2 = document.getElementById('lul-hero-p2');
+    if (p2) p2.textContent = pageCopy.lul_hero_p2;
   }
 
   renderPasses(passes);

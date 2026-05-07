@@ -2421,6 +2421,88 @@ async function handleLoungeAttendanceStats(req, res) {
   });
 }
 
+// ── LUL Page Copy admin ─────────────────────────────────────
+//
+// LUL_Page_Copy tab schema:
+//   A Key | B Value | C Description
+//
+// Each row represents one editable string on the /lounge page.
+// The student-facing API picks these up automatically; lounge.html
+// falls back to its default in-HTML text if the tab is missing.
+
+async function readLulPageCopy(token) {
+  try {
+    const sheet = await batchGet(token, ['LUL_Page_Copy!A:C']);
+    return (sheet && sheet.valueRanges && sheet.valueRanges[0] && sheet.valueRanges[0].values) || [];
+  } catch (_) { return []; }
+}
+
+async function handleLoungeCopyList(req, res) {
+  let token;
+  try { token = await getAccessToken(); }
+  catch (err) { return res.status(500).json({ error: 'server_error' }); }
+
+  const rows = await readLulPageCopy(token);
+  const items = [];
+  for (let i = 1; i < rows.length; i++) {
+    const r = rows[i] || [];
+    const key = (r[0] || '').toString().trim();
+    if (!key) continue;
+    items.push({
+      row_index:   i + 1,
+      key:         key,
+      value:       (r[1] || '').toString(),
+      description: (r[2] || '').toString()
+    });
+  }
+  return res.status(200).json({ copy: items });
+}
+
+async function handleLoungeCopySave(req, res) {
+  if (req.method !== 'POST') return res.status(405).json({ error: 'method_not_allowed' });
+
+  let body;
+  try { body = await readJsonBody(req); }
+  catch (e) { return res.status(400).json({ error: 'bad_json' }); }
+
+  const key   = (body.key || '').toString().trim();
+  const value = (body.value == null ? '' : body.value).toString();
+  const descr = (body.description == null ? '' : body.description).toString();
+  if (!key) return res.status(400).json({ error: 'bad_request', detail: 'key required' });
+  if (value.length > 4000) return res.status(400).json({ error: 'bad_request', detail: 'value too long (max 4000 chars)' });
+
+  let token;
+  try { token = await getAccessToken('https://www.googleapis.com/auth/spreadsheets'); }
+  catch (err) { return res.status(500).json({ error: 'server_error' }); }
+
+  const rows = await readLulPageCopy(token);
+  let existingRow = -1;
+  for (let i = 1; i < rows.length; i++) {
+    if ((rows[i][0] || '').toString().trim() === key) { existingRow = i; break; }
+  }
+
+  // Preserve description when only value is being updated and caller didn't pass one
+  let finalDescr = descr;
+  if (body.description === undefined && existingRow >= 0) {
+    finalDescr = (rows[existingRow][2] || '').toString();
+  }
+
+  const row = [key, value, finalDescr];
+
+  try {
+    if (existingRow >= 0) {
+      const rowNum = existingRow + 1;
+      await sheetsUpdate(token, `LUL_Page_Copy!A${rowNum}:C${rowNum}`, [row]);
+    } else {
+      await sheetsAppend(token, 'LUL_Page_Copy!A:C', [row]);
+    }
+  } catch (err) {
+    console.error('lounge-copy-save write:', err.message);
+    return res.status(500).json({ error: 'server_error', detail: 'Make sure the LUL_Page_Copy tab exists.' });
+  }
+  return res.status(200).json({ ok: true, key, created: existingRow < 0 });
+}
+
 // ── Experience Suggestions admin (Phase 2d) ─────────────────
 //
 // Experience_Suggestions tab schema:
@@ -2717,6 +2799,8 @@ module.exports = async (req, res) => {
     case 'suggestion-update':        return handleSuggestionUpdate(req, res);
     case 'notifications-feed':       return handleNotificationsFeed(req, res);
     case 'sub-toggle-reviewed':      return handleSubToggleReviewed(req, res);
+    case 'lounge-copy-list':         return handleLoungeCopyList(req, res);
+    case 'lounge-copy-save':         return handleLoungeCopySave(req, res);
     default:                      return res.status(404).json({ error: 'not_found', detail: action });
   }
 };
