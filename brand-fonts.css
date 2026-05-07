@@ -72,3 +72,21 @@ textarea {
 .toggle-pill {
   letter-spacing: 0.02em;
 }
+
+/* Display headings: brand spec 2% kerning */
+.hero-title, .toolbar-title, .section-heading, .card-title,
+.modal-title, .empty-title, .denied-title, .success-title,
+.error-title, .pass-name, .pass-label, .trip-name, .trip-card-title,
+.sess-name, .stat-value, .kpi-value, .summary-value, .session-name,
+.feed-info .feed-title, .att-name, .type-name {
+  letter-spacing: 0.02em;
+}
+
+/* ALL CAPS sub-headings + labels: brand spec 5% kerning */
+.section-label, .stat-label, .summary-label, .kpi-label,
+.detail-label, .field-card .label, .toolbar-sub,
+.kpi-delta-period, .att-flag, .recent-tag, .pass-notes-status,
+.inline-status, .field-status, .notes-status,
+.bo-label, .sess-blackout, .session-meta {
+  letter-spacing: 0.05em;
+}
