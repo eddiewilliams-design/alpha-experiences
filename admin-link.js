@@ -26,7 +26,11 @@
       return;
     }
 
-    var slot = document.querySelector('.header-right');
+    // Student-side pages use .user-wrap (the user-chip container);
+    // admin pages use .header-right. Support both: prefer inserting
+    // right BEFORE the user-wrap, falling back to header-right.
+    var userWrap = document.querySelector('.user-wrap');
+    var slot     = userWrap ? userWrap.parentNode : document.querySelector('.header-right');
     if (!slot) return;
 
     var a = document.createElement('a');
@@ -51,7 +55,9 @@
     ].join(';');
     a.addEventListener('mouseenter', function(){ a.style.background = '#c98000'; });
     a.addEventListener('mouseleave', function(){ a.style.background = '#E59500'; });
-    slot.insertBefore(a, slot.firstChild);
+
+    if (userWrap) slot.insertBefore(a, userWrap);
+    else          slot.insertBefore(a, slot.firstChild);
   }
 
   function check(){
