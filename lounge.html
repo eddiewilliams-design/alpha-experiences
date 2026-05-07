@@ -66,7 +66,7 @@ body{font-family:'Be Vietnam Pro',sans-serif;background:var(--aa-white);min-heig
 .passes-grid{display:flex;flex-direction:column;gap:14px;}
 .pass-card{background:#fff;border-radius:18px;border:1.5px solid var(--aa-med-grey);padding:22px 24px;display:flex;align-items:center;gap:18px;flex-wrap:wrap;}
 .pass-card.expired{opacity:0.65;background:var(--aa-light-grey);border-style:dashed;}
-.pass-icon{width:56px;height:56px;border-radius:14px;background:linear-gradient(135deg,#1a3a8c,#3a5fbf);display:flex;align-items:center;justify-content:center;font-size:28px;flex-shrink:0;}
+.pass-icon{width:56px;height:56px;border-radius:14px;background:linear-gradient(135deg,#1a3a8c,#3a5fbf);display:flex;align-items:center;justify-content:center;font-size:28px;flex-shrink:0;clip-path:polygon(0 0,100% 0,100% calc(100% - 12px),0 100%);}
 .pass-icon.full{background:linear-gradient(135deg,#072256,#1a3a8c);}
 .pass-icon.two{background:linear-gradient(135deg,#006FF9,#3a8ffd);}
 .pass-icon.celebration{background:linear-gradient(135deg,#E59500,#ffb83d);}
@@ -96,7 +96,7 @@ body{font-family:'Be Vietnam Pro',sans-serif;background:var(--aa-white);min-heig
 /* ── This week's sessions grid ── */
 .session-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px;}
 .session-card{background:#fff;border-radius:14px;border:1.5px solid var(--aa-med-grey);padding:14px 16px;display:flex;align-items:center;gap:12px;}
-.session-emoji{font-size:24px;width:42px;height:42px;background:var(--aa-light-grey);border-radius:10px;display:flex;align-items:center;justify-content:center;flex-shrink:0;overflow:hidden;}
+.session-emoji{font-size:24px;width:42px;height:42px;background:var(--aa-light-grey);border-radius:10px;display:flex;align-items:center;justify-content:center;flex-shrink:0;overflow:hidden;clip-path:polygon(0 0,100% 0,100% calc(100% - 8px),0 100%);}
 .session-info{flex:1;min-width:0;}
 .session-name{font-family:'AF Sobremesa','Be Vietnam Pro',sans-serif;font-weight:800;font-size:13px;color:var(--aa-navy);margin-bottom:2px;}
 .session-meta{font-size:11px;color:var(--aa-dark-grey);}
