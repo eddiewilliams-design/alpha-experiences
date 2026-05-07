@@ -512,6 +512,12 @@ async function init(){
 
   document.getElementById('page-loading').style.display = 'none';
   document.getElementById('page-content').style.display = '';
+
+  // Visiting this page counts as "reviewed" — clear the notification badge.
+  // Fire-and-forget; failures are logged server-side. The badge auto-script
+  // will pick up the new count on its next 60s refresh (or page navigation).
+  fetch('/api/admin/subs-mark-reviewed', { method: 'POST', credentials: 'same-origin' })
+    .catch(function(){ /* silent */ });
 }
 
 init();

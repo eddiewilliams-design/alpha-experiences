@@ -2532,16 +2532,31 @@ async function handleNotificationsFeed(req, res) {
   let token;
   try { token = await getAccessToken(); }
   catch (err) {
-    return res.status(200).json({ counts: { new_suggestions: 0, failed_emails: 0, total: 0 }, items: [] });
+    return res.status(200).json({ counts: { new_suggestions: 0, failed_emails: 0, new_submissions: 0, total: 0 }, items: [] });
   }
 
-  let suggestionRows = [], sheet1Rows = [];
+  let suggestionRows = [], sheet1Rows = [], submissionRows = [], catalogRows = [];
   try {
-    const sheet = await batchGet(token, ['Experience_Suggestions!A:H', 'Sheet1!A:N']);
+    const sheet = await batchGet(token, [
+      'Experience_Suggestions!A:H',
+      'Sheet1!A:N',
+      'FT_Submissions!A:H',
+      'FT_Catalog!A:E'
+    ]);
     const ranges = (sheet && sheet.valueRanges) || [];
     suggestionRows = (ranges[0] && ranges[0].values) || [];
     sheet1Rows     = (ranges[1] && ranges[1].values) || [];
+    submissionRows = (ranges[2] && ranges[2].values) || [];
+    catalogRows    = (ranges[3] && ranges[3].values) || [];
   } catch (_) { /* tab may not exist; skip silently */ }
+
+  // Trip id → title lookup for nicer submission notifications
+  const tripsById = {};
+  for (let i = 1; i < catalogRows.length; i++) {
+    const r = catalogRows[i] || [];
+    const id = (r[0] || '').toString().trim();
+    if (id) tripsById[id] = { title: (r[1] || '').toString(), emoji: (r[3] || '').toString() };
+  }
 
   const items = [];
 
@@ -2577,19 +2592,96 @@ async function handleNotificationsFeed(req, res) {
     });
   }
 
+  // FT_Submissions schema: A email | B trip_id | C name | D location
+  //                        E file_url | F file_type | G submitted_at | H Reviewed (YES/blank)
+  for (let i = 1; i < submissionRows.length; i++) {
+    const r = submissionRows[i] || [];
+    if (!r[4]) continue; // no file_url = empty row
+    const reviewed = (r[7] || '').toString().toUpperCase().trim();
+    if (reviewed === 'YES') continue;
+    const tripId = (r[1] || '').toString().trim();
+    const trip   = tripsById[tripId] || { title: tripId, emoji: '' };
+    items.push({
+      kind:          'submission',
+      submitted_at:  (r[6] || '').toString(),
+      student_name:  (r[2] || '').toString(),
+      student_email: (r[0] || '').toString(),
+      type:          trip.title || tripId,
+      title:         (trip.emoji ? trip.emoji + ' ' : '') + 'New gallery submission',
+      file_type:     ((r[5] || '').toString().toLowerCase() === 'video') ? 'video' : 'image',
+      href:          '/admin/submissions'
+    });
+  }
+
   items.sort((a, b) => (b.submitted_at || '').localeCompare(a.submitted_at || ''));
 
-  const newSuggCount   = items.filter(x => x.kind === 'suggestion').length;
+  const newSuggCount    = items.filter(x => x.kind === 'suggestion').length;
   const failedMailCount = items.filter(x => x.kind === 'failed_email').length;
+  const newSubsCount    = items.filter(x => x.kind === 'submission').length;
 
   return res.status(200).json({
     counts: {
       new_suggestions: newSuggCount,
       failed_emails:   failedMailCount,
-      total:           newSuggCount + failedMailCount
+      new_submissions: newSubsCount,
+      total:           newSuggCount + failedMailCount + newSubsCount
     },
     items
   });
+}
+
+// ── Bulk-mark all unreviewed FT_Submissions as Reviewed=YES ──
+// Called by admin-submissions.html on page load so the notification
+// count auto-clears when admin visits the submissions page.
+
+async function sheetsValuesBatchUpdate(token, valueRanges) {
+  const url = `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values:batchUpdate`;
+  const r = await httpsRequest('POST', url, {
+    'Authorization': 'Bearer ' + token,
+    'Content-Type':  'application/json'
+  }, JSON.stringify({
+    valueInputOption: 'USER_ENTERED',
+    data: valueRanges
+  }));
+  if (r.status < 200 || r.status >= 300) throw new Error('values:batchUpdate failed: ' + r.status + ' ' + r.body);
+}
+
+async function handleSubsMarkReviewed(req, res) {
+  if (req.method !== 'POST') return res.status(405).json({ error: 'method_not_allowed' });
+
+  let token, rows;
+  try {
+    token = await getAccessToken('https://www.googleapis.com/auth/spreadsheets');
+    const sheet = await batchGet(token, ['FT_Submissions!A:H']);
+    rows = (sheet && sheet.valueRanges && sheet.valueRanges[0] && sheet.valueRanges[0].values) || [];
+  } catch (err) {
+    console.error('subs-mark-reviewed read:', err.message);
+    return res.status(500).json({ error: 'server_error' });
+  }
+
+  const updates = [];
+  for (let i = 1; i < rows.length; i++) {
+    const r = rows[i] || [];
+    if (!r[4]) continue; // skip empty
+    const reviewed = (r[7] || '').toString().toUpperCase().trim();
+    if (reviewed !== 'YES') {
+      updates.push({
+        range: `FT_Submissions!H${i + 1}`,
+        majorDimension: 'ROWS',
+        values: [['YES']]
+      });
+    }
+  }
+
+  if (!updates.length) return res.status(200).json({ ok: true, updated: 0 });
+
+  try {
+    await sheetsValuesBatchUpdate(token, updates);
+  } catch (err) {
+    console.error('subs-mark-reviewed write:', err.message);
+    return res.status(500).json({ error: 'server_error' });
+  }
+  return res.status(200).json({ ok: true, updated: updates.length });
 }
 
 // ── Dispatch ────────────────────────────────────────────────
@@ -2634,6 +2726,7 @@ module.exports = async (req, res) => {
     case 'suggestions-list':         return handleSuggestionsList(req, res);
     case 'suggestion-update':        return handleSuggestionUpdate(req, res);
     case 'notifications-feed':       return handleNotificationsFeed(req, res);
+    case 'subs-mark-reviewed':       return handleSubsMarkReviewed(req, res);
     default:                      return res.status(404).json({ error: 'not_found', detail: action });
   }
 };
