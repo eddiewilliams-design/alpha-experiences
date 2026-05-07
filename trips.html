@@ -88,7 +88,48 @@ body{font-family:'Nunito Sans',sans-serif;background:var(--aa-white);min-height:
 .gallery-cta{background:var(--aa-navy);border-radius:16px;padding:20px 24px;display:flex;align-items:center;justify-content:space-between;gap:16px;}
 .gallery-cta-text .title{font-family:'Nunito',sans-serif;font-weight:800;font-size:15px;color:#fff;margin-bottom:3px;}
 .gallery-cta-text .sub{font-size:12px;color:rgba(255,255,255,0.55);}
-.gallery-cta-btn{background:var(--aa-yellow);color:#3a2000;font-size:13px;font-weight:700;padding:10px 20px;border-radius:999px;white-space:nowrap;text-decoration:none;display:inline-block;}
+.gallery-cta-btn{background:var(--aa-yellow);color:#3a2000;font-size:13px;font-weight:700;padding:10px 20px;border-radius:999px;white-space:nowrap;text-decoration:none;display:inline-block;cursor:pointer;border:none;font-family:inherit;}
+.gallery-cta-btn:hover{background:#c98000;}
+
+/* Suggest-an-experience CTA (lighter, idea-themed) */
+.suggest-cta{background:var(--aa-light-yellow);border:1.5px solid #f0d39b;border-radius:16px;padding:18px 22px;display:flex;align-items:center;justify-content:space-between;gap:16px;margin-top:12px;}
+.suggest-cta-text .title{font-family:'Nunito',sans-serif;font-weight:800;font-size:14px;color:#6b3a00;margin-bottom:2px;}
+.suggest-cta-text .sub{font-size:12px;color:#6b3a00;opacity:0.8;line-height:1.4;}
+.suggest-cta-btn{background:#fff;color:#6b3a00;font-size:13px;font-weight:700;padding:9px 18px;border-radius:999px;white-space:nowrap;border:1.5px solid #f0d39b;cursor:pointer;font-family:inherit;}
+.suggest-cta-btn:hover{background:#fff7e5;border-color:#e59500;color:#3a2000;}
+
+/* Suggest modal */
+.suggest-backdrop{position:fixed;inset:0;background:rgba(7,34,86,0.5);display:none;align-items:flex-start;justify-content:center;padding:40px 16px;overflow-y:auto;z-index:300;}
+.suggest-backdrop.open{display:flex;}
+.suggest-modal{background:#fff;border-radius:18px;width:100%;max-width:540px;box-shadow:0 12px 40px rgba(7,34,86,0.25);overflow:hidden;}
+.suggest-head{padding:20px 24px;border-bottom:1px solid var(--aa-light-grey);display:flex;align-items:flex-start;justify-content:space-between;gap:12px;}
+.suggest-title{font-family:'Nunito',sans-serif;font-weight:900;font-size:18px;color:var(--aa-navy);}
+.suggest-subtitle{font-size:12px;color:var(--aa-dark-grey);margin-top:4px;line-height:1.45;}
+.suggest-close{background:none;border:none;font-size:22px;color:var(--aa-dark-grey);cursor:pointer;line-height:1;padding:4px 8px;flex-shrink:0;}
+.suggest-body{padding:20px 24px;}
+.suggest-foot{padding:16px 24px;border-top:1px solid var(--aa-light-grey);display:flex;justify-content:flex-end;gap:10px;background:var(--aa-light-grey);}
+.suggest-field{margin-bottom:14px;}
+.suggest-field label{display:block;font-size:11px;font-weight:800;color:var(--aa-dark-grey);text-transform:uppercase;letter-spacing:0.04em;margin-bottom:5px;}
+.suggest-field input,.suggest-field textarea{width:100%;padding:10px 12px;border:1.5px solid var(--aa-med-grey);border-radius:10px;font-family:inherit;font-size:14px;color:var(--aa-navy);background:#fff;}
+.suggest-field input:focus,.suggest-field textarea:focus{outline:none;border-color:var(--aa-blue);}
+.suggest-field textarea{min-height:90px;resize:vertical;}
+.suggest-help{font-size:11px;color:var(--aa-dark-grey);margin-top:4px;line-height:1.45;}
+.suggest-types{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;}
+.suggest-type-btn{font-family:inherit;font-size:13px;font-weight:700;padding:11px 14px;border:1.5px solid var(--aa-med-grey);background:#fff;color:var(--aa-navy);border-radius:10px;cursor:pointer;text-align:left;display:flex;align-items:center;gap:10px;}
+.suggest-type-btn:hover{border-color:var(--aa-blue);}
+.suggest-type-btn.active{background:var(--aa-light-blue);border-color:var(--aa-blue);color:var(--aa-blue);}
+.suggest-type-emoji{font-size:18px;line-height:1;}
+.suggest-banner{font-size:13px;font-weight:600;padding:10px 14px;border-radius:10px;line-height:1.5;margin-bottom:14px;}
+.suggest-banner.error{background:var(--aa-light-red);border:1px solid #f3a3a3;color:#7c0d0d;}
+.suggest-btn-grey{background:#fff;color:var(--aa-navy);font-size:13px;font-weight:700;padding:9px 18px;border-radius:999px;border:1.5px solid var(--aa-med-grey);cursor:pointer;font-family:inherit;}
+.suggest-btn-blue{background:var(--aa-blue);color:#fff;font-size:13px;font-weight:700;padding:10px 22px;border-radius:999px;border:none;cursor:pointer;font-family:inherit;}
+.suggest-btn-blue:hover{background:#0257c4;}
+.suggest-btn-blue:disabled{opacity:0.6;cursor:wait;}
+
+@media(max-width:520px){
+  .suggest-cta{flex-direction:column;align-items:flex-start;}
+  .suggest-types{grid-template-columns:1fr;}
+}
 
 .site-footer{background:var(--aa-navy);padding:20px 32px;text-align:center;border-top:3px solid var(--aa-blue);margin-top:auto;}
 .footer-text{font-size:11px;color:var(--aa-dark-grey);letter-spacing:0.05em;text-transform:uppercase;}
@@ -180,6 +221,55 @@ body{font-family:'Nunito Sans',sans-serif;background:var(--aa-white);min-height:
       <a href="/gallery" class="gallery-cta-btn">View Gallery →</a>
     </div>
 
+    <div class="suggest-cta">
+      <div class="suggest-cta-text">
+        <p class="title">💡 Have an idea for an experience?</p>
+        <p class="sub">Suggest a virtual field trip, workshop, or talk you'd love to see.</p>
+      </div>
+      <button type="button" class="suggest-cta-btn" id="open-suggest">Suggest →</button>
+    </div>
+
+  </div>
+</div>
+
+<!-- ── Experience Suggestion Modal ── -->
+<div class="suggest-backdrop" id="suggest-backdrop">
+  <div class="suggest-modal" role="dialog" aria-modal="true" aria-labelledby="suggest-title">
+    <div class="suggest-head">
+      <div>
+        <div class="suggest-title" id="suggest-title">Suggest an experience</div>
+        <div class="suggest-subtitle">Have an idea for something we should offer? Tell us about it — your suggestion goes straight to the team.</div>
+      </div>
+      <button class="suggest-close" id="suggest-close" aria-label="Close">×</button>
+    </div>
+    <div class="suggest-body">
+      <div id="suggest-error" class="suggest-banner error" style="display:none;"></div>
+
+      <div class="suggest-field">
+        <label>What kind of experience?</label>
+        <div class="suggest-types" id="suggest-types">
+          <button type="button" class="suggest-type-btn" data-type="Virtual Field Trip"><span class="suggest-type-emoji">🗺️</span> Virtual Field Trip</button>
+          <button type="button" class="suggest-type-btn" data-type="Workshop"><span class="suggest-type-emoji">🛠️</span> Workshop</button>
+          <button type="button" class="suggest-type-btn" data-type="Talk"><span class="suggest-type-emoji">🎤</span> Talk</button>
+          <button type="button" class="suggest-type-btn" data-type="Other"><span class="suggest-type-emoji">✨</span> Other</button>
+        </div>
+      </div>
+
+      <div class="suggest-field">
+        <label for="suggest-title-input">Title</label>
+        <input id="suggest-title-input" type="text" placeholder="What would you call it?" maxlength="200" />
+      </div>
+
+      <div class="suggest-field">
+        <label for="suggest-description">Tell us more</label>
+        <textarea id="suggest-description" placeholder="What would happen? Why is it interesting? Who should we invite?" maxlength="4000"></textarea>
+        <div class="suggest-help">Optional, but the more detail the better.</div>
+      </div>
+    </div>
+    <div class="suggest-foot">
+      <button type="button" class="suggest-btn-grey" id="suggest-cancel">Cancel</button>
+      <button type="button" class="suggest-btn-blue" id="suggest-submit">Send suggestion</button>
+    </div>
   </div>
 </div>
 
@@ -416,6 +506,94 @@ init();
   ['tab-all','tab-vft','tab-lounge'].forEach(function(id){
     var t = document.getElementById(id);
     if (t) t.classList.toggle('active', id === activeId);
+  });
+})();
+
+// ── Suggest-an-experience modal ─────────────────────────────
+(function setupSuggestModal(){
+  var backdrop = document.getElementById('suggest-backdrop');
+  var openBtn  = document.getElementById('open-suggest');
+  var closeBtn = document.getElementById('suggest-close');
+  var cancelBtn= document.getElementById('suggest-cancel');
+  var submit   = document.getElementById('suggest-submit');
+  var typesWrap= document.getElementById('suggest-types');
+  var titleEl  = document.getElementById('suggest-title-input');
+  var descEl   = document.getElementById('suggest-description');
+  var errEl    = document.getElementById('suggest-error');
+  if (!backdrop || !openBtn) return;
+
+  var selectedType = '';
+
+  function setType(t){
+    selectedType = t;
+    typesWrap.querySelectorAll('.suggest-type-btn').forEach(function(b){
+      b.classList.toggle('active', b.dataset.type === t);
+    });
+  }
+  function showErr(msg){
+    errEl.textContent = msg;
+    errEl.style.display = '';
+  }
+  function clearErr(){ errEl.style.display = 'none'; errEl.textContent = ''; }
+
+  function open(){
+    selectedType = '';
+    titleEl.value = '';
+    descEl.value = '';
+    typesWrap.querySelectorAll('.suggest-type-btn').forEach(function(b){ b.classList.remove('active'); });
+    clearErr();
+    backdrop.classList.add('open');
+    setTimeout(function(){ titleEl.focus(); }, 50);
+  }
+  function close(){ backdrop.classList.remove('open'); }
+
+  typesWrap.querySelectorAll('.suggest-type-btn').forEach(function(b){
+    b.addEventListener('click', function(){ setType(b.dataset.type); clearErr(); });
+  });
+
+  openBtn.addEventListener('click', open);
+  closeBtn.addEventListener('click', close);
+  cancelBtn.addEventListener('click', close);
+  backdrop.addEventListener('click', function(e){ if (e.target === backdrop) close(); });
+  document.addEventListener('keydown', function(e){
+    if (e.key === 'Escape' && backdrop.classList.contains('open')) close();
+  });
+
+  submit.addEventListener('click', async function(){
+    clearErr();
+    var title = titleEl.value.trim();
+    var desc  = descEl.value.trim();
+
+    if (!selectedType) { showErr('Pick a type first.'); return; }
+    if (!title)        { showErr('Give your suggestion a title.'); return; }
+
+    submit.disabled = true;
+    submit.textContent = 'Sending…';
+    try {
+      var r = await fetch('/api/experience-suggest', {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type: selectedType, title: title, description: desc })
+      });
+      var data = {};
+      try { data = await r.json(); } catch(_){}
+      if (r.status === 401) {
+        showErr('Please sign in first.');
+        return;
+      }
+      if (r.status !== 200) {
+        throw new Error(data.detail || data.error || ('send failed (' + r.status + ')'));
+      }
+      // Success: replace modal body with thank-you, leave open briefly
+      close();
+      alert('Thanks! Your suggestion was sent to the team.');
+    } catch (e) {
+      showErr(e.message);
+    } finally {
+      submit.disabled = false;
+      submit.textContent = 'Send suggestion';
+    }
   });
 })();
 </script>
