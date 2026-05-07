@@ -19,7 +19,10 @@ const crypto = require('crypto');
 const { getSession, httpsGet } = require('../_lib/session.js');
 
 const SHEET_ID = '1aQYysCOOR-mYG8Myrl1BSU2PF8wMl-si8pgNG89sRto';
-const RANGES   = ['FT_Submissions!A:G', 'FT_Catalog!A:E'];
+// FT_Submissions schema: A email | B trip_id | C name | D location
+//                        E file_url | F file_type | G submitted_at | H Reviewed
+// Only Reviewed=YES rows show in the public gallery (admin moderation).
+const RANGES   = ['FT_Submissions!A:H', 'FT_Catalog!A:E'];
 
 function b64url(str) {
   return Buffer.from(str).toString('base64').replace(/=/g, '').replace(/\+/g, '-').replace(/\//g, '_');
@@ -109,7 +112,9 @@ module.exports = async (req, res) => {
       const fileUrl     = (r[4] || '').toString().trim();
       const fileType    = (r[5] || '').toString().toLowerCase().trim();
       const submittedAt = (r[6] || '').toString().trim();
+      const reviewed    = (r[7] || '').toString().toUpperCase().trim() === 'YES';
       if (!fileUrl) continue;
+      if (!reviewed) continue; // moderation: only approved submissions show in /gallery
 
       const trip = tripsById[tripId] || { trip_id: tripId, title: tripId, emoji: '' };
       if (tripId) seenTripIds.add(tripId);

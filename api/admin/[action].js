@@ -1001,7 +1001,7 @@ async function handleSubsList(req, res) {
   let trips = [];
   try {
     const token = await getAccessToken();
-    const sheet = await batchGet(token, ['FT_Submissions!A:G', 'FT_Catalog!A:E']);
+    const sheet = await batchGet(token, ['FT_Submissions!A:H', 'FT_Catalog!A:E']);
     const ranges = (sheet && sheet.valueRanges) || [];
     const subRows  = (ranges[0] && ranges[0].values) || [];
     const tripRows = (ranges[1] && ranges[1].values) || [];
@@ -1031,7 +1031,8 @@ async function handleSubsList(req, res) {
         location:      (r[3] || '').toString(),
         file_url:      fileUrl,
         file_type:     ((r[5] || '').toString().toLowerCase() === 'video') ? 'video' : 'image',
-        submitted_at:  (r[6] || '').toString()
+        submitted_at:  (r[6] || '').toString(),
+        reviewed:      ((r[7] || '').toString().toUpperCase().trim() === 'YES')
       });
     }
     submissions.sort((a, b) => (b.submitted_at || '').localeCompare(a.submitted_at || ''));
@@ -2630,24 +2631,23 @@ async function handleNotificationsFeed(req, res) {
   });
 }
 
-// ── Bulk-mark all unreviewed FT_Submissions as Reviewed=YES ──
-// Called by admin-submissions.html on page load so the notification
-// count auto-clears when admin visits the submissions page.
+// ── Toggle a single submission's Reviewed flag ─────────────
+// Reviewed=YES means: visible in /gallery + cleared from notifications.
+// Anything else means: hidden from /gallery + counts as a notification.
+//
+// Called from admin-submissions.html when the admin clicks the
+// "Mark as reviewed" / "Reviewed ✓" toggle on a card.
 
-async function sheetsValuesBatchUpdate(token, valueRanges) {
-  const url = `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values:batchUpdate`;
-  const r = await httpsRequest('POST', url, {
-    'Authorization': 'Bearer ' + token,
-    'Content-Type':  'application/json'
-  }, JSON.stringify({
-    valueInputOption: 'USER_ENTERED',
-    data: valueRanges
-  }));
-  if (r.status < 200 || r.status >= 300) throw new Error('values:batchUpdate failed: ' + r.status + ' ' + r.body);
-}
-
-async function handleSubsMarkReviewed(req, res) {
+async function handleSubToggleReviewed(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'method_not_allowed' });
+
+  let body;
+  try { body = await readJsonBody(req); }
+  catch (e) { return res.status(400).json({ error: 'bad_json' }); }
+
+  const fileUrl = (body.file_url || '').toString().trim();
+  if (!fileUrl) return res.status(400).json({ error: 'bad_request', detail: 'file_url required' });
+  const newValue = (body.reviewed === true || String(body.reviewed).toLowerCase() === 'yes') ? 'YES' : '';
 
   let token, rows;
   try {
@@ -2655,33 +2655,23 @@ async function handleSubsMarkReviewed(req, res) {
     const sheet = await batchGet(token, ['FT_Submissions!A:H']);
     rows = (sheet && sheet.valueRanges && sheet.valueRanges[0] && sheet.valueRanges[0].values) || [];
   } catch (err) {
-    console.error('subs-mark-reviewed read:', err.message);
+    console.error('sub-toggle-reviewed read:', err.message);
     return res.status(500).json({ error: 'server_error' });
   }
 
-  const updates = [];
+  let foundRow = -1;
   for (let i = 1; i < rows.length; i++) {
-    const r = rows[i] || [];
-    if (!r[4]) continue; // skip empty
-    const reviewed = (r[7] || '').toString().toUpperCase().trim();
-    if (reviewed !== 'YES') {
-      updates.push({
-        range: `FT_Submissions!H${i + 1}`,
-        majorDimension: 'ROWS',
-        values: [['YES']]
-      });
-    }
+    if ((rows[i][4] || '').toString().trim() === fileUrl) { foundRow = i; break; }
   }
-
-  if (!updates.length) return res.status(200).json({ ok: true, updated: 0 });
+  if (foundRow < 0) return res.status(404).json({ error: 'not_found' });
 
   try {
-    await sheetsValuesBatchUpdate(token, updates);
+    await sheetsUpdate(token, `FT_Submissions!H${foundRow + 1}`, [[newValue]]);
   } catch (err) {
-    console.error('subs-mark-reviewed write:', err.message);
+    console.error('sub-toggle-reviewed write:', err.message);
     return res.status(500).json({ error: 'server_error' });
   }
-  return res.status(200).json({ ok: true, updated: updates.length });
+  return res.status(200).json({ ok: true, reviewed: newValue === 'YES' });
 }
 
 // ── Dispatch ────────────────────────────────────────────────
@@ -2726,7 +2716,7 @@ module.exports = async (req, res) => {
     case 'suggestions-list':         return handleSuggestionsList(req, res);
     case 'suggestion-update':        return handleSuggestionUpdate(req, res);
     case 'notifications-feed':       return handleNotificationsFeed(req, res);
-    case 'subs-mark-reviewed':       return handleSubsMarkReviewed(req, res);
+    case 'sub-toggle-reviewed':      return handleSubToggleReviewed(req, res);
     default:                      return res.status(404).json({ error: 'not_found', detail: action });
   }
 };

@@ -91,7 +91,15 @@ body{font-family:'Nunito Sans',sans-serif;background:var(--aa-white);min-height:
 .sub-date{font-size:10px;color:var(--aa-dark-grey);font-family:monospace;margin-top:auto;}
 
 .sub-actions{display:flex;gap:8px;padding:0 16px 14px;}
-.btn-open,.btn-delete{flex:1;font-size:12px;font-weight:700;padding:7px 10px;border-radius:999px;border:1.5px solid var(--aa-med-grey);background:#fff;color:var(--aa-navy);cursor:pointer;text-decoration:none;text-align:center;font-family:inherit;}
+.btn-open,.btn-delete,.btn-review{flex:1;font-size:12px;font-weight:700;padding:7px 10px;border-radius:999px;border:1.5px solid var(--aa-med-grey);background:#fff;color:var(--aa-navy);cursor:pointer;text-decoration:none;text-align:center;font-family:inherit;}
+.btn-review.unreviewed{background:var(--aa-light-yellow);border-color:#f0d39b;color:#6b3a00;}
+.btn-review.unreviewed:hover{background:#fff7e5;border-color:#e59500;}
+.btn-review.reviewed{background:var(--aa-light-green);border-color:#a3d291;color:#1a5205;}
+.btn-review.reviewed:hover{background:#e0f5d4;border-color:#2C8707;}
+.btn-review:disabled{opacity:0.6;cursor:wait;}
+
+.sub-card.unreviewed{border-color:#f0d39b;box-shadow:0 0 0 1px #f0d39b inset;}
+.review-banner{background:var(--aa-light-yellow);border-bottom:1px solid #f0d39b;padding:6px 14px;font-size:11px;font-weight:800;color:#6b3a00;text-transform:uppercase;letter-spacing:0.05em;text-align:center;}
 .btn-open:hover{border-color:var(--aa-blue);color:var(--aa-blue);}
 .btn-delete{color:#8b1a1a;border-color:#f5b5b5;}
 .btn-delete:hover{background:#fde8e8;border-color:#c0392b;color:#c0392b;}
@@ -341,8 +349,15 @@ function renderGrid(){
 
   filtered.forEach(function(s){
     var card = document.createElement('div');
-    card.className = 'sub-card';
+    card.className = 'sub-card' + (s.reviewed ? '' : ' unreviewed');
     card.dataset.fileUrl = s.file_url;
+
+    if (!s.reviewed) {
+      var banner = document.createElement('div');
+      banner.className = 'review-banner';
+      banner.textContent = 'Pending review · hidden from gallery';
+      card.appendChild(banner);
+    }
 
     var thumb = document.createElement('div');
     thumb.className = 'thumb-wrap';
@@ -412,6 +427,14 @@ function renderGrid(){
     var actions = document.createElement('div');
     actions.className = 'sub-actions';
 
+    var review = document.createElement('button');
+    review.type = 'button';
+    review.className   = 'btn-review ' + (s.reviewed ? 'reviewed' : 'unreviewed');
+    review.textContent = s.reviewed ? 'Reviewed ✓' : 'Mark as reviewed';
+    review.title = s.reviewed ? 'Click to un-publish from gallery' : 'Click to publish to gallery';
+    review.addEventListener('click', function(){ toggleReviewed(s, card, review); });
+    actions.appendChild(review);
+
     var open = document.createElement('a');
     open.className   = 'btn-open';
     open.textContent = 'Open file ↗';
@@ -440,6 +463,43 @@ function renderGrid(){
     msg.style.padding    = '16px 0';
     msg.textContent = 'No submissions for this trip.';
     grid.appendChild(msg);
+  }
+}
+
+// ── Mark reviewed (publishes to /gallery; clears notification) ──
+async function toggleReviewed(sub, cardEl, btn){
+  btn.disabled = true;
+  var newValue = !sub.reviewed;
+  var prevText = btn.textContent;
+  btn.textContent = newValue ? 'Saving…' : 'Un-publishing…';
+  try {
+    var r = await fetch('/api/admin/sub-toggle-reviewed', {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ file_url: sub.file_url, reviewed: newValue })
+    });
+    if (r.status !== 200) throw new Error('save failed (' + r.status + ')');
+    sub.reviewed = newValue;
+    // Visual update: card class, banner, button state
+    cardEl.classList.toggle('unreviewed', !newValue);
+    var existingBanner = cardEl.querySelector('.review-banner');
+    if (newValue && existingBanner) {
+      existingBanner.remove();
+    } else if (!newValue && !existingBanner) {
+      var banner = document.createElement('div');
+      banner.className = 'review-banner';
+      banner.textContent = 'Pending review · hidden from gallery';
+      cardEl.insertBefore(banner, cardEl.firstChild);
+    }
+    btn.className = 'btn-review ' + (newValue ? 'reviewed' : 'unreviewed');
+    btn.textContent = newValue ? 'Reviewed ✓' : 'Mark as reviewed';
+    btn.title = newValue ? 'Click to un-publish from gallery' : 'Click to publish to gallery';
+  } catch (e) {
+    alert('Could not save: ' + e.message);
+    btn.textContent = prevText;
+  } finally {
+    btn.disabled = false;
   }
 }
 
@@ -513,11 +573,6 @@ async function init(){
   document.getElementById('page-loading').style.display = 'none';
   document.getElementById('page-content').style.display = '';
 
-  // Visiting this page counts as "reviewed" — clear the notification badge.
-  // Fire-and-forget; failures are logged server-side. The badge auto-script
-  // will pick up the new count on its next 60s refresh (or page navigation).
-  fetch('/api/admin/subs-mark-reviewed', { method: 'POST', credentials: 'same-origin' })
-    .catch(function(){ /* silent */ });
 }
 
 init();
