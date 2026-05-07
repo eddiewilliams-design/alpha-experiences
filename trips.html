@@ -65,6 +65,13 @@ body{font-family:'Nunito Sans',sans-serif;background:var(--aa-white);min-height:
 .trip-thumb-emoji{font-size:44px;position:relative;z-index:1;}
 .trip-status-badge{position:absolute;top:10px;right:10px;font-size:10px;font-weight:700;padding:3px 10px;border-radius:999px;}
 .status-registered{background:var(--aa-light-green);color:#1a5205;}
+.status-coming-up{background:var(--aa-light-yellow);color:#6b3a00;}
+
+/* Showcase / "Coming Up" cards — slightly subdued vs registered */
+.trip-card.showcase{background:#fff;border-color:#e8d6a3;}
+.trip-card.showcase:hover{border-color:var(--aa-yellow);box-shadow:0 6px 24px rgba(229,149,0,0.12);}
+.trip-card-cta-soft{display:block;text-align:center;background:#fff;color:#6b3a00;font-size:13px;font-weight:700;padding:10px;border-radius:999px;border:1.5px solid #f0d39b;}
+.trip-card.showcase:hover .trip-card-cta-soft{background:var(--aa-light-yellow);}
 .status-completed{background:var(--aa-light-grey);color:var(--aa-dark-grey);border:1px solid var(--aa-med-grey);}
 .trip-card-body{padding:16px 18px;}
 .trip-card-title{font-family:'Nunito',sans-serif;font-weight:800;font-size:16px;color:var(--aa-navy);margin-bottom:5px;}
@@ -194,7 +201,15 @@ body{font-family:'Nunito Sans',sans-serif;background:var(--aa-white);min-height:
     <div id="empty-state" class="empty-state" style="display:none;">
       <div class="empty-icon">🎒</div>
       <p class="empty-title">No trips yet</p>
-      <p class="empty-sub">Ask your coach about upcoming experiences — we'll list your registered trips here as soon as you're signed up.</p>
+      <p class="empty-sub">Browse what's coming up below — talk to your coach about registering through your Alpha Bank Marketplace.</p>
+    </div>
+
+    <div id="showcase-section" style="display:none;">
+      <div class="section-label" style="margin-top:8px;">
+        <p class="section-heading">Coming Up</p>
+        <span class="section-count" id="showcase-count">0 available</span>
+      </div>
+      <div id="showcase-grid" class="trips-grid"></div>
     </div>
 
     <div id="lul-section">
@@ -344,83 +359,67 @@ function escapeHtml(s) {
   });
 }
 
-function renderTrips(trips) {
-  var grid  = document.getElementById('trips-grid');
-  var empty = document.getElementById('empty-state');
-  var count = document.getElementById('trip-count');
+function buildTripCard(t) {
+  var isShowcase = (t.registered === false || t.status === 'showcase');
 
-  grid.innerHTML = '';
+  var card = document.createElement('a');
+  card.href      = '/trips/' + encodeURIComponent(t.trip_id);
+  card.className = 'trip-card' + (isShowcase ? ' showcase' : '');
 
-  if (!trips.length) {
-    empty.style.display = 'block';
-    grid.style.display  = 'none';
-    count.textContent   = '0 registered';
-    return;
-  }
+  var thumb = document.createElement('div');
+  thumb.className = 'trip-thumb';
 
-  empty.style.display = 'none';
-  grid.style.display  = '';
-  count.textContent   = trips.length + ' registered';
-
-  trips.forEach(function(t) {
-    var card = document.createElement('a');
-    card.href      = '/trips/' + encodeURIComponent(t.trip_id);
-    card.className = 'trip-card';
-
-    var thumb = document.createElement('div');
-    thumb.className = 'trip-thumb';
-
-    // If a thumbnail_url is set and is an http(s) URL, use the image; the
-    // <img> covers the whole thumb, so no emoji overlay is needed.
-    var thumbUrl = (t.thumbnail_url || '').trim();
-    if (thumbUrl && /^https?:\/\//i.test(thumbUrl)) {
-      thumb.className = 'trip-thumb has-image';
-      var img = document.createElement('img');
-      img.src     = thumbUrl;
-      img.alt     = t.title || 'Trip';
-      img.loading = 'lazy';
-      // Admin can set a focus point so the cropped portion of the image
-      // keeps the subject in view (e.g. "top" if the rocket is in the upper half).
-      var focus = (t.thumbnail_focus || '').trim();
-      if (focus) img.style.objectPosition = focus;
-      // If the image fails to load, fall back to the gradient + emoji.
-      img.addEventListener('error', function(){
-        img.remove();
-        thumb.className = 'trip-thumb';
-        thumb.style.background = colorForTrip(t.trip_id);
-        var emoji = document.createElement('span');
-        emoji.className   = 'trip-thumb-emoji';
-        emoji.textContent = t.emoji || '✨';
-        thumb.insertBefore(emoji, thumb.firstChild);
-      });
-      thumb.appendChild(img);
-    } else {
+  var thumbUrl = (t.thumbnail_url || '').trim();
+  if (thumbUrl && /^https?:\/\//i.test(thumbUrl)) {
+    thumb.className = 'trip-thumb has-image';
+    var img = document.createElement('img');
+    img.src     = thumbUrl;
+    img.alt     = t.title || 'Trip';
+    img.loading = 'lazy';
+    var focus = (t.thumbnail_focus || '').trim();
+    if (focus) img.style.objectPosition = focus;
+    img.addEventListener('error', function(){
+      img.remove();
+      thumb.className = 'trip-thumb';
       thumb.style.background = colorForTrip(t.trip_id);
       var emoji = document.createElement('span');
       emoji.className   = 'trip-thumb-emoji';
       emoji.textContent = t.emoji || '✨';
-      thumb.appendChild(emoji);
-    }
+      thumb.insertBefore(emoji, thumb.firstChild);
+    });
+    thumb.appendChild(img);
+  } else {
+    thumb.style.background = colorForTrip(t.trip_id);
+    var emoji = document.createElement('span');
+    emoji.className   = 'trip-thumb-emoji';
+    emoji.textContent = t.emoji || '✨';
+    thumb.appendChild(emoji);
+  }
 
-    var badge = document.createElement('span');
-    badge.className =
-      'trip-status-badge ' + (t.status === 'completed' ? 'status-completed' : 'status-registered');
+  var badge = document.createElement('span');
+  if (isShowcase) {
+    badge.className   = 'trip-status-badge status-coming-up';
+    badge.textContent = 'Coming Up';
+  } else {
+    badge.className   = 'trip-status-badge ' + (t.status === 'completed' ? 'status-completed' : 'status-registered');
     badge.textContent = t.status === 'completed' ? 'Completed' : 'Registered';
-    thumb.appendChild(badge);
+  }
+  thumb.appendChild(badge);
 
-    var body = document.createElement('div');
-    body.className = 'trip-card-body';
+  var body = document.createElement('div');
+  body.className = 'trip-card-body';
 
-    var title = document.createElement('p');
-    title.className   = 'trip-card-title';
-    title.textContent = t.title || 'Untitled trip';
-    body.appendChild(title);
+  var title = document.createElement('p');
+  title.className   = 'trip-card-title';
+  title.textContent = t.title || 'Untitled trip';
+  body.appendChild(title);
 
-    var date = document.createElement('p');
-    date.className   = 'trip-card-date';
-    date.textContent = formatTripDate(t.trip_date);
-    body.appendChild(date);
+  var date = document.createElement('p');
+  date.className   = 'trip-card-date';
+  date.textContent = formatTripDate(t.trip_date);
+  body.appendChild(date);
 
+  if (!isShowcase) {
     var sessRange = formatSessionRange(t.session_start, t.session_end);
     if (sessRange) {
       var sess = document.createElement('p');
@@ -428,16 +427,62 @@ function renderTrips(trips) {
       sess.textContent = 'Your session: ' + sessRange;
       body.appendChild(sess);
     }
+  }
 
-    var cta = document.createElement('span');
+  var cta = document.createElement('span');
+  if (isShowcase) {
+    cta.className   = 'trip-card-cta-soft';
+    cta.textContent = 'Preview →';
+  } else {
     cta.className   = 'trip-card-cta';
     cta.textContent = 'View Trip →';
-    body.appendChild(cta);
+  }
+  body.appendChild(cta);
 
-    card.appendChild(thumb);
-    card.appendChild(body);
-    grid.appendChild(card);
+  card.appendChild(thumb);
+  card.appendChild(body);
+  return card;
+}
+
+function renderTrips(trips) {
+  var grid          = document.getElementById('trips-grid');
+  var empty         = document.getElementById('empty-state');
+  var count         = document.getElementById('trip-count');
+  var showcaseGrid  = document.getElementById('showcase-grid');
+  var showcaseSec   = document.getElementById('showcase-section');
+  var showcaseCount = document.getElementById('showcase-count');
+
+  grid.innerHTML         = '';
+  showcaseGrid.innerHTML = '';
+
+  // Split: registered (or completed) vs showcase
+  var registered = [];
+  var showcase   = [];
+  trips.forEach(function(t){
+    if (t.registered === false || t.status === 'showcase') showcase.push(t);
+    else                                                   registered.push(t);
   });
+
+  // Registered grid
+  if (!registered.length) {
+    empty.style.display = 'block';
+    grid.style.display  = 'none';
+    count.textContent   = '0 registered';
+  } else {
+    empty.style.display = 'none';
+    grid.style.display  = '';
+    count.textContent   = registered.length + ' registered';
+    registered.forEach(function(t){ grid.appendChild(buildTripCard(t)); });
+  }
+
+  // Showcase grid
+  if (showcase.length) {
+    showcaseSec.style.display = '';
+    showcaseCount.textContent = showcase.length + ' available';
+    showcase.forEach(function(t){ showcaseGrid.appendChild(buildTripCard(t)); });
+  } else {
+    showcaseSec.style.display = 'none';
+  }
 }
 
 // ── User menu ───────────────────────────────────────────────

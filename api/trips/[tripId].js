@@ -191,13 +191,27 @@ module.exports = async (req, res) => {
     }
   }
 
-  if (!trip || !mySessionId) {
-    return res.status(404).json({ error: 'not_purchased' });
+  if (!trip) {
+    return res.status(404).json({ error: 'not_found' });
   }
   // Drafts are admin-side only — even a registered student gets 404 here.
-  // Publish (status=open) before students should see the detail page.
   if (trip.status === 'draft') {
-    return res.status(404).json({ error: 'not_purchased' });
+    return res.status(404).json({ error: 'not_found' });
+  }
+
+  const isRegistered = !!mySessionId;
+
+  // If NOT registered, only allow "preview" mode for OPEN trips (the same set
+  // surfaced on the /trips Coming Up grid). Closed/completed trips that they
+  // didn't register for are 404 — students don't need to see history.
+  if (!isRegistered && trip.status !== 'open') {
+    return res.status(404).json({ error: 'not_found' });
+  }
+
+  // Redact fields meant only for registered students.
+  if (!isRegistered) {
+    trip.what_to_bring     = '';
+    trip.reflection_prompt = '';
   }
 
   // 3. Sessions for this trip — with lock state
@@ -263,27 +277,30 @@ module.exports = async (req, res) => {
     return aMin - bMin;
   });
 
-  // 4. Prep items for this trip
+  // 4. Prep items for this trip — only for registered students
   const prep = [];
-  for (let i = 1; i < prepRows.length; i++) {
-    const r = prepRows[i];
-    const pid    = (r[0] || '').toString().trim();
-    const pTrip  = (r[1] || '').toString().trim();
-    if (!pid || pTrip !== tripId) continue;
-    prep.push({
-      prep_id:  pid,
-      title:    (r[2] || '').toString(),
-      type:     (r[3] || '').toString().toLowerCase(),
-      url:      (r[4] || '').toString(),
-      duration: (r[5] || '').toString()
-    });
+  if (isRegistered) {
+    for (let i = 1; i < prepRows.length; i++) {
+      const r = prepRows[i];
+      const pid    = (r[0] || '').toString().trim();
+      const pTrip  = (r[1] || '').toString().trim();
+      if (!pid || pTrip !== tripId) continue;
+      prep.push({
+        prep_id:  pid,
+        title:    (r[2] || '').toString(),
+        type:     (r[3] || '').toString().toLowerCase(),
+        url:      (r[4] || '').toString(),
+        duration: (r[5] || '').toString()
+      });
+    }
   }
 
   return res.status(200).json({
     trip:          trip,
     sessions:      sessions,
     prep:          prep,
-    my_session_id: mySessionId,
+    my_session_id: mySessionId || null,
+    registered:    isRegistered,
     now_iso:       new Date(nowMs).toISOString()
   });
 };

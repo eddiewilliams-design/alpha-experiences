@@ -144,7 +144,9 @@ module.exports = async (req, res) => {
       };
     }
 
-    // Filter purchases for this student
+    // === Registered trips (existing logic) ===
+    // One entry per active purchase row for this student.
+    const registeredTripIds = new Set();
     for (let i = 1; i < purchaseRows.length; i++) {
       const r = purchaseRows[i];
       const email     = (r[1] || '').toString().toLowerCase().trim();
@@ -159,9 +161,9 @@ module.exports = async (req, res) => {
       const sessRow = sessionsById[sessionId];
       if (!trip) continue;
       // Hide draft trips from students even if they have a registration row.
-      // Admins still see them via /admin and the trip editor.
       if (trip.status === 'draft') continue;
 
+      registeredTripIds.add(tripId);
       trips.push({
         trip_id:         trip.trip_id,
         title:           trip.title,
@@ -172,11 +174,33 @@ module.exports = async (req, res) => {
         thumbnail_focus: trip.thumbnail_focus || '',
         session_id:      sessionId,
         session_start:   sessRow ? sessRow.start_time : '',
-        session_end:     sessRow ? sessRow.end_time   : ''
+        session_end:     sessRow ? sessRow.end_time   : '',
+        registered:      true
       });
     }
 
-    // Soonest trip first
+    // === Showcase trips: open trips this student isn't registered for ===
+    // "Coming Up" — same data shape, no session info, registered=false.
+    Object.keys(tripsById).forEach(function(id){
+      if (registeredTripIds.has(id)) return;
+      const trip = tripsById[id];
+      if (trip.status !== 'open') return; // only open trips appear in the showcase
+      trips.push({
+        trip_id:         trip.trip_id,
+        title:           trip.title,
+        emoji:           trip.emoji,
+        trip_date:       trip.trip_date,
+        status:          'showcase',
+        thumbnail_url:   trip.thumbnail_url || '',
+        thumbnail_focus: trip.thumbnail_focus || '',
+        session_id:      '',
+        session_start:   '',
+        session_end:     '',
+        registered:      false
+      });
+    });
+
+    // Soonest trip first (registered + showcase mixed; frontend splits by .registered)
     trips.sort((a, b) => (a.trip_date || '').localeCompare(b.trip_date || ''));
   } catch (err) {
     // Tab missing, sheet error, etc. — log, return empty so the

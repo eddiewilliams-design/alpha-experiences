@@ -161,6 +161,14 @@ body.has-bg-image .hero-scallop{background:transparent;}
 .submit-sub{font-size:12px;color:rgba(255,255,255,0.5);}
 .submit-btn{background:var(--aa-yellow);color:#3a2000;font-size:13px;font-weight:700;padding:11px 22px;border-radius:999px;white-space:nowrap;cursor:pointer;text-decoration:none;display:inline-block;border:none;}
 
+/* "Register in your Alpha Bank Marketplace" CTA shown to non-registered viewers */
+.marketplace-card{background:var(--aa-light-yellow);border:1.5px solid #f0d39b;border-radius:20px;padding:22px 28px;display:flex;align-items:center;gap:18px;}
+.marketplace-icon{width:48px;height:48px;background:#fff;border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0;border:1.5px solid #f0d39b;}
+.marketplace-info{flex:1;}
+.marketplace-title{font-family:'Nunito',sans-serif;font-weight:800;font-size:15px;color:#3a2000;margin-bottom:3px;}
+.marketplace-sub{font-size:12px;color:#6b3a00;line-height:1.45;}
+.preview-banner{background:var(--aa-light-yellow);border:1.5px solid #f0d39b;color:#6b3a00;border-radius:14px;padding:10px 16px;font-size:12px;font-weight:700;letter-spacing:0.04em;text-transform:uppercase;text-align:center;margin-bottom:12px;}
+
 /* ── Footer (sticky to bottom even on short pages) ── */
 .site-footer{background:var(--aa-navy);padding:20px 32px;text-align:center;border-top:3px solid var(--aa-blue);margin-top:auto;}
 .footer-text{font-size:11px;color:var(--aa-dark-grey);letter-spacing:0.05em;text-transform:uppercase;margin-top:8px;}
@@ -230,7 +238,7 @@ body.has-bg-image .hero-scallop{background:transparent;}
           <span class="detail-label">Date</span>
           <span class="detail-value" id="dv-date">—</span>
         </div>
-        <div class="detail-row">
+        <div class="detail-row" id="dv-session-row">
           <span class="detail-label">Your session</span>
           <span class="detail-value session-time" id="dv-session">—</span>
         </div>
@@ -238,7 +246,7 @@ body.has-bg-image .hero-scallop{background:transparent;}
           <span class="detail-label">Format</span>
           <span class="detail-value" id="dv-format">—</span>
         </div>
-        <div class="detail-row">
+        <div class="detail-row" id="dv-bring-row">
           <span class="detail-label">What to bring</span>
           <span class="detail-value" id="dv-bring">—</span>
         </div>
@@ -249,7 +257,7 @@ body.has-bg-image .hero-scallop{background:transparent;}
         <div id="prep-list"></div>
       </div>
 
-      <div class="card">
+      <div class="card" id="sessions-card">
         <p class="card-title">Session links</p>
         <div id="sessions-list"></div>
         <div id="session-lock" class="session-lock" style="display:none;">
@@ -265,6 +273,15 @@ body.has-bg-image .hero-scallop{background:transparent;}
         </div>
         <span class="submit-btn">Submit →</span>
       </a>
+
+      <!-- Marketplace CTA — shown only to non-registered preview viewers -->
+      <div class="marketplace-card" id="marketplace-card" style="display:none;">
+        <div class="marketplace-icon">🎟️</div>
+        <div class="marketplace-info">
+          <p class="marketplace-title">Want to join this field trip?</p>
+          <p class="marketplace-sub">Register in your Alpha Bank Marketplace to unlock prep materials and join the live sessions.</p>
+        </div>
+      </div>
 
     </div>
   </div>
@@ -618,7 +635,7 @@ async function loadAndRender(tripId){
     return;
   }
   if (r.status === 404) {
-    return showError('Trip not found', 'We couldn\'t find this trip in your registered experiences. If you think this is a mistake, ask your coach.');
+    return showError('Trip not found', "We couldn't find this trip. It might have been removed, or it's not yet published.");
   }
   if (r.status !== 200) {
     return showError('Something went wrong', 'We had trouble loading this trip. Please refresh the page.');
@@ -628,14 +645,28 @@ async function loadAndRender(tripId){
   var trip = data.trip;
   var sessions = data.sessions || [];
   var prep = data.prep || [];
+  var isRegistered = data.registered !== false;
   var mySession = sessions.find(function(s){ return s.is_yours; }) || null;
 
   renderHero(trip, mySession);
   renderDetails(trip, mySession);
-  renderPrep(prep);
-  renderSessions(sessions);
 
-  document.getElementById('submit-card').href = '/trips/' + encodeURIComponent(trip.trip_id) + '/submit';
+  if (isRegistered) {
+    // Full experience
+    renderPrep(prep);
+    renderSessions(sessions);
+    document.getElementById('submit-card').href = '/trips/' + encodeURIComponent(trip.trip_id) + '/submit';
+  } else {
+    // Preview mode — hide registered-only sections, show Marketplace CTA
+    document.getElementById('hero-badge').textContent  = 'Preview · Coming Up';
+    document.querySelector('.back-link').textContent   = '← Back to all trips';
+    document.getElementById('dv-session-row').style.display = 'none';
+    document.getElementById('dv-bring-row').style.display   = 'none';
+    document.getElementById('prep-card').style.display      = 'none';
+    document.getElementById('sessions-card').style.display  = 'none';
+    document.getElementById('submit-card').style.display    = 'none';
+    document.getElementById('marketplace-card').style.display = '';
+  }
 
   document.getElementById('page-loading').style.display = 'none';
   document.getElementById('page-content').style.display = '';
