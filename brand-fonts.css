@@ -32,3 +32,43 @@
   font-style: normal;
   font-display: swap;
 }
+
+/* ──────────────────────────────────────────────────────────────
+   Brand typography baseline (Phase 3 polish)
+   Per Alpha Anywhere brand book:
+     - Body copy:       1% kerning, 125% line height
+     - Buttons:         2% kerning, Title Case
+     - SUB HEADINGS:    5% kerning, ALL CAPS
+     - Large heading:   2% kerning, 105% line height
+   These are baselines — page-specific class rules still win.
+   ────────────────────────────────────────────────────────────── */
+body {
+  letter-spacing: 0.01em;          /* 1% body kerning */
+}
+button,
+input,
+select,
+textarea {
+  letter-spacing: 0.01em;
+}
+/* Pill buttons (primary CTAs): brand spec is 2% kerning */
+.btn-blue,
+.btn-grey,
+.btn-danger,
+.btn-sm-blue,
+.btn-sm-outline,
+.cta-btn,
+.upload-btn,
+.submit-btn,
+.gallery-cta-btn,
+.suggest-btn-blue,
+.suggest-btn-grey,
+.suggest-cta-btn,
+.suggest-type-btn,
+.btn-mini,
+.btn-review,
+.btn-open,
+.btn-delete,
+.toggle-pill {
+  letter-spacing: 0.02em;
+}
