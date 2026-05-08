@@ -67,7 +67,7 @@ body{font-family:'Be Vietnam Pro',sans-serif;background:var(--aa-white);min-heig
 /* ── Gallery Card ── */
 .gallery-card{background:#fff;border-radius:16px;overflow:hidden;border:1.5px solid var(--aa-med-grey);transition:transform 0.1s,box-shadow 0.15s;display:flex;flex-direction:column;}
 .gallery-card:hover{transform:translateY(-2px);box-shadow:0 6px 24px rgba(7,34,86,0.1);}
-.thumb-wrap{position:relative;height:180px;background:linear-gradient(135deg,#0a1628,#1a3a8c);display:block;overflow:hidden;clip-path:polygon(0 0,100% 0,100% calc(100% - 32px),0 100%);}
+.thumb-wrap{position:relative;height:180px;background:linear-gradient(135deg,#072256,#006FF9);display:block;overflow:hidden;clip-path:polygon(0 0,100% 0,100% calc(100% - 32px),0 100%);}
 .thumb-wrap a{display:block;width:100%;height:100%;}
 .thumb-wrap img{width:100%;height:100%;object-fit:cover;display:block;}
 .thumb-wrap video{width:100%;height:100%;object-fit:cover;display:block;background:#000;}
@@ -189,12 +189,12 @@ function firstName(name){
 
 // Hash trip_id → palette index, so each trip card has a stable fallback gradient.
 var THUMB_PALETTES = [
-  'linear-gradient(135deg,#0a1628,#1a3a6e)',
-  'linear-gradient(135deg,#003a3a,#006a6a)',
-  'linear-gradient(135deg,#7a2c00,#e06030)',
-  'linear-gradient(135deg,#0a3d1a,#1a7a38)',
-  'linear-gradient(135deg,#1a0a3d,#5b2d8e)',
-  'linear-gradient(135deg,#3a2800,#8a6000)'
+  'linear-gradient(135deg,#072256,#006FF9)',
+  'linear-gradient(135deg,#CD1D80,#7c1252)',
+  'linear-gradient(135deg,#E59500,#a06800)',
+  'linear-gradient(135deg,#2C8707,#1a5004)',
+  'linear-gradient(135deg,#006FF9,#CD1D80)',
+  'linear-gradient(135deg,#072256,#CD1D80)'
 ];
 function colorForTrip(id) {
   var h = 0, s = id || '';
