@@ -3,14 +3,13 @@
 //
 // Node port of the Apps Script `sendPendingEmails` flow so the
 // Vercel admin can send LUL welcome emails directly when a pass
-// is created via /admin/lounge/passes. Intercom is the same path
-// the Apps Script uses — same admin id, same template style.
+// is created via /admin/lounge/passes. Same Intercom path the
+// Apps Script uses — same admin id, same brand-aligned shell.
 //
-// Templates are intentionally byte-identical to the Apps Script
-// versions (`buildEmailBody` / `buildCelebrationEmailBody`) so a
-// student gets the same email regardless of whether the pass was
-// created in the sheet (Apps Script onEdit) or in the portal.
-// If you tweak one, mirror the change in the other.
+// IMPORTANT: this file diverged from the Apps Script template in
+// the brand-polish pass. To keep both flows visually identical,
+// mirror these template changes back into Apps Script (or accept
+// that legacy sheet-added passes get the older template).
 //
 // Required env var: INTERCOM_ACCESS_TOKEN (Vercel)
 // ============================================================
@@ -20,6 +19,24 @@ const https = require('https');
 const INTERCOM_ADMIN_ID = '10384075';
 const VERCEL_BASE_URL   = 'https://alpha-experiences.vercel.app/lul';
 const ALPHA_LOGO_URL    = 'https://i.imgur.com/DaRDdu5.png';
+
+// Brand colors (Alpha Anywhere)
+const C = {
+  navy:       '#072256',
+  blue:       '#006FF9',
+  yellow:     '#E59500',
+  lightYellow:'#FFF7E5',
+  yellowBorder:'#F0D39B',
+  yellowText: '#6B3A00',
+  bg:         '#FAFAFA',
+  card:       '#FFFFFF',
+  text:       '#072256',
+  muted:      '#8291AA',
+  border:     '#EEF0F3'
+};
+
+// System-sans stack (emails can't reliably load AF Sobremesa / Be Vietnam Pro)
+const FONT = '-apple-system,BlinkMacSystemFont,"Segoe UI","Helvetica Neue",Arial,sans-serif';
 
 // ── HTTP to Intercom ─────────────────────────────────────────
 function intercomRequest(path, method, body) {
@@ -85,188 +102,183 @@ async function sendViaIntercom({ to, name, subject, html }) {
   });
 }
 
-// ── Email Templates (PORT of Apps Script — keep in sync) ─────
-function buildEmailBody(studentName, passLabel, sessionUrl, recipient) {
-  const greeting = recipient === 'parent'
-    ? `Hey <strong>${studentName}'s family</strong>!`
-    : `Hey <strong>${studentName}</strong>!`;
+// ── Brand-aligned email shell ────────────────────────────────
+// Three-tier hierarchy: small overline / heading / sub-paragraph.
+// One anchor card (the CTA). Single yellow reminder. Footer with
+// reply-to. No inline-word highlights.
+function shell({ overline, heading, intro, ctaUrl, ctaLabel, recipient }) {
+  const replyHelp = recipient === 'parent'
+    ? `Questions? Reply to this email — your student's coach can also help on the Alpha Anywhere platform.`
+    : `Questions? Reply to this email or message your coach.`;
 
-  const intro = recipient === 'parent'
-    ? `${studentName}'s Level Up Lounge sessions are locked in for this week. Click below to view the sessions and Zoom links:`
-    : `Your Level Up Lounge sessions are locked in for this week. Click below to view your sessions and Zoom links:`;
+  return `<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body style="margin:0;padding:0;font-family:${FONT};background:${C.bg};color:${C.text};-webkit-font-smoothing:antialiased;">
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background:${C.bg};">
+    <tr>
+      <td align="center" style="padding:32px 16px;">
+        <table role="presentation" width="560" cellspacing="0" cellpadding="0" border="0" style="max-width:560px;width:100%;background:${C.card};border-radius:20px;overflow:hidden;box-shadow:0 4px 20px rgba(7,34,86,0.08);">
 
-  return `
-    <!DOCTYPE html>
-    <html>
-    <body style="margin:0;padding:0;font-family:Arial,sans-serif;background:#F9FAFB;">
-      <div style="max-width:560px;margin:32px auto;background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 2px 12px rgba(0,0,0,0.08);">
+          <!-- Header -->
+          <tr>
+            <td style="background:${C.navy};padding:28px 36px;">
+              <img src="${ALPHA_LOGO_URL}" alt="Alpha Anywhere" width="120" style="display:block;height:auto;border:0;outline:none;text-decoration:none;" />
+            </td>
+          </tr>
 
-        <!-- Header -->
-        <div style="background:#072256;padding:24px 32px;text-align:center;">
-          <img src="${ALPHA_LOGO_URL}" alt="Alpha Anywhere" width="120"
-               style="display:block;margin:0 auto 16px;height:auto;" />
-          <p style="color:#FFB800;font-size:12px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;margin:0 0 8px;">
-            Level Up Lounge · Alpha Experiences
-          </p>
-          <h1 style="color:#fff;font-size:24px;margin:0 0 6px;">You're In! 🎉</h1>
-          <p style="color:#AAB8D3;font-size:14px;margin:0;">${passLabel}</p>
-        </div>
+          <!-- Body -->
+          <tr>
+            <td style="padding:36px 36px 24px;">
+              <p style="margin:0 0 10px;color:${C.muted};font-size:11px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;">${overline}</p>
+              <h1 style="margin:0 0 14px;color:${C.navy};font-size:24px;font-weight:800;line-height:1.2;letter-spacing:-0.01em;">${heading}</h1>
+              <p style="margin:0 0 28px;color:${C.text};font-size:15px;line-height:1.6;">${intro}</p>
 
-        <!-- Body -->
-        <div style="padding:28px 32px;text-align:center;">
-          <p style="color:#374151;font-size:15px;text-align:left;">${greeting}</p>
-          <p style="color:#374151;font-size:15px;text-align:left;">${intro}</p>
+              <!-- Anchor CTA (table-based for Outlook compatibility) -->
+              <table role="presentation" cellspacing="0" cellpadding="0" border="0" style="margin:0 0 28px;">
+                <tr>
+                  <td style="background:${C.blue};border-radius:999px;">
+                    <a href="${ctaUrl}" style="display:inline-block;padding:14px 32px;color:#ffffff;font-size:15px;font-weight:700;text-decoration:none;letter-spacing:0.02em;font-family:${FONT};">${ctaLabel}</a>
+                  </td>
+                </tr>
+              </table>
 
-          <a href="${sessionUrl}"
-             style="display:inline-block;margin:24px auto;background:#006FF9;color:#fff;padding:14px 36px;border-radius:999px;text-decoration:none;font-size:15px;font-weight:700;">
-            View My Sessions →
-          </a>
+              <!-- Single combined reminder -->
+              <div style="background:${C.lightYellow};border:1px solid ${C.yellowBorder};border-radius:12px;padding:14px 16px;color:${C.yellowText};font-size:13px;line-height:1.55;">
+                <strong>One-time use.</strong> Each Zoom link works once and expires 30 days from the date issued. Click only when you're ready to join.
+              </div>
+            </td>
+          </tr>
 
-          <p style="color:#6B7280;font-size:13px;text-align:left;margin-top:20px;">
-            ⚠️ Session links are <strong>one-time use only</strong> and expire 30 days from the date of issue. Don't click a link until you're ready to join — it won't work a second time!
-          </p>
-          <p style="color:#6B7280;font-size:13px;text-align:left;">
-            📅 All sessions are subject to coach availability.
-          </p>
-          <p style="color:#6B7280;font-size:13px;text-align:left;">
-            💬 Questions? Reply to this email or message your coach on the platform.
-          </p>
+          <!-- Footer -->
+          <tr>
+            <td style="padding:18px 36px 28px;border-top:1px solid ${C.border};">
+              <p style="margin:0 0 8px;color:${C.muted};font-size:12px;line-height:1.5;">
+                ${replyHelp}
+              </p>
+              <p style="margin:0;color:${C.muted};font-size:10px;letter-spacing:0.06em;text-transform:uppercase;font-weight:700;">
+                Alpha Experiences · Alpha Anywhere
+              </p>
+            </td>
+          </tr>
 
-          <!-- Fine Print -->
-          <p style="color:#9CA3AF;font-size:11px;text-align:center;margin-top:24px;padding-top:16px;border-top:1px solid #E5E7EB;line-height:1.6;">
-            All sessions are subject to coach availability. One-time use Zoom links expire 30 days from the date of issue. By accessing your pass you agree to these terms.
-          </p>
-        </div>
-
-        <!-- Footer -->
-        <div style="background:#072256;padding:16px 32px;text-align:center;">
-          <p style="color:#AAB8D3;font-size:12px;margin:0;">
-            Breakthrough Coaching · Alpha Anywhere<br>
-            breakthroughcoaching@2hourlearning.com
-          </p>
-        </div>
-
-      </div>
-    </body>
-    </html>
-  `;
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`;
 }
 
-function buildCelebrationEmailBody(studentName, sessionUrl, recipient) {
-  const greeting = recipient === 'parent'
-    ? `Hey <strong>${studentName}'s family</strong>!`
-    : `Hey <strong>${studentName}</strong>!`;
+// ── Subject + body composers per mode ────────────────────────
+function buildPickEmail({ studentName, pickCount, sessionUrl, recipient }) {
+  const overline = 'Level Up Lounge';
+  const n = (pickCount && pickCount > 0) ? pickCount : 2;
+
+  const heading = recipient === 'parent'
+    ? `${studentName} has a new Lounge pass`
+    : `Your Lounge pass is here, ${studentName}`;
 
   const intro = recipient === 'parent'
-    ? `${studentName} earned a spot at the Friday Coaching Celebration! Click below to lock in their spot and get the Zoom link:`
-    : `You earned a spot at the Friday Coaching Celebration! Click below to lock in your spot and get your Zoom link:`;
+    ? `${studentName}'s ${n}-session pass is ready. They'll pick which sessions they want and lock in their Zoom links from the link below.`
+    : `Pick your ${n} sessions for this week. Your Zoom links unlock 15 min before each session starts.`;
 
-  return `
-    <!DOCTYPE html>
-    <html>
-    <body style="margin:0;padding:0;font-family:Arial,sans-serif;background:#F9FAFB;">
-      <div style="max-width:560px;margin:32px auto;background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 2px 12px rgba(0,0,0,0.08);">
+  return shell({
+    overline,
+    heading,
+    intro,
+    ctaUrl:   sessionUrl,
+    ctaLabel: 'Pick my sessions →',
+    recipient
+  });
+}
 
-        <!-- Header -->
-        <div style="background:#072256;padding:24px 32px;text-align:center;">
-          <img src="${ALPHA_LOGO_URL}" alt="Alpha Anywhere" width="120"
-               style="display:block;margin:0 auto 16px;height:auto;" />
-          <p style="color:#FFB800;font-size:12px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;margin:0 0 8px;">
-            Level Up Lounge · Alpha Experiences
-          </p>
-          <h1 style="color:#fff;font-size:24px;margin:0 0 6px;">You Earned It! 🎊</h1>
-          <p style="color:#AAB8D3;font-size:14px;margin:0;">Friday Coaching Celebration</p>
-        </div>
+function buildFullWeekEmail({ studentName, sessionUrl, recipient }) {
+  const overline = 'Level Up Lounge';
 
-        <!-- Body -->
-        <div style="padding:28px 32px;text-align:center;">
-          <p style="color:#374151;font-size:15px;text-align:left;">${greeting}</p>
-          <p style="color:#374151;font-size:15px;text-align:left;">${intro}</p>
+  const heading = recipient === 'parent'
+    ? `${studentName} has a Full Week Lounge pass`
+    : `Your Full Week pass is here, ${studentName}`;
 
-          <a href="${sessionUrl}"
-             style="display:inline-block;margin:24px auto;background:#006FF9;color:#fff;padding:14px 36px;border-radius:999px;text-decoration:none;font-size:15px;font-weight:700;">
-            Lock In My Spot 🎊
-          </a>
+  const intro = recipient === 'parent'
+    ? `${studentName} can join every Lounge session this week. Zoom links are inside — they unlock 15 min before each session starts.`
+    : `You can join every Lounge session this week. Click below to see what's on — Zoom links unlock 15 min before each session.`;
 
-          <p style="color:#6B7280;font-size:13px;text-align:left;margin-top:20px;">
-            ⚠️ This link is <strong>one-time use only</strong> and expires 30 days from the date of issue. Don't click it until you're ready to lock in your spot — it won't work a second time!
-          </p>
-          <p style="color:#6B7280;font-size:13px;text-align:left;">
-            📅 All sessions are subject to coach availability.
-          </p>
-          <p style="color:#6B7280;font-size:13px;text-align:left;">
-            💬 Questions? Reply to this email or message your coach on the platform.
-          </p>
+  return shell({
+    overline,
+    heading,
+    intro,
+    ctaUrl:   sessionUrl,
+    ctaLabel: 'View my sessions →',
+    recipient
+  });
+}
 
-          <!-- Fine Print -->
-          <p style="color:#9CA3AF;font-size:11px;text-align:center;margin-top:24px;padding-top:16px;border-top:1px solid #E5E7EB;line-height:1.6;">
-            All sessions are subject to coach availability. One-time use Zoom links expire 30 days from the date of issue. By accessing your pass you agree to these terms.
-          </p>
-        </div>
+function buildCelebrationEmail({ studentName, sessionUrl, recipient }) {
+  const overline = 'Friday Coaching Celebration';
 
-        <!-- Footer -->
-        <div style="background:#072256;padding:16px 32px;text-align:center;">
-          <p style="color:#AAB8D3;font-size:12px;margin:0;">
-            Breakthrough Coaching · Alpha Anywhere<br>
-            breakthroughcoaching@2hourlearning.com
-          </p>
-        </div>
+  const heading = recipient === 'parent'
+    ? `${studentName} earned a Celebration spot`
+    : `You earned it, ${studentName}`;
 
-      </div>
-    </body>
-    </html>
-  `;
+  const intro = recipient === 'parent'
+    ? `${studentName} earned a spot at this Friday's Coaching Celebration. Tap below to lock in their spot and get the Zoom link.`
+    : `You earned a spot at this Friday's Coaching Celebration. Click below to lock in your spot and grab the Zoom link.`;
+
+  return shell({
+    overline,
+    heading,
+    intro,
+    ctaUrl:   sessionUrl,
+    ctaLabel: 'Lock in my spot →',
+    recipient
+  });
 }
 
 // ── Public API ───────────────────────────────────────────────
 //
-// sendWelcomeEmail({
-//   name, email, parentEmail, expType, mode, token
-// })
+// sendWelcomeEmail({ name, email, parentEmail, expType, mode, pickCount, token })
 //
-// `mode` is the resolved mode from the LUL_Pass_Types config:
+// `mode` is the resolved mode from LUL_Pass_Types:
 //   - 'celebration' → Friday Coaching Celebration template
 //   - 'full'        → Full Week Pass template
-//   - 'pick'        → 2-Session-style template (any pick count)
+//   - 'pick'        → Pick-N-sessions template
 //
-// If the row's `expType` is unknown to LUL_Pass_Types, callers
-// should fall back to the legacy detection (Apps Script style):
-//   .includes('friday coaching celebration') → celebration
-//   .includes('2 sessions')                  → pick
-//   else                                     → full
-// — that's handled in api/admin/[action].js, not here.
-//
-// Throws on Intercom failure. The caller is responsible for
-// stamping `Email Sent = Yes` in Sheet1 (or recording errors).
-async function sendWelcomeEmail({ name, email, parentEmail, expType, mode, token }) {
-  if (!email)    throw new Error('email required');
-  if (!token)    throw new Error('token required');
+// Throws on Intercom failure. Caller is responsible for stamping
+// `Email Sent = Yes` in Sheet1 (or recording errors on failure).
+async function sendWelcomeEmail({ name, email, parentEmail, expType, mode, pickCount, token }) {
+  if (!email) throw new Error('email required');
+  if (!token) throw new Error('token required');
   const sessionUrl = `${VERCEL_BASE_URL}?token=${encodeURIComponent(token)}`;
+  const studentName = name || 'there';
 
-  let passLabel, subject, studentBody, parentBody;
+  let subject, studentBody, parentBody;
 
   if (mode === 'celebration') {
-    passLabel   = 'Friday Coaching Celebration 🎊';
-    subject     = `🎊 You're In! Your Friday Coaching Celebration Link`;
-    studentBody = buildCelebrationEmailBody(name, sessionUrl, 'student');
-    parentBody  = buildCelebrationEmailBody(name, sessionUrl, 'parent');
+    subject     = `🎊 You earned a Friday Celebration spot`;
+    studentBody = buildCelebrationEmail({ studentName, sessionUrl, recipient: 'student' });
+    parentBody  = buildCelebrationEmail({ studentName, sessionUrl, recipient: 'parent'  });
   } else if (mode === 'full') {
-    passLabel   = 'Full Week Pass 🎟️';
-    subject     = `🎟️ Your Full Week LUL Pass — All Links Inside!`;
-    studentBody = buildEmailBody(name, passLabel, sessionUrl, 'student');
-    parentBody  = buildEmailBody(name, passLabel, sessionUrl, 'parent');
+    subject     = `Your Full Week Lounge pass is here`;
+    studentBody = buildFullWeekEmail({ studentName, sessionUrl, recipient: 'student' });
+    parentBody  = buildFullWeekEmail({ studentName, sessionUrl, recipient: 'parent'  });
   } else {
-    // 'pick' (or anything unrecognised — same template as 2-session)
-    passLabel   = '2-Session Pass 🎟️';
-    subject     = `🎟️ Your LUL Sessions Are Confirmed!`;
-    studentBody = buildEmailBody(name, passLabel, sessionUrl, 'student');
-    parentBody  = buildEmailBody(name, passLabel, sessionUrl, 'parent');
+    // pick mode (default fallback)
+    const n = (pickCount && pickCount > 0) ? pickCount : 2;
+    subject     = `Your Lounge pass — pick ${n} sessions`;
+    studentBody = buildPickEmail({ studentName, pickCount: n, sessionUrl, recipient: 'student' });
+    parentBody  = buildPickEmail({ studentName, pickCount: n, sessionUrl, recipient: 'parent'  });
   }
 
-  await sendViaIntercom({ to: email, name: name || '', subject, html: studentBody });
+  await sendViaIntercom({ to: email, name: studentName, subject, html: studentBody });
 
   if (parentEmail && String(parentEmail).trim()) {
-    await sendViaIntercom({ to: String(parentEmail).trim(), name: name || '', subject, html: parentBody });
+    await sendViaIntercom({
+      to: String(parentEmail).trim(),
+      name: studentName,
+      subject,
+      html: parentBody
+    });
   }
 }
 

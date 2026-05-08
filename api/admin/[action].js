@@ -1844,7 +1844,9 @@ async function handleLoungePassCreate(req, res) {
   try {
     const { sendWelcomeEmail } = require('../_lib/lul-email.js');
     await sendWelcomeEmail({
-      name, email, parentEmail, expType, mode: cfg.mode, token: newToken
+      name, email, parentEmail, expType,
+      mode: cfg.mode, pickCount: cfg.pick_count,
+      token: newToken
     });
   } catch (err) {
     const msg = err.message || String(err);
@@ -1951,7 +1953,9 @@ async function handleLoungePassResend(req, res) {
   try {
     const { sendWelcomeEmail } = require('../_lib/lul-email.js');
     await sendWelcomeEmail({
-      name, email, parentEmail, expType, mode: cfg.mode, token: passToken
+      name, email, parentEmail, expType,
+      mode: cfg.mode, pickCount: cfg.pick_count,
+      token: passToken
     });
   } catch (err) {
     console.error('pass-resend email:', err.message);
