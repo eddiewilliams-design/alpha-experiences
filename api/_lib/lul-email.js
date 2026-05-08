@@ -146,7 +146,7 @@ function shell({ overline, headingHtml, intro, ctaUrl, ctaLabel, recipient }) {
             <td style="background:${C.card};padding:32px 36px 24px;text-align:center;">
               <!-- Anchor CTA — minimal single-element button -->
               <div style="text-align:center;margin:0 auto 24px;">
-                <a href="${ctaUrl}" target="_blank" style="display:inline-block;padding:16px 40px;background:${C.blue};color:#ffffff;font-family:${FONT};font-size:17px;font-weight:800;text-decoration:none;border-radius:999px;line-height:1;mso-line-height-rule:exactly;">${ctaLabel}</a>
+                <a href="${ctaUrl}" target="_blank" style="display:inline-block;padding:20px 52px;background:${C.blue};color:#ffffff;font-family:${FONT};font-size:20px;font-weight:900;text-decoration:none;border-radius:999px;line-height:1;mso-line-height-rule:exactly;letter-spacing:0.02em;">${ctaLabel}</a>
               </div>
 
               <!-- Single combined reminder -->
