@@ -118,7 +118,7 @@ function buildEmailBody(studentName, passLabel, sessionUrl, recipient) {
           <p style="color:#374151;font-size:15px;text-align:left;">${intro}</p>
 
           <a href="${sessionUrl}"
-             style="display:inline-block;margin:24px auto;background:#006AFF;color:#fff;padding:14px 36px;border-radius:999px;text-decoration:none;font-size:15px;font-weight:700;">
+             style="display:inline-block;margin:24px auto;background:#006FF9;color:#fff;padding:14px 36px;border-radius:999px;text-decoration:none;font-size:15px;font-weight:700;">
             View My Sessions →
           </a>
 
@@ -184,7 +184,7 @@ function buildCelebrationEmailBody(studentName, sessionUrl, recipient) {
           <p style="color:#374151;font-size:15px;text-align:left;">${intro}</p>
 
           <a href="${sessionUrl}"
-             style="display:inline-block;margin:24px auto;background:#006AFF;color:#fff;padding:14px 36px;border-radius:999px;text-decoration:none;font-size:15px;font-weight:700;">
+             style="display:inline-block;margin:24px auto;background:#006FF9;color:#fff;padding:14px 36px;border-radius:999px;text-decoration:none;font-size:15px;font-weight:700;">
             Lock In My Spot 🎊
           </a>
 
