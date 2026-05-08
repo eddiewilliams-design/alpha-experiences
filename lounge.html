@@ -108,7 +108,6 @@ body{font-family:'Be Vietnam Pro',sans-serif;background:var(--aa-white);min-heig
 .market-info{flex:1;min-width:200px;}
 .market-title{font-family:'AF Sobremesa','Be Vietnam Pro',sans-serif;font-weight:800;font-size:16px;color:#fff;margin-bottom:4px;}
 .market-sub{font-size:12px;color:rgba(255,255,255,0.6);line-height:1.55;}
-.market-btn{background:var(--aa-yellow);color:#3a2000;font-size:13px;font-weight:700;padding:11px 22px;border-radius:999px;text-decoration:none;white-space:nowrap;}
 
 /* ── Empty / loading / denied ── */
 .no-passes-card{background:#fff;border:2px dashed var(--aa-med-grey);border-radius:18px;padding:28px 24px;text-align:center;}
@@ -210,9 +209,8 @@ body{font-family:'Be Vietnam Pro',sans-serif;background:var(--aa-white);min-heig
         <div class="market-icon">🛒</div>
         <div class="market-info">
           <p class="market-title">Want to earn a pass?</p>
-          <p class="market-sub">Pass options unlock through the Alpha Bank Marketplace.</p>
+          <p class="market-sub">Pass options unlock through the <strong>Alpha Bank Marketplace</strong> — sign in there with the same Alpha Anywhere school email you used here.</p>
         </div>
-        <a id="market-link" href="#" target="_blank" rel="noopener" class="market-btn">Browse Marketplace →</a>
       </div>
     </section>
 
@@ -225,11 +223,6 @@ body{font-family:'Be Vietnam Pro',sans-serif;background:var(--aa-white);min-heig
 </footer>
 
 <script>
-// Marketplace URL — TBD. Update this constant when Eddie provides the real link.
-// For now, falls back to '#' (no-op) — the button still renders so the section
-// has its visual weight, but the click does nothing.
-var MARKETPLACE_URL = '';
-
 // ── Local-timezone formatting for session times ──────────────
 // If browser TZ is Chicago, pass through published times. Otherwise
 // show local time with the original CT string in parens.
@@ -549,17 +542,6 @@ async function init(){
   // hasPass = at least one non-expired pass
   var hasPass = passes.some(function(p){ return !p.expired; });
   renderSessions(sessions, hasPass);
-
-  // Marketplace link
-  var mb = document.getElementById('market-link');
-  if (MARKETPLACE_URL) {
-    mb.href = MARKETPLACE_URL;
-  } else {
-    mb.addEventListener('click', function(e){
-      e.preventDefault();
-      alert('Marketplace link coming soon — ask your coach for now.');
-    });
-  }
 
   document.getElementById('page-loading').style.display = 'none';
   document.getElementById('page-content').style.display = '';
