@@ -137,8 +137,8 @@ function shell({ overline, heading, intro, ctaUrl, ctaLabel, recipient }) {
               <!-- Anchor CTA (table-based for Outlook compatibility) -->
               <table role="presentation" cellspacing="0" cellpadding="0" border="0" style="margin:0 0 28px;">
                 <tr>
-                  <td style="background:${C.blue};border-radius:999px;">
-                    <a href="${ctaUrl}" style="display:inline-block;padding:14px 32px;color:#ffffff;font-size:15px;font-weight:700;text-decoration:none;letter-spacing:0.02em;font-family:${FONT};">${ctaLabel}</a>
+                  <td align="center" bgcolor="${C.blue}" style="background:${C.blue};border-radius:999px;mso-padding-alt:0;">
+                    <a href="${ctaUrl}" style="display:inline-block;padding:14px 32px;background:${C.blue};color:#ffffff !important;font-size:15px;font-weight:700;text-decoration:none !important;letter-spacing:0.02em;font-family:${FONT};border-radius:999px;border:1px solid ${C.blue};"><span style="color:#ffffff !important;text-decoration:none !important;">${ctaLabel}</span></a>
                   </td>
                 </tr>
               </table>
