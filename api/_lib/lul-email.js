@@ -103,10 +103,16 @@ async function sendViaIntercom({ to, name, subject, html }) {
 }
 
 // ── Brand-aligned email shell ────────────────────────────────
-// Three-tier hierarchy: small overline / heading / sub-paragraph.
-// One anchor card (the CTA). Single yellow reminder. Footer with
-// reply-to. No inline-word highlights.
-function shell({ overline, heading, intro, ctaUrl, ctaLabel, recipient }) {
+// Mirrors the portal /trips hero pattern:
+//   1. Navy hero band carries the overline + heading + intro
+//      (white text, with one highlight word in AA Yellow — same
+//      pattern as the portal's "Hey Santiago, Your **Experiences**
+//      Are Here" treatment).
+//   2. Yellow accent stripe (4px) — echoes the portal's color
+//      moment between hero and body.
+//   3. White body card — single anchor CTA + single reminder.
+//   4. Footer with reply-to + brand line.
+function shell({ overline, headingHtml, intro, ctaUrl, ctaLabel, recipient }) {
   const replyHelp = recipient === 'parent'
     ? `Questions? Reply to this email — your student's coach can also help on the Alpha Anywhere platform.`
     : `Questions? Reply to this email or message your coach.`;
@@ -120,31 +126,35 @@ function shell({ overline, heading, intro, ctaUrl, ctaLabel, recipient }) {
       <td align="center" style="padding:32px 16px;">
         <table role="presentation" width="560" cellspacing="0" cellpadding="0" border="0" style="max-width:560px;width:100%;background:${C.card};border-radius:20px;overflow:hidden;box-shadow:0 4px 20px rgba(7,34,86,0.08);">
 
-          <!-- Header -->
+          <!-- Navy hero band (mirrors portal /trips hero) -->
           <tr>
-            <td style="background:${C.navy};padding:28px 36px;">
-              <img src="${ALPHA_LOGO_URL}" alt="Alpha Anywhere" width="120" style="display:block;height:auto;border:0;outline:none;text-decoration:none;" />
+            <td style="background:${C.navy};padding:32px 36px 30px;">
+              <img src="${ALPHA_LOGO_URL}" alt="Alpha Anywhere" width="120" style="display:block;height:auto;border:0;outline:none;text-decoration:none;margin:0 0 22px;" />
+              <p style="margin:0 0 10px;color:${C.yellow};font-size:11px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;">${overline}</p>
+              <h1 style="margin:0 0 12px;color:#ffffff;font-size:26px;font-weight:800;line-height:1.2;letter-spacing:-0.01em;">${headingHtml}</h1>
+              <p style="margin:0;color:rgba(255,255,255,0.85);font-size:14px;line-height:1.6;">${intro}</p>
             </td>
           </tr>
 
-          <!-- Body -->
+          <!-- Yellow accent stripe (brand color moment between hero and body) -->
           <tr>
-            <td style="padding:36px 36px 24px;">
-              <p style="margin:0 0 10px;color:${C.muted};font-size:11px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;">${overline}</p>
-              <h1 style="margin:0 0 14px;color:${C.navy};font-size:24px;font-weight:800;line-height:1.2;letter-spacing:-0.01em;">${heading}</h1>
-              <p style="margin:0 0 28px;color:${C.text};font-size:15px;line-height:1.6;">${intro}</p>
+            <td bgcolor="${C.yellow}" style="background:${C.yellow};height:4px;line-height:4px;font-size:0;mso-line-height-rule:exactly;">&nbsp;</td>
+          </tr>
 
-              <!-- Anchor CTA (table-based for Outlook compatibility) -->
-              <table role="presentation" cellspacing="0" cellpadding="0" border="0" style="margin:0 0 28px;">
+          <!-- Body card -->
+          <tr>
+            <td style="background:${C.card};padding:32px 36px 24px;text-align:center;">
+              <!-- Anchor CTA (table-based for Outlook) -->
+              <table role="presentation" cellspacing="0" cellpadding="0" border="0" align="center" style="margin:0 auto 24px;">
                 <tr>
                   <td align="center" bgcolor="${C.blue}" style="background:${C.blue};border-radius:999px;mso-padding-alt:0;">
-                    <a href="${ctaUrl}" style="display:inline-block;padding:14px 32px;background:${C.blue};color:#ffffff !important;font-size:15px;font-weight:700;text-decoration:none !important;letter-spacing:0.02em;font-family:${FONT};border-radius:999px;border:1px solid ${C.blue};"><span style="color:#ffffff !important;text-decoration:none !important;">${ctaLabel}</span></a>
+                    <a href="${ctaUrl}" style="display:inline-block;padding:14px 36px;background:${C.blue};color:#ffffff !important;font-size:15px;font-weight:700;text-decoration:none !important;letter-spacing:0.02em;font-family:${FONT};border-radius:999px;border:1px solid ${C.blue};"><span style="color:#ffffff !important;text-decoration:none !important;">${ctaLabel}</span></a>
                   </td>
                 </tr>
               </table>
 
               <!-- Single combined reminder -->
-              <div style="background:${C.lightYellow};border:1px solid ${C.yellowBorder};border-radius:12px;padding:14px 16px;color:${C.yellowText};font-size:13px;line-height:1.55;">
+              <div style="background:${C.lightYellow};border:1px solid ${C.yellowBorder};border-radius:12px;padding:14px 16px;color:${C.yellowText};font-size:13px;line-height:1.55;text-align:left;">
                 <strong>One-time use.</strong> Each Zoom link works once and expires 30 days from the date issued. Click only when you're ready to join.
               </div>
             </td>
@@ -170,22 +180,29 @@ function shell({ overline, heading, intro, ctaUrl, ctaLabel, recipient }) {
 </html>`;
 }
 
+// Wraps a phrase in AA Yellow so each composer can highlight one word/phrase
+// (matches the portal's heading-highlight pattern, brand SKILL §5).
+function hl(text) {
+  return `<span style="color:${C.yellow};">${text}</span>`;
+}
+
 // ── Subject + body composers per mode ────────────────────────
 function buildPickEmail({ studentName, pickCount, sessionUrl, recipient }) {
   const overline = 'Level Up Lounge';
   const n = (pickCount && pickCount > 0) ? pickCount : 2;
 
-  const heading = recipient === 'parent'
-    ? `${studentName} has a new Lounge pass`
-    : `Your Lounge pass is here, ${studentName}`;
+  // Highlight word(s) in AA Yellow — mirrors portal hero pattern
+  const headingHtml = recipient === 'parent'
+    ? `${studentName}'s ${hl(`${n}-session pass`)} is here`
+    : `Pick your ${hl(`${n} sessions`)}, ${studentName}`;
 
   const intro = recipient === 'parent'
-    ? `${studentName}'s ${n}-session pass is ready. They'll pick which sessions they want and lock in their Zoom links from the link below.`
-    : `Pick your ${n} sessions for this week. Your Zoom links unlock 15 min before each session starts.`;
+    ? `${studentName}'s pass is ready. They'll pick which sessions they want and lock in their Zoom links from the link below.`
+    : `Choose your sessions for this week. Your Zoom links unlock 15 min before each session starts.`;
 
   return shell({
     overline,
-    heading,
+    headingHtml,
     intro,
     ctaUrl:   sessionUrl,
     ctaLabel: 'Pick my sessions →',
@@ -196,17 +213,17 @@ function buildPickEmail({ studentName, pickCount, sessionUrl, recipient }) {
 function buildFullWeekEmail({ studentName, sessionUrl, recipient }) {
   const overline = 'Level Up Lounge';
 
-  const heading = recipient === 'parent'
-    ? `${studentName} has a Full Week Lounge pass`
-    : `Your Full Week pass is here, ${studentName}`;
+  const headingHtml = recipient === 'parent'
+    ? `${studentName} has a ${hl('Full Week pass')}`
+    : `${hl('Full Week')} is yours, ${studentName}`;
 
   const intro = recipient === 'parent'
-    ? `${studentName} can join every Lounge session this week. Zoom links are inside — they unlock 15 min before each session starts.`
-    : `You can join every Lounge session this week. Click below to see what's on — Zoom links unlock 15 min before each session.`;
+    ? `${studentName} can join every Lounge session this week. Zoom links unlock 15 min before each session starts.`
+    : `You can join every Lounge session this week. Tap below to see what's on — Zoom links unlock 15 min before each session.`;
 
   return shell({
     overline,
-    heading,
+    headingHtml,
     intro,
     ctaUrl:   sessionUrl,
     ctaLabel: 'View my sessions →',
@@ -217,17 +234,17 @@ function buildFullWeekEmail({ studentName, sessionUrl, recipient }) {
 function buildCelebrationEmail({ studentName, sessionUrl, recipient }) {
   const overline = 'Friday Coaching Celebration';
 
-  const heading = recipient === 'parent'
-    ? `${studentName} earned a Celebration spot`
-    : `You earned it, ${studentName}`;
+  const headingHtml = recipient === 'parent'
+    ? `${studentName} ${hl('earned a Celebration spot')}`
+    : `You ${hl('earned it')}, ${studentName}`;
 
   const intro = recipient === 'parent'
     ? `${studentName} earned a spot at this Friday's Coaching Celebration. Tap below to lock in their spot and get the Zoom link.`
-    : `You earned a spot at this Friday's Coaching Celebration. Click below to lock in your spot and grab the Zoom link.`;
+    : `You earned a spot at this Friday's Coaching Celebration. Lock in your spot and grab the Zoom link below.`;
 
   return shell({
     overline,
-    heading,
+    headingHtml,
     intro,
     ctaUrl:   sessionUrl,
     ctaLabel: 'Lock in my spot →',
