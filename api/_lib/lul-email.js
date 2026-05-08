@@ -144,11 +144,11 @@ function shell({ overline, headingHtml, intro, ctaUrl, ctaLabel, recipient }) {
           <!-- Body card -->
           <tr>
             <td style="background:${C.card};padding:32px 36px 24px;text-align:center;">
-              <!-- Anchor CTA — single element so there's no inner-edge artifact -->
+              <!-- Anchor CTA — bulletproof button (bg on td AND a, no border to avoid edge artifact) -->
               <table role="presentation" cellspacing="0" cellpadding="0" border="0" align="center" style="margin:0 auto 24px;">
                 <tr>
-                  <td align="center" style="padding:0;">
-                    <a href="${ctaUrl}" style="display:inline-block;background:${C.blue};color:#ffffff !important;padding:14px 36px;border-radius:999px;text-decoration:none !important;font-family:${FONT};font-size:15px;font-weight:700;letter-spacing:0.02em;mso-padding-alt:0;text-underline:none;"><span style="color:#ffffff !important;text-decoration:none !important;">${ctaLabel}</span></a>
+                  <td align="center" bgcolor="${C.blue}" style="background:${C.blue};border-radius:999px;padding:0;mso-padding-alt:0;">
+                    <a href="${ctaUrl}" style="display:inline-block;background:${C.blue};color:#ffffff !important;padding:14px 36px;border-radius:999px;text-decoration:none !important;font-family:${FONT};font-size:15px;font-weight:700;letter-spacing:0.02em;line-height:1;"><span style="color:#ffffff !important;text-decoration:none !important;">${ctaLabel}</span></a>
                   </td>
                 </tr>
               </table>
