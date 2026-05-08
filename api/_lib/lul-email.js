@@ -144,11 +144,11 @@ function shell({ overline, headingHtml, intro, ctaUrl, ctaLabel, recipient }) {
           <!-- Body card -->
           <tr>
             <td style="background:${C.card};padding:32px 36px 24px;text-align:center;">
-              <!-- Anchor CTA (table-based for Outlook) -->
+              <!-- Anchor CTA — single element so there's no inner-edge artifact -->
               <table role="presentation" cellspacing="0" cellpadding="0" border="0" align="center" style="margin:0 auto 24px;">
                 <tr>
-                  <td align="center" bgcolor="${C.blue}" style="background:${C.blue};border-radius:999px;mso-padding-alt:0;">
-                    <a href="${ctaUrl}" style="display:inline-block;padding:14px 36px;background:${C.blue};color:#ffffff !important;font-size:15px;font-weight:700;text-decoration:none !important;letter-spacing:0.02em;font-family:${FONT};border-radius:999px;border:1px solid ${C.blue};"><span style="color:#ffffff !important;text-decoration:none !important;">${ctaLabel}</span></a>
+                  <td align="center" style="padding:0;">
+                    <a href="${ctaUrl}" style="display:inline-block;background:${C.blue};color:#ffffff !important;padding:14px 36px;border-radius:999px;text-decoration:none !important;font-family:${FONT};font-size:15px;font-weight:700;letter-spacing:0.02em;mso-padding-alt:0;text-underline:none;"><span style="color:#ffffff !important;text-decoration:none !important;">${ctaLabel}</span></a>
                   </td>
                 </tr>
               </table>
@@ -197,8 +197,8 @@ function buildPickEmail({ studentName, pickCount, sessionUrl, recipient }) {
     : `Pick your ${hl(`${n} sessions`)}, ${studentName}`;
 
   const intro = recipient === 'parent'
-    ? `${studentName}'s pass is ready. They'll pick which sessions they want and lock in their Zoom links from the link below.`
-    : `Choose your sessions for this week. Your Zoom links unlock 15 min before each session starts.`;
+    ? `${studentName}'s pass is ready. They'll pick their sessions from the link below. Zoom links unlock 15 min before each session starts.`
+    : `Tap below to choose your sessions for this week. Your Zoom links unlock 15 min before each session starts.`;
 
   return shell({
     overline,
@@ -239,8 +239,8 @@ function buildCelebrationEmail({ studentName, sessionUrl, recipient }) {
     : `You ${hl('earned it')}, ${studentName}`;
 
   const intro = recipient === 'parent'
-    ? `${studentName} earned a spot at this Friday's Coaching Celebration. Tap below to lock in their spot and get the Zoom link.`
-    : `You earned a spot at this Friday's Coaching Celebration. Lock in your spot and grab the Zoom link below.`;
+    ? `${studentName} earned a spot at this Friday's Coaching Celebration. They'll tap below to lock it in. The Zoom link unlocks 15 min before the session starts.`
+    : `You earned a spot at this Friday's Coaching Celebration. Tap below to lock it in. Your Zoom link unlocks 15 min before the session starts.`;
 
   return shell({
     overline,
