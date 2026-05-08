@@ -144,14 +144,10 @@ function shell({ overline, headingHtml, intro, ctaUrl, ctaLabel, recipient }) {
           <!-- Body card -->
           <tr>
             <td style="background:${C.card};padding:32px 36px 24px;text-align:center;">
-              <!-- Anchor CTA — bulletproof button (bg on td AND a, no border to avoid edge artifact) -->
-              <table role="presentation" cellspacing="0" cellpadding="0" border="0" align="center" style="margin:0 auto 24px;">
-                <tr>
-                  <td align="center" bgcolor="${C.blue}" style="background:${C.blue};border-radius:999px;padding:0;mso-padding-alt:0;">
-                    <a href="${ctaUrl}" style="display:inline-block;background:${C.blue};color:#ffffff !important;padding:14px 36px;border-radius:999px;text-decoration:none !important;font-family:${FONT};font-size:15px;font-weight:700;letter-spacing:0.02em;line-height:1;"><span style="color:#ffffff !important;text-decoration:none !important;">${ctaLabel}</span></a>
-                  </td>
-                </tr>
-              </table>
+              <!-- Anchor CTA — minimal single-element button -->
+              <div style="text-align:center;margin:0 auto 24px;">
+                <a href="${ctaUrl}" target="_blank" style="display:inline-block;padding:14px 36px;background:${C.blue};color:#ffffff;font-family:${FONT};font-size:15px;font-weight:700;text-decoration:none;border-radius:999px;line-height:1;mso-line-height-rule:exactly;">${ctaLabel}</a>
+              </div>
 
               <!-- Single combined reminder -->
               <div style="background:${C.lightYellow};border:1px solid ${C.yellowBorder};border-radius:12px;padding:14px 16px;color:${C.yellowText};font-size:13px;line-height:1.55;text-align:left;">
