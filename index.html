@@ -3,23 +3,22 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Alpha Anywhere Experiences</title>
+<meta http-equiv="refresh" content="0;url=/auth/login">
+<title>Alpha Experiences</title>
 <style>
-body { font-family: Arial, sans-serif; background: #072256; display: flex; align-items: center; justify-content: center; min-height: 100vh; margin: 0; }
-.box { text-align: center; padding: 2rem; }
-svg { margin-bottom: 1.5rem; }
-h1 { font-size: 24px; color: #FAFAFA; margin: 0 0 8px; }
-p { font-size: 15px; color: #8291AA; margin: 0; }
+  body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Helvetica Neue",Arial,sans-serif;background:#072256;color:#FAFAFA;display:flex;align-items:center;justify-content:center;min-height:100vh;}
+  .box{text-align:center;padding:2rem;}
+  .spinner{width:24px;height:24px;border:2px solid rgba(255,255,255,0.2);border-top-color:#FAFAFA;border-radius:50%;animation:spin 0.7s linear infinite;margin:0 auto 14px;}
+  @keyframes spin{to{transform:rotate(360deg);}}
+  p{font-size:13px;color:#8291AA;margin:0;}
+  a{color:#006FF9;text-decoration:none;}
 </style>
 </head>
 <body>
 <div class="box">
-  <svg width="48" height="48" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
-    <rect width="48" height="48" rx="12" fill="#0D3270"/>
-    <path d="M10 38L24 10L38 38H31L24 22L17 38H10Z" fill="#FAFAFA"/>
-  </svg>
-  <h1>Alpha Anywhere</h1>
-  <p>Use the link from your email to access your pass.</p>
+  <div class="spinner" aria-hidden="true"></div>
+  <p>Taking you to <a href="/auth/login">sign in</a>…</p>
 </div>
+<script>window.location.replace('/auth/login');</script>
 </body>
 </html>

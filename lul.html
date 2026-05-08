@@ -421,8 +421,21 @@ function renderSessions() {
         '<div class="session-description">' + esc(s.description) + '</div>' +
         '<div class="session-meta"><span class="day-chip">' + esc(ftPick.dayChip) + '</span>' +
         '<span class="session-time">' + esc(ftPick.timeLine) + ' · ' + esc(s.coach) + '</span></div></div>';
+      // a11y: make clickable cards keyboard-focusable and screen-reader-readable
+      card.setAttribute('role', 'button');
+      card.setAttribute('tabindex', isDis ? '-1' : '0');
+      card.setAttribute('aria-pressed', isSel ? 'true' : 'false');
+      card.setAttribute('aria-label', s.name + (isDis ? ' (already selected)' : (isSel ? ' (selected)' : ' (not selected)')));
       if (!isDis) {
-        (function(id){ card.addEventListener('click', function(){ toggleSession(id); }); })(s.id);
+        (function(id){
+          card.addEventListener('click', function(){ toggleSession(id); });
+          card.addEventListener('keydown', function(e){
+            if (e.key === 'Enter' || e.key === ' ' || e.key === 'Spacebar') {
+              e.preventDefault();
+              toggleSession(id);
+            }
+          });
+        })(s.id);
       }
     }
     grid.appendChild(card);
