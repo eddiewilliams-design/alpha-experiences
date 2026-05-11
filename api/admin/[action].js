@@ -1668,7 +1668,7 @@ async function handleLoungePassTypeSave(req, res) {
 // session ids (Sheet1 col K).
 
 async function readSheet1(token) {
-  const sheet = await batchGet(token, ['Sheet1!A:N']);
+  const sheet = await batchGet(token, ['Sheet1!A:O']);
   return (sheet && sheet.valueRanges && sheet.valueRanges[0] && sheet.valueRanges[0].values) || [];
 }
 
@@ -1694,6 +1694,12 @@ function computePassStatus(pass, types, attendanceByEmail) {
   if (pass.date_sent_ms != null) {
     const expiresMs = pass.date_sent_ms + 30 * 86400000;
     daysLeft = Math.ceil((expiresMs - Date.now()) / 86400000);
+  }
+
+  // Manual override: if admin marked the pass as fulfilled, show Used.
+  // Mirrors the "Netflix model" — a paid pass counts as used at expiry / when admin says.
+  if ((pass.fulfilled || '').toString().trim().toLowerCase() === 'yes') {
+    return { status: 'used', days_left: daysLeft };
   }
 
   if (!pass.selections_locked) return { status: 'active', days_left: daysLeft };
@@ -1764,7 +1770,8 @@ async function handleLoungePassesList(req, res) {
       selected_session_ids: selectedIds,
       date_locked:         toYMD(r[11]),
       first_clicked:       toYMD(r[12]),
-      notes:               (r[13] || '').toString()
+      notes:               (r[13] || '').toString(),
+      reminder_sent:       toYMD(r[14])           // col O — stamped by cron when expiry email sent
     };
 
     const computed = computePassStatus(pass, types, attendanceByEmail);
@@ -2130,6 +2137,43 @@ async function handleLoungeAttendanceDelete(req, res) {
   }
 
   return res.status(200).json({ ok: true });
+}
+
+async function handleLoungePassMarkUsed(req, res) {
+  if (req.method !== 'POST') return res.status(405).json({ error: 'method_not_allowed' });
+
+  let body;
+  try { body = await readJsonBody(req); }
+  catch (e) { return res.status(400).json({ error: 'bad_json' }); }
+
+  const passToken = (body.token || '').toString().trim();
+  if (!passToken) return res.status(400).json({ error: 'bad_request', detail: 'token required' });
+
+  // Toggle: Yes ↔ Pending. Explicit `used` boolean in body wins if provided.
+  let newValue;
+  if (body.used === true || String(body.used).toLowerCase() === 'yes')      newValue = 'Yes';
+  else if (body.used === false || String(body.used).toLowerCase() === 'no') newValue = 'Pending';
+  else newValue = null; // auto-toggle based on current state
+
+  let accessToken;
+  try { accessToken = await getAccessToken('https://www.googleapis.com/auth/spreadsheets'); }
+  catch (err) { console.error('pass-mark-used token:', err.message); return res.status(500).json({ error: 'server_error' }); }
+
+  const { row: foundRow, rowIndex } = await findRowByToken(accessToken, passToken);
+  if (!foundRow) return res.status(404).json({ error: 'not_found' });
+
+  if (newValue === null) {
+    const current = (foundRow[5] || '').toString().trim().toLowerCase();
+    newValue = (current === 'yes') ? 'Pending' : 'Yes';
+  }
+
+  try {
+    await sheetsUpdate(accessToken, `Sheet1!F${rowIndex + 1}`, [[newValue]]);
+  } catch (err) {
+    console.error('pass-mark-used write:', err.message);
+    return res.status(500).json({ error: 'server_error' });
+  }
+  return res.status(200).json({ ok: true, fulfilled: newValue });
 }
 
 async function handleLoungePassCancel(req, res) {
@@ -2795,6 +2839,7 @@ module.exports = async (req, res) => {
     case 'lounge-pass-extend':    return handleLoungePassExtend(req, res);
     case 'lounge-pass-resend':    return handleLoungePassResend(req, res);
     case 'lounge-pass-cancel':    return handleLoungePassCancel(req, res);
+    case 'lounge-pass-mark-used': return handleLoungePassMarkUsed(req, res);
     case 'lounge-pass-update':    return handleLoungePassUpdate(req, res);
     case 'lounge-attendance-list':   return handleLoungeAttendanceList(req, res);
     case 'lounge-attendance-delete': return handleLoungeAttendanceDelete(req, res);

@@ -248,6 +248,56 @@ function buildCelebrationEmail({ studentName, sessionUrl, recipient }) {
   });
 }
 
+// ── Expiry reminder email ────────────────────────────────────
+// Same brand shell as the welcome email — different overline,
+// heading, and intro. Reuses the same picker URL so the student
+// lands right back where they can use what's left of the pass.
+function buildExpiryReminderEmail({ studentName, daysLeft, sessionUrl, recipient }) {
+  const overline = 'Level Up Lounge';
+  const d = (daysLeft == null) ? 7 : Math.max(0, daysLeft);
+  const dayLabel = d === 1 ? '1 day' : `${d} days`;
+
+  const headingHtml = recipient === 'parent'
+    ? `${studentName}'s pass expires in ${hl(dayLabel)}`
+    : `Heads up — ${hl(dayLabel)} left on your pass`;
+
+  const intro = recipient === 'parent'
+    ? `${studentName}'s Lounge pass expires in ${dayLabel}. Tap below to see this week's sessions and lock in the rest before time runs out.`
+    : `Your Lounge pass expires in ${dayLabel}. Tap below to see this week's sessions and use what's left before it runs out.`;
+
+  return shell({
+    overline,
+    headingHtml,
+    intro,
+    ctaUrl:   sessionUrl,
+    ctaLabel: 'See my sessions →',
+    recipient
+  });
+}
+
+async function sendExpiryReminderEmail({ name, email, parentEmail, token, daysLeft }) {
+  if (!email) throw new Error('email required');
+  if (!token) throw new Error('token required');
+  const sessionUrl = `${VERCEL_BASE_URL}?token=${encodeURIComponent(token)}`;
+  const studentName = name || 'there';
+  const d = (daysLeft == null) ? 7 : Math.max(0, daysLeft);
+
+  const subject = `⏱ ${d === 1 ? '1 day' : `${d} days`} left on your Lounge pass`;
+
+  const studentBody = buildExpiryReminderEmail({ studentName, daysLeft: d, sessionUrl, recipient: 'student' });
+  await sendViaIntercom({ to: email, name: studentName, subject, html: studentBody });
+
+  if (parentEmail && String(parentEmail).trim()) {
+    const parentBody = buildExpiryReminderEmail({ studentName, daysLeft: d, sessionUrl, recipient: 'parent' });
+    await sendViaIntercom({
+      to: String(parentEmail).trim(),
+      name: studentName,
+      subject,
+      html: parentBody
+    });
+  }
+}
+
 // ── Public API ───────────────────────────────────────────────
 //
 // sendWelcomeEmail({ name, email, parentEmail, expType, mode, pickCount, token })
@@ -295,4 +345,4 @@ async function sendWelcomeEmail({ name, email, parentEmail, expType, mode, pickC
   }
 }
 
-module.exports = { sendWelcomeEmail };
+module.exports = { sendWelcomeEmail, sendExpiryReminderEmail };

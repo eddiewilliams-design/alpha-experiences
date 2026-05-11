@@ -130,6 +130,47 @@ function postSheet(url, body, token) {
   });
 }
 
+function escHtml(s) {
+  return String(s || '').replace(/[&<>"']/g, c => (
+    { '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]
+  ));
+}
+
+function renderAlreadyAttendedPage({ studentName, sessionName }) {
+  const name = escHtml(studentName);
+  const session = escHtml(sessionName);
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Already attended — Alpha Experiences</title>
+<link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;700;800&display=swap" rel="stylesheet">
+<style>
+  *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+  body{font-family:'Be Vietnam Pro',-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;background:#FAFAFA;color:#072256;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px;}
+  .card{max-width:480px;width:100%;background:#fff;border-radius:20px;border:1.5px solid #DADFE7;padding:36px 32px;text-align:center;box-shadow:0 4px 20px rgba(7,34,86,0.08);}
+  .icon{font-size:48px;margin-bottom:14px;}
+  .pre{font-size:11px;font-weight:800;color:#E59500;letter-spacing:0.06em;text-transform:uppercase;margin-bottom:8px;}
+  h1{font-size:22px;font-weight:800;line-height:1.2;letter-spacing:-0.01em;margin-bottom:10px;}
+  p{font-size:14px;line-height:1.6;color:#072256;margin-bottom:8px;}
+  p.sub{color:#8291AA;font-size:13px;}
+  .cta{display:inline-block;margin-top:18px;padding:14px 32px;background:#006FF9;color:#fff;font-size:15px;font-weight:800;text-decoration:none;border-radius:999px;letter-spacing:0.02em;}
+</style>
+</head>
+<body>
+  <div class="card">
+    <div class="icon">🎟️</div>
+    <div class="pre">One-time use link</div>
+    <h1>You've already attended this session</h1>
+    <p>Each Zoom link is one-time use, ${name}. It looks like you already joined <strong>${session}</strong> earlier.</p>
+    <p class="sub">If you think this is a mistake, reply to your welcome email and we'll take a look.</p>
+    <a class="cta" href="/lounge">← Back to my Lounge passes</a>
+  </div>
+</body>
+</html>`;
+}
+
 module.exports = async (req, res) => {
   res.setHeader('Cache-Control', 'no-store');
 
@@ -214,6 +255,35 @@ module.exports = async (req, res) => {
           sessionName = (sessionRows[i][0] || '').toString(); // col A
           sessionId   = (sessionRows[i][7] || '').toString(); // col H
           break;
+        }
+      }
+
+      // ── One-time use enforcement ──
+      // If this student has already clicked this same session_id more than
+      // 90 minutes ago, treat it as a re-use attempt (e.g. trying to join
+      // again in a later week after the pass was extended) and block.
+      // The 90-min grace covers double-clicks + the full unlock window
+      // (15 min before start to 45 min after) + safety margin.
+      if (sessionId) {
+        const GRACE_MS = 90 * 60 * 1000;
+        const nowMs = Date.now();
+        const emailLower = studentEmail.toLowerCase();
+        for (let i = 1; i < attendanceRows.length; i++) {
+          const ar = attendanceRows[i] || [];
+          const ae = (ar[1] || '').toString().toLowerCase().trim();
+          const asid = (ar[3] || '').toString().trim();
+          if (ae !== emailLower || asid !== sessionId) continue;
+          const ts = (ar[0] || '').toString();
+          const tsMs = ts ? new Date(ts).getTime() : null;
+          if (tsMs == null || isNaN(tsMs)) continue;
+          if (nowMs - tsMs > GRACE_MS) {
+            // Block — already used this session in a prior occurrence
+            res.setHeader('Content-Type', 'text/html; charset=utf-8');
+            return res.status(200).send(renderAlreadyAttendedPage({
+              studentName: studentName || 'there',
+              sessionName: sessionName || 'this session'
+            }));
+          }
         }
       }
 

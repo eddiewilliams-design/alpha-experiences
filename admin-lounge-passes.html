@@ -618,7 +618,7 @@ function renderPasses(){
     ds.textContent = p.date_sent ? fmtDate(p.date_sent) : '—';
     row.appendChild(ds);
 
-    // Days left
+    // Days left (+ reminder-sent indicator if cron has emailed them)
     var dl = document.createElement('div');
     dl.className = 'pass-days col-days';
     if (p.status === 'cancelled' || p.status === 'used') {
@@ -632,6 +632,13 @@ function renderPasses(){
     } else {
       if (p.days_left <= 5) dl.classList.add('warning');
       dl.textContent = p.days_left + ' day' + (p.days_left === 1 ? '' : 's');
+    }
+    if (p.reminder_sent) {
+      var rem = document.createElement('div');
+      rem.style.cssText = 'font-size:9px;font-weight:800;color:#1a5205;letter-spacing:0.04em;text-transform:uppercase;margin-top:2px;';
+      rem.textContent = '✉ reminded ' + p.reminder_sent;
+      rem.title = 'Expiry reminder email sent on ' + p.reminder_sent;
+      dl.appendChild(rem);
     }
     row.appendChild(dl);
 
@@ -661,6 +668,19 @@ function renderPasses(){
     resendBtn.disabled = !p.token;
     resendBtn.addEventListener('click', function(){ openResendModal(p); });
     actions.appendChild(resendBtn);
+
+    // Mark Used / Mark Not Used — toggles Fulfilled column (Yes ↔ Pending).
+    // When Fulfilled=Yes the Status badge reads "Used" regardless of attendance.
+    if (p.status !== 'cancelled') {
+      var isUsed = (p.fulfilled || '').toLowerCase() === 'yes';
+      var usedBtn = document.createElement('button');
+      usedBtn.className = 'btn-mini';
+      usedBtn.textContent = isUsed ? 'Mark not used' : 'Mark used';
+      usedBtn.title = isUsed ? 'Flip Fulfilled back to Pending' : 'Manually mark as used (counts as a Netflix-style use)';
+      usedBtn.disabled = !p.token;
+      usedBtn.addEventListener('click', function(){ toggleMarkUsed(p, usedBtn); });
+      actions.appendChild(usedBtn);
+    }
 
     if (p.status !== 'cancelled') {
       var cancelBtn = document.createElement('button');
@@ -914,6 +934,29 @@ async function saveAdd(){
 }
 
 // Extend modal
+// Toggle Fulfilled (Yes ↔ Pending) for a single pass. No modal — direct toggle.
+async function toggleMarkUsed(p, btn){
+  btn.disabled = true;
+  var nextValue = (p.fulfilled || '').toLowerCase() === 'yes' ? false : true;
+  try {
+    var r = await fetch('/api/admin/lounge-pass-mark-used', {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token: p.token, used: nextValue })
+    });
+    if (r.status !== 200) {
+      var d = {}; try { d = await r.json(); } catch(_) {}
+      throw new Error(d.detail || d.error || ('save failed (' + r.status + ')'));
+    }
+    flashSuccess('"' + (p.name || p.email) + '" set to ' + (nextValue ? 'Used' : 'Not used') + '.');
+    await loadPasses();
+  } catch (e) {
+    alert('Could not save: ' + e.message);
+    btn.disabled = false;
+  }
+}
+
 function openExtendModal(p){
   STATE.activePass = p;
   document.getElementById('extend-summary').innerHTML = passSummaryHtml(p);
