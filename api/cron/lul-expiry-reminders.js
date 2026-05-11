@@ -16,14 +16,17 @@
 // Sends via Intercom (sendExpiryReminderEmail) and stamps col O
 // with today's ISO date so the same pass is never reminded twice.
 //
-// Auth: if CRON_SECRET env var is set, requires Authorization
-// header "Bearer <secret>" (Vercel cron supports this). Falls
-// back to allowing any request if no secret is set — so the
-// endpoint can be tested manually before Eddie sets the secret.
+// Auth: if CRON_SECRET env var is set, the endpoint accepts EITHER
+// (a) Authorization: Bearer <CRON_SECRET> — used by Vercel cron, OR
+// (b) a signed-in admin session — used for manual on-demand runs.
+// Admins can therefore visit the URL in a browser while signed in
+// and trigger reminders any time (useful for testing or send-now).
+// If CRON_SECRET is not set, the endpoint is open (dev mode).
 // ============================================================
 
 const https = require('https');
 const crypto = require('crypto');
+const { getSession } = require('../_lib/session.js');
 
 const SHEET_ID = '1aQYysCOOR-mYG8Myrl1BSU2PF8wMl-si8pgNG89sRto';
 const SHEET1_RANGE = 'Sheet1!A:O';
@@ -125,11 +128,17 @@ function isYesish(v) {
 module.exports = async (req, res) => {
   res.setHeader('Cache-Control', 'no-store');
 
-  // Optional auth — Vercel cron passes Authorization: Bearer <CRON_SECRET>
+  // Auth — accept either the cron secret OR an admin session
   const secret = process.env.CRON_SECRET;
   if (secret) {
     const auth = req.headers.authorization || '';
-    if (auth !== `Bearer ${secret}`) {
+    const fromCron = (auth === `Bearer ${secret}`);
+    let fromAdmin = false;
+    try {
+      const session = getSession(req);
+      fromAdmin = !!(session && session.isAdmin);
+    } catch (_) { /* no session = not admin */ }
+    if (!fromCron && !fromAdmin) {
       return res.status(401).json({ error: 'unauthorized' });
     }
   }
