@@ -424,13 +424,15 @@ body{font-family:'Be Vietnam Pro',sans-serif;background:var(--aa-white);min-heig
 <div class="modal-backdrop" id="modal-attendance-backdrop">
   <div class="modal" role="dialog" aria-modal="true" style="max-width:640px;">
     <div class="modal-head">
-      <div class="modal-title">Click log</div>
+      <div class="modal-title">Click log · Unblock sessions</div>
       <button class="modal-close" id="modal-attendance-close" aria-label="Close">×</button>
     </div>
     <div class="modal-body">
       <div class="confirm-summary" id="attendance-summary"></div>
       <div class="field-help" style="margin-bottom:12px;">
-        Every click on this student's Zoom links, grouped by session. Click a session to expand and see each click's timestamp. Delete an entry if it shouldn't count toward "Used" (for example, a click before the time-lock was active).
+        Every click on this student's Zoom links, grouped by session. Click a session to expand and see each click's timestamp.
+        <br><br>
+        <strong>Delete a click to:</strong> (1) <strong>unblock</strong> the student from re-joining that session (one-time link rule), or (2) fix a wrong "Used" status (e.g. a click before the time-lock was active).
       </div>
       <div id="attendance-list"></div>
     </div>
@@ -650,7 +652,7 @@ function renderPasses(){
     attBtn.className = 'btn-mini';
     attBtn.textContent = 'Click log';
     attBtn.disabled = !p.token;
-    attBtn.title = p.token ? 'See every Zoom click logged for this student. Delete erroneous clicks to fix the Used status.' : 'No token on this row';
+    attBtn.title = p.token ? 'See every Zoom click logged for this student. Delete a click to unblock the student from re-joining that session, or to fix a wrong "Used" status.' : 'No token on this row';
     attBtn.addEventListener('click', function(){ openAttendanceModal(p); });
     actions.appendChild(attBtn);
 
