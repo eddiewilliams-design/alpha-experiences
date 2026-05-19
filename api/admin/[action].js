@@ -1850,6 +1850,12 @@ async function handleLoungePassesList(req, res) {
     const computed = computePassStatus(pass, types, attendanceByEmail);
     pass.status     = computed.status;
     pass.days_left  = computed.days_left;
+    // Resolve the pass mode ('pick' | 'full' | 'celebration') so the UI
+    // can decide whether to render the picks line — only 'pick' modes
+    // have meaningful student choices to display.
+    const modeCfg   = modeForType(types, pass.exp_type);
+    pass.mode       = modeCfg.mode;
+    pass.pick_count = modeCfg.pick_count;
     passes.push(pass);
   }
 

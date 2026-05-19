@@ -606,25 +606,24 @@ function renderPasses(){
       pe.textContent = '👪 ' + p.parent_email;
       who.appendChild(pe);
     }
-    // Picks meta line — shows the sessions THIS pass has locked in (or
-    // a hint that the student hasn't picked yet). Each pass row in
-    // Sheet1 carries its own picks, so two passes for the same student
-    // each render their own line.
-    var pk = document.createElement('div');
-    pk.className = 'pass-meta-line pass-picks';
-    if (p.selections_locked && p.selected_sessions && p.selected_sessions.length) {
-      pk.textContent = '🎯 ' + p.selected_sessions.map(function(s){
-        return (s.emoji ? s.emoji + ' ' : '') + (s.name || s.id);
-      }).join(' · ');
-      pk.title = 'Locked in' + (p.date_locked ? ' ' + fmtDate(p.date_locked) : '');
-    } else if (p.selected_session_ids && p.selected_session_ids.length) {
-      pk.textContent = '🎯 ' + p.selected_session_ids.length + ' picked (not yet locked)';
-      pk.style.opacity = '0.7';
-    } else {
-      pk.textContent = '🎯 Not picked yet';
-      pk.style.opacity = '0.5';
+    // Picks meta line — only meaningful for 'pick' mode passes (2-session
+    // and N-session). Full Week and Friday Celebration have implicit
+    // selections, so the line is suppressed for those.
+    if (p.mode === 'pick') {
+      var pk = document.createElement('div');
+      pk.className = 'pass-meta-line pass-picks';
+      if (p.selections_locked && p.selected_sessions && p.selected_sessions.length) {
+        pk.textContent = '🎯 ' + p.selected_sessions.map(function(s){ return s.name || s.id; }).join(' · ');
+        pk.title = 'Locked in' + (p.date_locked ? ' ' + fmtDate(p.date_locked) : '');
+      } else if (p.selected_session_ids && p.selected_session_ids.length) {
+        pk.textContent = '🎯 ' + p.selected_session_ids.length + ' picked (not yet locked)';
+        pk.style.opacity = '0.7';
+      } else {
+        pk.textContent = '🎯 Not picked yet';
+        pk.style.opacity = '0.5';
+      }
+      who.appendChild(pk);
     }
-    who.appendChild(pk);
     row.appendChild(who);
 
     // Type
@@ -900,18 +899,20 @@ function showModal(id){ document.getElementById(id).classList.add('open'); }
 function hideModal(id){ document.getElementById(id).classList.remove('open'); }
 
 function passSummaryHtml(p){
-  // Picks line: same logic as the inline pass row, so the modal context
-  // matches what you saw before clicking in.
-  var picksHtml;
-  if (p && p.selections_locked && p.selected_sessions && p.selected_sessions.length) {
-    var labels = p.selected_sessions.map(function(s){
-      return (s.emoji ? s.emoji + ' ' : '') + escapeHtml(s.name || s.id);
-    }).join(' · ');
-    picksHtml = '<div class="picks" style="margin-top:6px;font-size:12px;color:#072256;"><strong>🎯 Locked in:</strong> ' + labels + '</div>';
-  } else if (p && p.selected_session_ids && p.selected_session_ids.length) {
-    picksHtml = '<div class="picks" style="margin-top:6px;font-size:12px;color:#072256;opacity:0.7;"><strong>🎯</strong> ' + p.selected_session_ids.length + ' picked (not yet locked)</div>';
-  } else {
-    picksHtml = '<div class="picks" style="margin-top:6px;font-size:12px;color:#072256;opacity:0.55;"><strong>🎯</strong> Not picked yet</div>';
+  // Picks line: only meaningful for 'pick' mode passes. Full Week and
+  // Friday Celebration have implicit selections, so suppress the line.
+  var picksHtml = '';
+  if (p && p.mode === 'pick') {
+    if (p.selections_locked && p.selected_sessions && p.selected_sessions.length) {
+      var labels = p.selected_sessions.map(function(s){
+        return escapeHtml(s.name || s.id);
+      }).join(' · ');
+      picksHtml = '<div class="picks" style="margin-top:6px;font-size:12px;color:#072256;"><strong>🎯 Locked in:</strong> ' + labels + '</div>';
+    } else if (p.selected_session_ids && p.selected_session_ids.length) {
+      picksHtml = '<div class="picks" style="margin-top:6px;font-size:12px;color:#072256;opacity:0.7;"><strong>🎯</strong> ' + p.selected_session_ids.length + ' picked (not yet locked)</div>';
+    } else {
+      picksHtml = '<div class="picks" style="margin-top:6px;font-size:12px;color:#072256;opacity:0.55;"><strong>🎯</strong> Not picked yet</div>';
+    }
   }
   var typeLine = (p && p.exp_type)
     ? '<div class="meta" style="margin-top:4px;font-size:11px;color:#8291AA;text-transform:uppercase;letter-spacing:0.04em;font-weight:700;">' + escapeHtml(p.exp_type) + '</div>'
