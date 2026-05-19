@@ -421,6 +421,27 @@ body{font-family:'Be Vietnam Pro',sans-serif;background:var(--aa-white);min-heig
   </div>
 </div>
 
+<!-- ── Unlock selections confirm ── -->
+<div class="modal-backdrop" id="modal-unlock-backdrop">
+  <div class="modal" role="dialog" aria-modal="true">
+    <div class="modal-head">
+      <div class="modal-title">Unlock this pass's selections?</div>
+      <button class="modal-close" id="modal-unlock-close" aria-label="Close">×</button>
+    </div>
+    <div class="modal-body">
+      <div id="modal-unlock-error" class="banner error" style="display:none;"></div>
+      <div class="confirm-summary" id="unlock-summary"></div>
+      <div class="field-help warn">
+        Clears the student's locked-in picks for this pass. They'll be able to re-open the picker and choose fresh sessions. The pass itself stays active — only the saved selections are wiped. Past click history is unaffected.
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button type="button" class="btn-grey" id="btn-unlock-back">Keep selections</button>
+      <button type="button" class="btn-danger" id="btn-unlock-confirm">Unlock selections</button>
+    </div>
+  </div>
+</div>
+
 <!-- ── Attendance modal ── -->
 <div class="modal-backdrop" id="modal-attendance-backdrop">
   <div class="modal" role="dialog" aria-modal="true" style="max-width:640px;">
@@ -708,6 +729,19 @@ function renderPasses(){
       usedBtn.disabled = !p.token;
       usedBtn.addEventListener('click', function(){ toggleMarkUsed(p, usedBtn); });
       actions.appendChild(usedBtn);
+    }
+
+    // Unlock — only meaningful for pick-mode passes that have locked
+    // selections to clear. Lets admin reset the student's picks so they
+    // can re-open the picker and choose again.
+    if (p.status !== 'cancelled' && p.mode === 'pick' && p.selections_locked) {
+      var unlockBtn = document.createElement('button');
+      unlockBtn.className = 'btn-mini';
+      unlockBtn.textContent = 'Unlock picks';
+      unlockBtn.disabled = !p.token;
+      unlockBtn.title = p.token ? 'Clear this pass\'s locked-in sessions so the student can re-pick' : 'No token on this row';
+      unlockBtn.addEventListener('click', function(){ openUnlockModal(p); });
+      actions.appendChild(unlockBtn);
     }
 
     if (p.status !== 'cancelled') {
@@ -1314,6 +1348,39 @@ async function confirmCancel(){
   }
 }
 
+// Unlock-selections modal — clears Sheet1 cols J/K/L on the pass row.
+function openUnlockModal(p){
+  STATE.activePass = p;
+  document.getElementById('unlock-summary').innerHTML = passSummaryHtml(p);
+  document.getElementById('modal-unlock-error').style.display = 'none';
+  showModal('modal-unlock-backdrop');
+}
+async function confirmUnlock(){
+  var p = STATE.activePass;
+  var err = document.getElementById('modal-unlock-error');
+  err.style.display = 'none';
+  var btn = document.getElementById('btn-unlock-confirm');
+  btn.disabled = true; btn.textContent = 'Unlocking…';
+  try {
+    var r = await fetch('/api/admin/lounge-pass-unlock', {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token: p.token })
+    });
+    var data = {};
+    try { data = await r.json(); } catch(e){}
+    if (r.status !== 200) throw new Error(data.detail || data.error || ('unlock failed (' + r.status + ')'));
+    hideModal('modal-unlock-backdrop');
+    flashSuccess('Selections cleared for ' + (p.name || p.email) + '. They can re-pick now.');
+    await loadPasses();
+  } catch (e) {
+    setBanner(err, e.message, 'error');
+  } finally {
+    btn.disabled = false; btn.textContent = 'Unlock selections';
+  }
+}
+
 // ── Filter binding ──
 function bindFilters(){
   var search = document.getElementById('f-search');
@@ -1405,13 +1472,18 @@ async function init(){
   document.getElementById('btn-cancel-back').addEventListener('click', function(){ hideModal('modal-cancel-backdrop'); });
   document.getElementById('btn-cancel-confirm').addEventListener('click', confirmCancel);
 
+  // Unlock-selections modal
+  document.getElementById('modal-unlock-close').addEventListener('click', function(){ hideModal('modal-unlock-backdrop'); });
+  document.getElementById('btn-unlock-back').addEventListener('click', function(){ hideModal('modal-unlock-backdrop'); });
+  document.getElementById('btn-unlock-confirm').addEventListener('click', confirmUnlock);
+
   // Attendance modal
   document.getElementById('modal-attendance-close').addEventListener('click',         function(){ hideModal('modal-attendance-backdrop'); });
   document.getElementById('btn-attendance-done').addEventListener('click',            function(){ hideModal('modal-attendance-backdrop'); });
   document.getElementById('btn-attendance-scope-toggle').addEventListener('click',    toggleAttendanceScope);
 
   // Backdrop close + Escape
-  var allModals = ['modal-add-backdrop','modal-extend-backdrop','modal-resend-backdrop','modal-cancel-backdrop','modal-attendance-backdrop'];
+  var allModals = ['modal-add-backdrop','modal-extend-backdrop','modal-resend-backdrop','modal-cancel-backdrop','modal-attendance-backdrop','modal-unlock-backdrop'];
   allModals.forEach(function(id){
     document.getElementById(id).addEventListener('click', function(e){ if (e.target === e.currentTarget) hideModal(id); });
   });

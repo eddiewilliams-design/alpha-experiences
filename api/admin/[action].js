@@ -2338,6 +2338,48 @@ async function handleLoungePassCancel(req, res) {
   return res.status(200).json({ ok: true });
 }
 
+// ── handleLoungePassUnlock ──
+// Clears a pass row's saved selections so the student can re-pick from
+// scratch. Used when a student needs to change which sessions they're
+// attending (e.g. picked the wrong one, or got blocked by an old
+// attendance entry that confused the system).
+//
+// Writes blanks to cols J (Selections Locked), K (Selected Sessions),
+// and L (Date Locked). Leaves col M (First Clicked) alone — that's
+// historical and shouldn't be wiped by re-picking. Active/cancelled/
+// fulfilled/notes are also untouched.
+async function handleLoungePassUnlock(req, res) {
+  if (req.method !== 'POST') return res.status(405).json({ error: 'method_not_allowed' });
+
+  let body;
+  try { body = await readJsonBody(req); }
+  catch (e) { return res.status(400).json({ error: 'bad_json' }); }
+
+  const passToken = (body.token || '').toString().trim();
+  if (!passToken) return res.status(400).json({ error: 'bad_request', detail: 'token required' });
+
+  let accessToken;
+  try { accessToken = await getAccessToken('https://www.googleapis.com/auth/spreadsheets'); }
+  catch (err) { console.error('pass-unlock token:', err.message); return res.status(500).json({ error: 'server_error' }); }
+
+  const { row: foundRow, rowIndex } = await findRowByToken(accessToken, passToken);
+  if (!foundRow) return res.status(404).json({ error: 'not_found' });
+
+  const rowNum = rowIndex + 1;
+  try {
+    // Clear J:L (Selections Locked, Selected Sessions, Date Locked) in a
+    // single range write. Empty strings render as blank in the sheet and
+    // are correctly handled by all readers (isYesish → false for col J,
+    // empty selections array for col K, blank date for col L).
+    await sheetsUpdate(accessToken, `Sheet1!J${rowNum}:L${rowNum}`, [['', '', '']]);
+  } catch (err) {
+    console.error('pass-unlock write:', err.message);
+    return res.status(500).json({ error: 'server_error' });
+  }
+
+  return res.status(200).json({ ok: true });
+}
+
 // ── LUL Attendance dashboard (Phase 2c) ─────────────────────
 //
 // One endpoint that aggregates everything the dashboard needs:
@@ -2970,6 +3012,7 @@ module.exports = async (req, res) => {
     case 'lounge-pass-extend':    return handleLoungePassExtend(req, res);
     case 'lounge-pass-resend':    return handleLoungePassResend(req, res);
     case 'lounge-pass-cancel':    return handleLoungePassCancel(req, res);
+    case 'lounge-pass-unlock':    return handleLoungePassUnlock(req, res);
     case 'lounge-pass-mark-used': return handleLoungePassMarkUsed(req, res);
     case 'lounge-pass-update':    return handleLoungePassUpdate(req, res);
     case 'lounge-attendance-list':   return handleLoungeAttendanceList(req, res);

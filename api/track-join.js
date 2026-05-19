@@ -260,10 +260,17 @@ module.exports = async (req, res) => {
 
       // ── One-time use enforcement ──
       // If this student has already clicked this same session_id more than
-      // 90 minutes ago, treat it as a re-use attempt (e.g. trying to join
-      // again in a later week after the pass was extended) and block.
-      // The 90-min grace covers double-clicks + the full unlock window
-      // (15 min before start to 45 min after) + safety margin.
+      // 90 minutes ago THROUGH THIS SAME PASS, treat it as a re-use attempt
+      // and block. The 90-min grace covers double-clicks + the full unlock
+      // window (15 min before start to 45 min after) + safety margin.
+      //
+      // Important: we filter by col G (pass token) so an old click made on
+      // a PRIOR pass doesn't block a new pass. Without that filter, a
+      // student who attended Themed Blooket Bash on their old pass could
+      // never re-attend it on a future pass — the system would think
+      // they already used the one-time link. Legacy rows with no token
+      // in col G fall through to the original behavior (block on any
+      // prior click) so we don't lose the safety net for old data.
       if (sessionId) {
         const GRACE_MS = 90 * 60 * 1000;
         const nowMs = Date.now();
@@ -273,6 +280,11 @@ module.exports = async (req, res) => {
           const ae = (ar[1] || '').toString().toLowerCase().trim();
           const asid = (ar[3] || '').toString().trim();
           if (ae !== emailLower || asid !== sessionId) continue;
+          // Only block on clicks that came through THIS pass. Skip rows
+          // tagged with a different pass token. Empty token = legacy row
+          // → fall through to keep the original safety behavior.
+          const arToken = (ar[6] || '').toString().trim();
+          if (arToken && arToken !== token) continue;
           const ts = (ar[0] || '').toString();
           const tsMs = ts ? new Date(ts).getTime() : null;
           if (tsMs == null || isNaN(tsMs)) continue;
