@@ -1665,7 +1665,13 @@ async function handleLoungePassTypeSave(req, res) {
 //
 // "Attended" = unique session_ids in LUL_Attendance (col D) for the
 // student's email (col B) that match one of the student's selected
-// session ids (Sheet1 col K).
+// session ids (Sheet1 col K) AND were clicked on/after the pass was
+// issued (LUL_Attendance col A clicked_at >= Sheet1 col I date_sent).
+//
+// Session ids are stable across weeks (sessions recur weekly), so
+// without the timestamp filter, a click from a prior pass for the
+// same session would roll over and incorrectly mark a newly-issued
+// pass as Used. (Bug fixed 2026-05-19.)
 
 async function readSheet1(token) {
   const sheet = await batchGet(token, ['Sheet1!A:O']);
@@ -1709,11 +1715,19 @@ function computePassStatus(pass, types, attendanceByEmail) {
     ? cfg.pick_count
     : (pass.selected_session_ids.length || 1);
 
-  const emailKey = (pass.email || '').toLowerCase();
-  const attended = (attendanceByEmail[emailKey] || []).filter(sid =>
-    pass.selected_session_ids.indexOf(sid) >= 0
-  );
-  const attendedUnique = Array.from(new Set(attended));
+  const emailKey  = (pass.email || '').toLowerCase();
+  const passSentMs = pass.date_sent_ms;
+  const attended = (attendanceByEmail[emailKey] || []).filter(rec => {
+    if (pass.selected_session_ids.indexOf(rec.sid) < 0) return false;
+    // Reject clicks made BEFORE this pass was issued (prior-pass rollover).
+    // If either timestamp is missing/unparseable, fall back to counting
+    // the row so we don't under-mark legit attendance from legacy data.
+    if (passSentMs != null && rec.clicked_at_ms != null && rec.clicked_at_ms < passSentMs) {
+      return false;
+    }
+    return true;
+  });
+  const attendedUnique = Array.from(new Set(attended.map(rec => rec.sid)));
 
   if (attendedUnique.length >= required) return { status: 'used',     days_left: daysLeft };
   return                                          { status: 'locked-in', days_left: daysLeft };
@@ -1733,13 +1747,21 @@ async function handleLoungePassesList(req, res) {
     return res.status(500).json({ error: 'server_error' });
   }
 
+  // attendanceByEmail[email] = [{ sid, clicked_at_ms }, ...]
+  // Timestamp is needed so computePassStatus can reject clicks made
+  // before a (newer) pass was issued — see bug note above.
   const attendanceByEmail = {};
   for (let i = 1; i < attendanceRows.length; i++) {
     const r = attendanceRows[i] || [];
-    const emailKey = (r[1] || '').toString().toLowerCase().trim();
-    const sid      = (r[3] || '').toString().trim();
+    const clickedAtIso = (r[0] || '').toString().trim();
+    const emailKey     = (r[1] || '').toString().toLowerCase().trim();
+    const sid          = (r[3] || '').toString().trim();
     if (!emailKey || !sid) continue;
-    (attendanceByEmail[emailKey] = attendanceByEmail[emailKey] || []).push(sid);
+    const ms = clickedAtIso ? new Date(clickedAtIso).getTime() : NaN;
+    (attendanceByEmail[emailKey] = attendanceByEmail[emailKey] || []).push({
+      sid:           sid,
+      clicked_at_ms: isNaN(ms) ? null : ms
+    });
   }
 
   const passes = [];
