@@ -1665,13 +1665,20 @@ async function handleLoungePassTypeSave(req, res) {
 //
 // "Attended" = unique session_ids in LUL_Attendance (col D) for the
 // student's email (col B) that match one of the student's selected
-// session ids (Sheet1 col K) AND were clicked on/after the pass was
-// issued (LUL_Attendance col A clicked_at >= Sheet1 col I date_sent).
+// session ids (Sheet1 col K), with the click attributed to THIS pass.
 //
-// Session ids are stable across weeks (sessions recur weekly), so
-// without the timestamp filter, a click from a prior pass for the
-// same session would roll over and incorrectly mark a newly-issued
-// pass as Used. (Bug fixed 2026-05-19.)
+// Attribution rule (primary → fallback):
+//   1. PRIMARY: LUL_Attendance col G (token) === pass token. track-join.js
+//      stamps the pass token on every click row, so a click that came
+//      through THIS pass's email link is definitively this pass's click.
+//      This solves the overlap case where a student picks the same
+//      session on two active passes (e.g. Friday Celebration as one of
+//      their 2-session picks + a separate Friday Celebration pass) —
+//      the click only consumes the pass whose link they actually used.
+//   2. FALLBACK: when col G is blank (legacy rows from before the token
+//      was logged), count the click if its timestamp falls in this pass's
+//      30-day window. Same logic that fixed the Elsie prior-pass-rollover
+//      bug on 2026-05-19.
 
 async function readSheet1(token) {
   const sheet = await batchGet(token, ['Sheet1!A:O']);
@@ -1715,16 +1722,25 @@ function computePassStatus(pass, types, attendanceByEmail) {
     ? cfg.pick_count
     : (pass.selected_session_ids.length || 1);
 
-  const emailKey  = (pass.email || '').toLowerCase();
+  const emailKey   = (pass.email || '').toLowerCase();
+  const passToken  = (pass.token || '').toString().trim();
   const passSentMs = pass.date_sent_ms;
+  const passEndMs  = passSentMs != null ? passSentMs + 30 * 86400000 : null;
   const attended = (attendanceByEmail[emailKey] || []).filter(rec => {
     if (pass.selected_session_ids.indexOf(rec.sid) < 0) return false;
-    // Reject clicks made BEFORE this pass was issued (prior-pass rollover).
-    // If either timestamp is missing/unparseable, fall back to counting
-    // the row so we don't under-mark legit attendance from legacy data.
-    if (passSentMs != null && rec.clicked_at_ms != null && rec.clicked_at_ms < passSentMs) {
-      return false;
+    // PRIMARY: prefer the token attribution when available. If the click
+    // row has a token (col G), it MUST match this pass to count. This
+    // prevents a click from one pass spilling into another pass's status
+    // even when both passes have the same session in their selections.
+    if (rec.token) {
+      return passToken && rec.token === passToken;
     }
+    // FALLBACK: legacy rows without a token. Only count if the click is
+    // inside this pass's 30-day window.
+    if (passSentMs != null && rec.clicked_at_ms != null) {
+      return rec.clicked_at_ms >= passSentMs && rec.clicked_at_ms < passEndMs;
+    }
+    // Both pieces of metadata missing — count it (avoid under-marking).
     return true;
   });
   const attendedUnique = Array.from(new Set(attended.map(rec => rec.sid)));
@@ -1747,20 +1763,26 @@ async function handleLoungePassesList(req, res) {
     return res.status(500).json({ error: 'server_error' });
   }
 
-  // attendanceByEmail[email] = [{ sid, clicked_at_ms }, ...]
-  // Timestamp is needed so computePassStatus can reject clicks made
-  // before a (newer) pass was issued — see bug note above.
+  // attendanceByEmail[email] = [{ sid, clicked_at_ms, token }, ...]
+  // - token (LUL_Attendance col G) is the pass the click came through.
+  //   It's the primary signal computePassStatus uses to attribute a
+  //   click to a specific pass — solves the "student picks the same
+  //   session on two passes" overlap case.
+  // - clicked_at_ms is the fallback for legacy rows where col G is
+  //   empty: filter by "click happened in the pass's date window."
   const attendanceByEmail = {};
   for (let i = 1; i < attendanceRows.length; i++) {
     const r = attendanceRows[i] || [];
     const clickedAtIso = (r[0] || '').toString().trim();
     const emailKey     = (r[1] || '').toString().toLowerCase().trim();
     const sid          = (r[3] || '').toString().trim();
+    const clickToken   = (r[6] || '').toString().trim();   // col G — pass token
     if (!emailKey || !sid) continue;
     const ms = clickedAtIso ? new Date(clickedAtIso).getTime() : NaN;
     (attendanceByEmail[emailKey] = attendanceByEmail[emailKey] || []).push({
       sid:           sid,
-      clicked_at_ms: isNaN(ms) ? null : ms
+      clicked_at_ms: isNaN(ms) ? null : ms,
+      token:         clickToken
     });
   }
 
@@ -2091,8 +2113,10 @@ async function handleLoungeAttendanceList(req, res) {
     studentEmail = (foundRow[2] || '').toString().toLowerCase().trim();
     const selectedRaw = (foundRow[10] || '').toString().trim();
     selectedSet = new Set(selectedRaw ? selectedRaw.split(/[,\s]+/).map(s => s.trim()).filter(Boolean) : []);
-    // Pass window = [date_sent, date_sent + 30 days). Mirrors the 30-day
-    // expiry used everywhere else for LUL passes.
+    // Pass window = [date_sent, date_sent + 30 days). Used as the FALLBACK
+    // filter for legacy attendance rows where col G (pass token) is empty.
+    // Modern rows are filtered by exact token match (see below) — this
+    // matches the attribution rule in computePassStatus.
     const dateSentMs = parseSheetDateMs((foundRow[8] || '').toString());
     if (dateSentMs != null) {
       windowStartMs = dateSentMs;
@@ -2129,10 +2153,18 @@ async function handleLoungeAttendanceList(req, res) {
     const email = (r[1] || '').toString().toLowerCase().trim();
     if (email !== studentEmail) continue;
     const clickedAtIso = (r[0] || '').toString();
-    // Pass-scoped mode: apply the time-window filter.
-    if (scope === 'pass' && windowStartMs != null) {
-      const ms = clickedAtIso ? new Date(clickedAtIso).getTime() : NaN;
-      if (!isNaN(ms) && (ms < windowStartMs || ms >= windowEndMs)) continue;
+    const rowToken     = (r[6] || '').toString().trim();
+    // Pass-scoped mode: filter by exact pass-token match when col G is
+    // present; fall back to the date window for legacy rows with no token.
+    // Mirrors computePassStatus attribution so the modal and the Status
+    // column always agree on which clicks "belong to" this pass.
+    if (scope === 'pass') {
+      if (rowToken) {
+        if (rowToken !== passToken) continue;
+      } else if (windowStartMs != null) {
+        const ms = clickedAtIso ? new Date(clickedAtIso).getTime() : NaN;
+        if (!isNaN(ms) && (ms < windowStartMs || ms >= windowEndMs)) continue;
+      }
     }
     const sid = (r[3] || '').toString().trim();
     entries.push({
@@ -2141,7 +2173,7 @@ async function handleLoungeAttendanceList(req, res) {
       session_id:   sid,
       session_name: sessionNameById[sid] || (r[4] || '').toString(),
       zoom_url:     (r[5] || '').toString(),
-      token:        (r[6] || '').toString(),
+      token:        rowToken,
       in_picks:     selectedSet.has(sid)  // always false in student-scope (selectedSet is empty)
     });
   }
