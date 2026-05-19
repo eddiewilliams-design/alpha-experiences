@@ -2057,19 +2057,52 @@ async function handleLoungePassUpdate(req, res) {
 }
 
 async function handleLoungeAttendanceList(req, res) {
-  const passToken = (req.query.token || '').toString().trim();
-  if (!passToken) return res.status(400).json({ error: 'bad_request', detail: 'token required' });
+  // Two modes:
+  //   1. PASS-SCOPED (default): caller passes ?token=<pass_token>. Returns
+  //      only clicks made within that pass's window (date_sent → +30 days)
+  //      for the pass's student email. Used by the attendance modal on
+  //      /admin/lounge/passes to verify a single pass's usage. (Prior-pass
+  //      rollover was the original bug — same fix as computePassStatus.)
+  //   2. STUDENT-SCOPED: caller passes ?email=<student_email>. Returns ALL
+  //      clicks ever logged for that email across every pass. No time filter,
+  //      no "in_picks" context (since picks belong to a specific pass).
+  //      Used by the "Show all clicks for this student" escape hatch.
+  const passToken    = (req.query.token || '').toString().trim();
+  const emailQueryIn = (req.query.email || '').toString().trim().toLowerCase();
+  if (!passToken && !emailQueryIn) {
+    return res.status(400).json({ error: 'bad_request', detail: 'token or email required' });
+  }
 
   let accessToken;
   try { accessToken = await getAccessToken(); }
   catch (err) { return res.status(500).json({ error: 'server_error' }); }
 
-  // Find pass row to get the student's email
-  const { row: foundRow } = await findRowByToken(accessToken, passToken);
-  if (!foundRow) return res.status(404).json({ error: 'pass_not_found' });
-  const studentEmail = (foundRow[2] || '').toString().toLowerCase().trim();
-  const selectedRaw  = (foundRow[10] || '').toString().trim();
-  const selectedSet  = new Set(selectedRaw ? selectedRaw.split(/[,\s]+/).map(s => s.trim()).filter(Boolean) : []);
+  // Resolve the email we'll filter by, plus (in pass mode) the time window
+  // and the selection set used to flag in-picks vs not.
+  let studentEmail   = '';
+  let selectedSet    = new Set();
+  let windowStartMs  = null;
+  let windowEndMs    = null;
+  let scope          = '';
+
+  if (passToken) {
+    const { row: foundRow } = await findRowByToken(accessToken, passToken);
+    if (!foundRow) return res.status(404).json({ error: 'pass_not_found' });
+    studentEmail = (foundRow[2] || '').toString().toLowerCase().trim();
+    const selectedRaw = (foundRow[10] || '').toString().trim();
+    selectedSet = new Set(selectedRaw ? selectedRaw.split(/[,\s]+/).map(s => s.trim()).filter(Boolean) : []);
+    // Pass window = [date_sent, date_sent + 30 days). Mirrors the 30-day
+    // expiry used everywhere else for LUL passes.
+    const dateSentMs = parseSheetDateMs((foundRow[8] || '').toString());
+    if (dateSentMs != null) {
+      windowStartMs = dateSentMs;
+      windowEndMs   = dateSentMs + 30 * 86400000;
+    }
+    scope = 'pass';
+  } else {
+    studentEmail = emailQueryIn;
+    scope = 'student';
+  }
 
   // Read attendance + sessions for nice display
   let attRows, sessRows;
@@ -2095,24 +2128,33 @@ async function handleLoungeAttendanceList(req, res) {
     const r = attRows[i] || [];
     const email = (r[1] || '').toString().toLowerCase().trim();
     if (email !== studentEmail) continue;
+    const clickedAtIso = (r[0] || '').toString();
+    // Pass-scoped mode: apply the time-window filter.
+    if (scope === 'pass' && windowStartMs != null) {
+      const ms = clickedAtIso ? new Date(clickedAtIso).getTime() : NaN;
+      if (!isNaN(ms) && (ms < windowStartMs || ms >= windowEndMs)) continue;
+    }
     const sid = (r[3] || '').toString().trim();
     entries.push({
       row_index:    i + 1,
-      clicked_at:   (r[0] || '').toString(),
+      clicked_at:   clickedAtIso,
       session_id:   sid,
       session_name: sessionNameById[sid] || (r[4] || '').toString(),
       zoom_url:     (r[5] || '').toString(),
       token:        (r[6] || '').toString(),
-      in_picks:     selectedSet.has(sid)
+      in_picks:     selectedSet.has(sid)  // always false in student-scope (selectedSet is empty)
     });
   }
   // Newest first
   entries.sort((a, b) => (b.clicked_at || '').localeCompare(a.clicked_at || ''));
 
   return res.status(200).json({
-    student_email: studentEmail,
-    selected_session_ids: Array.from(selectedSet),
-    entries: entries
+    scope:                scope,                    // 'pass' or 'student'
+    student_email:        studentEmail,
+    selected_session_ids: Array.from(selectedSet),  // empty in student-scope
+    window_start_ms:      windowStartMs,            // null in student-scope
+    window_end_ms:        windowEndMs,              // null in student-scope
+    entries:              entries
   });
 }
 

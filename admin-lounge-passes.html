@@ -429,10 +429,14 @@ body{font-family:'Be Vietnam Pro',sans-serif;background:var(--aa-white);min-heig
     </div>
     <div class="modal-body">
       <div class="confirm-summary" id="attendance-summary"></div>
-      <div class="field-help" style="margin-bottom:12px;">
-        Every click on this student's Zoom links, grouped by session. Click a session to expand and see each click's timestamp.
+      <div class="field-help" id="attendance-help" style="margin-bottom:12px;">
+        Every click on this student's Zoom links <strong>within this pass's window</strong>, grouped by session. Click a session to expand and see each click's timestamp.
         <br><br>
         <strong>Delete a click to:</strong> (1) <strong>unblock</strong> the student from re-joining that session (one-time link rule), or (2) fix a wrong "Used" status (e.g. a click before the time-lock was active).
+      </div>
+      <div id="attendance-scope-banner" style="display:none;margin-bottom:12px;padding:10px 14px;background:#FFF7E5;border:1px solid #F0D39B;border-radius:8px;color:#6B3A00;font-size:12px;line-height:1.5;"></div>
+      <div style="text-align:right;margin-bottom:12px;">
+        <button type="button" class="btn-mini" id="btn-attendance-scope-toggle" style="font-size:12px;padding:6px 12px;background:#EEF0F3;color:#072256;border:1px solid #DDE2EA;border-radius:6px;cursor:pointer;font-family:inherit;font-weight:600;"></button>
       </div>
       <div id="attendance-list"></div>
     </div>
@@ -494,7 +498,10 @@ var STATE = {
   passes: [],
   types:  [],
   filters: { search: '', status: '', type: '', dateFrom: '', dateTo: '' },
-  activePass: null
+  activePass: null,
+  // 'pass' = scoped to STATE.activePass's date window (default)
+  // 'student' = unscoped, showing all clicks across every pass for the student
+  attendanceScope: 'pass'
 };
 
 function statusLabel(s){
@@ -1036,16 +1043,61 @@ async function confirmResend(){
 
 // Attendance modal
 function openAttendanceModal(p){
-  STATE.activePass = p;
+  STATE.activePass       = p;
+  STATE.attendanceScope  = 'pass';   // always start scoped to the pass
   document.getElementById('attendance-summary').innerHTML = passSummaryHtml(p);
   document.getElementById('attendance-list').innerHTML = '<div style="text-align:center;padding:30px;"><div class="spinner" style="margin:0 auto;"></div></div>';
+  applyAttendanceScopeUi();
   showModal('modal-attendance-backdrop');
-  loadAttendance(p);
+  loadAttendance();
 }
-async function loadAttendance(p){
+// Switch the attendance view between pass-scoped and student-scoped.
+// Called by the toggle button under the help text.
+function toggleAttendanceScope(){
+  STATE.attendanceScope = (STATE.attendanceScope === 'pass') ? 'student' : 'pass';
+  document.getElementById('attendance-list').innerHTML = '<div style="text-align:center;padding:30px;"><div class="spinner" style="margin:0 auto;"></div></div>';
+  applyAttendanceScopeUi();
+  loadAttendance();
+}
+// Sync the help text, banner, and toggle-button label to the current scope.
+function applyAttendanceScopeUi(){
+  var p          = STATE.activePass || {};
+  var studentRef = p.name || p.email || 'this student';
+  var helpEl     = document.getElementById('attendance-help');
+  var bannerEl   = document.getElementById('attendance-scope-banner');
+  var toggleBtn  = document.getElementById('btn-attendance-scope-toggle');
+
+  if (STATE.attendanceScope === 'pass') {
+    helpEl.innerHTML =
+      'Every click on this student\'s Zoom links <strong>within this pass\'s window</strong>, grouped by session. Click a session to expand and see each click\'s timestamp.' +
+      '<br><br>' +
+      '<strong>Delete a click to:</strong> (1) <strong>unblock</strong> the student from re-joining that session (one-time link rule), or (2) fix a wrong "Used" status (e.g. a click before the time-lock was active).';
+    bannerEl.style.display = 'none';
+    bannerEl.innerHTML = '';
+    toggleBtn.textContent = 'View all clicks for ' + studentRef + ' →';
+  } else {
+    helpEl.innerHTML =
+      '<strong>All clicks ever logged for ' + escapeHtml(studentRef) + '</strong>, across every pass they\'ve held. Useful for research; not bound to this pass\'s window.';
+    bannerEl.style.display = '';
+    bannerEl.innerHTML =
+      '<strong>Showing all clicks for ' + escapeHtml(p.email || studentRef) + '</strong> across all passes — not filtered to this pass\'s window.';
+    toggleBtn.textContent = '← Back to this pass';
+  }
+}
+function escapeHtml(s){
+  return String(s == null ? '' : s)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+async function loadAttendance(){
+  var p      = STATE.activePass;
   var listEl = document.getElementById('attendance-list');
+  if (!p) return;
+  var url = (STATE.attendanceScope === 'student')
+    ? '/api/admin/lounge-attendance-list?email=' + encodeURIComponent(p.email || '')
+    : '/api/admin/lounge-attendance-list?token=' + encodeURIComponent(p.token || '');
   try {
-    var r = await fetch('/api/admin/lounge-attendance-list?token=' + encodeURIComponent(p.token), { credentials:'same-origin' });
+    var r = await fetch(url, { credentials:'same-origin' });
     if (r.status !== 200) throw new Error('Failed to load (' + r.status + ')');
     var data = await r.json();
     renderAttendance(data);
@@ -1180,7 +1232,7 @@ async function deleteAttendance(rowIndex, btn){
       var d = {}; try { d = await r.json(); } catch(_) {}
       throw new Error(d.detail || d.error || ('delete failed (' + r.status + ')'));
     }
-    await loadAttendance(STATE.activePass);
+    await loadAttendance();
     await loadPasses();
     flashSuccess('Attendance entry deleted.');
   } catch (e) {
@@ -1315,8 +1367,9 @@ async function init(){
   document.getElementById('btn-cancel-confirm').addEventListener('click', confirmCancel);
 
   // Attendance modal
-  document.getElementById('modal-attendance-close').addEventListener('click', function(){ hideModal('modal-attendance-backdrop'); });
-  document.getElementById('btn-attendance-done').addEventListener('click',     function(){ hideModal('modal-attendance-backdrop'); });
+  document.getElementById('modal-attendance-close').addEventListener('click',         function(){ hideModal('modal-attendance-backdrop'); });
+  document.getElementById('btn-attendance-done').addEventListener('click',            function(){ hideModal('modal-attendance-backdrop'); });
+  document.getElementById('btn-attendance-scope-toggle').addEventListener('click',    toggleAttendanceScope);
 
   // Backdrop close + Escape
   var allModals = ['modal-add-backdrop','modal-extend-backdrop','modal-resend-backdrop','modal-cancel-backdrop','modal-attendance-backdrop'];
