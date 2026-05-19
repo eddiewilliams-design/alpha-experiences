@@ -1750,17 +1750,36 @@ function computePassStatus(pass, types, attendanceByEmail) {
 }
 
 async function handleLoungePassesList(req, res) {
-  let token, sheet1Rows, attendanceRows, types;
+  let token, sheet1Rows, attendanceRows, types, sessionsBatch;
   try {
     token = await getAccessToken();
-    [sheet1Rows, attendanceRows, types] = await Promise.all([
+    [sheet1Rows, attendanceRows, types, sessionsBatch] = await Promise.all([
       readSheet1(token),
       readAttendance(token),
-      readPassTypes(token)
+      readPassTypes(token),
+      // Sessions tab: A=name, B=emoji, C=coach, D=day, E=time, F=desc, G=zoom, H=id.
+      // Used to resolve session_id → human-readable label for each pass's picks.
+      batchGet(token, ['Sessions!A:K'])
     ]);
   } catch (err) {
     console.error('lounge-passes-list:', err.message);
     return res.status(500).json({ error: 'server_error' });
+  }
+
+  // sessionsById[id] = { id, name, emoji, day, time }
+  const sessionsById = {};
+  const sessRows = (sessionsBatch && sessionsBatch.valueRanges && sessionsBatch.valueRanges[0] && sessionsBatch.valueRanges[0].values) || [];
+  for (let i = 1; i < sessRows.length; i++) {
+    const r  = sessRows[i] || [];
+    const id = (r[7] || '').toString().trim();
+    if (!id) continue;
+    sessionsById[id] = {
+      id:    id,
+      name:  (r[0] || '').toString(),
+      emoji: (r[1] || '').toString(),
+      day:   (r[3] || '').toString(),
+      time:  (r[4] || '').toString()
+    };
   }
 
   // attendanceByEmail[email] = [{ sid, clicked_at_ms, token }, ...]
@@ -1798,6 +1817,15 @@ async function handleLoungePassesList(req, res) {
     const selected    = (r[10] || '').toString().trim();
     const selectedIds = selected ? selected.split(/[,\s]+/).map(s => s.trim()).filter(Boolean) : [];
 
+    // Joined session objects for the picks this pass has saved. If a saved id
+    // doesn't match a current session (renamed/deleted), keep the id as the
+    // name so the admin sees something rather than a blank row.
+    const selectedSessions = selectedIds.map(function(sid){
+      const s = sessionsById[sid];
+      return s ? { id: sid, name: s.name, emoji: s.emoji, day: s.day, time: s.time }
+               : { id: sid, name: sid, emoji: '', day: '', time: '' };
+    });
+
     const pass = {
       row_index:           i + 1,
       exp_type:            expType,
@@ -1812,6 +1840,7 @@ async function handleLoungePassesList(req, res) {
       date_sent_ms:        parseSheetDateMs(dateSentRaw),
       selections_locked:   isYesish(r[9]),
       selected_session_ids: selectedIds,
+      selected_sessions:   selectedSessions,    // joined view of the picks
       date_locked:         toYMD(r[11]),
       first_clicked:       toYMD(r[12]),
       notes:               (r[13] || '').toString(),

@@ -75,6 +75,7 @@ body{font-family:'Be Vietnam Pro',sans-serif;background:var(--aa-white);min-heig
 .pass-name{font-family:'AF Sobremesa','Be Vietnam Pro',sans-serif;font-weight:800;font-size:14px;color:var(--aa-navy);overflow-wrap:anywhere;}
 .pass-email{font-size:12px;color:var(--aa-dark-grey);font-weight:600;overflow-wrap:anywhere;margin-top:2px;}
 .pass-meta-line{font-size:11px;color:var(--aa-dark-grey);}
+.pass-picks{margin-top:2px;color:var(--aa-navy);font-weight:600;line-height:1.4;}
 .pass-type{font-size:13px;color:var(--aa-navy);overflow-wrap:anywhere;}
 .pass-date{font-size:13px;color:var(--aa-navy);}
 .pass-days{font-size:12px;font-weight:700;color:var(--aa-dark-grey);}
@@ -589,7 +590,7 @@ function renderPasses(){
     var row = document.createElement('div');
     row.className = 'pass-row';
 
-    // Student column: name + email + parent indicator
+    // Student column: name + email + parent indicator + picks for this pass
     var who = document.createElement('div');
     var nm = document.createElement('div');
     nm.className = 'pass-name';
@@ -605,6 +606,25 @@ function renderPasses(){
       pe.textContent = '👪 ' + p.parent_email;
       who.appendChild(pe);
     }
+    // Picks meta line — shows the sessions THIS pass has locked in (or
+    // a hint that the student hasn't picked yet). Each pass row in
+    // Sheet1 carries its own picks, so two passes for the same student
+    // each render their own line.
+    var pk = document.createElement('div');
+    pk.className = 'pass-meta-line pass-picks';
+    if (p.selections_locked && p.selected_sessions && p.selected_sessions.length) {
+      pk.textContent = '🎯 ' + p.selected_sessions.map(function(s){
+        return (s.emoji ? s.emoji + ' ' : '') + (s.name || s.id);
+      }).join(' · ');
+      pk.title = 'Locked in' + (p.date_locked ? ' ' + fmtDate(p.date_locked) : '');
+    } else if (p.selected_session_ids && p.selected_session_ids.length) {
+      pk.textContent = '🎯 ' + p.selected_session_ids.length + ' picked (not yet locked)';
+      pk.style.opacity = '0.7';
+    } else {
+      pk.textContent = '🎯 Not picked yet';
+      pk.style.opacity = '0.5';
+    }
+    who.appendChild(pk);
     row.appendChild(who);
 
     // Type
@@ -880,8 +900,26 @@ function showModal(id){ document.getElementById(id).classList.add('open'); }
 function hideModal(id){ document.getElementById(id).classList.remove('open'); }
 
 function passSummaryHtml(p){
-  return '<div class="name">' + (p.name || '(no name)') + '</div>' +
-         '<div class="email">' + (p.email || '') + (p.parent_email ? ' · 👪 ' + p.parent_email : '') + '</div>';
+  // Picks line: same logic as the inline pass row, so the modal context
+  // matches what you saw before clicking in.
+  var picksHtml;
+  if (p && p.selections_locked && p.selected_sessions && p.selected_sessions.length) {
+    var labels = p.selected_sessions.map(function(s){
+      return (s.emoji ? s.emoji + ' ' : '') + escapeHtml(s.name || s.id);
+    }).join(' · ');
+    picksHtml = '<div class="picks" style="margin-top:6px;font-size:12px;color:#072256;"><strong>🎯 Locked in:</strong> ' + labels + '</div>';
+  } else if (p && p.selected_session_ids && p.selected_session_ids.length) {
+    picksHtml = '<div class="picks" style="margin-top:6px;font-size:12px;color:#072256;opacity:0.7;"><strong>🎯</strong> ' + p.selected_session_ids.length + ' picked (not yet locked)</div>';
+  } else {
+    picksHtml = '<div class="picks" style="margin-top:6px;font-size:12px;color:#072256;opacity:0.55;"><strong>🎯</strong> Not picked yet</div>';
+  }
+  var typeLine = (p && p.exp_type)
+    ? '<div class="meta" style="margin-top:4px;font-size:11px;color:#8291AA;text-transform:uppercase;letter-spacing:0.04em;font-weight:700;">' + escapeHtml(p.exp_type) + '</div>'
+    : '';
+  return '<div class="name">' + (p && p.name ? escapeHtml(p.name) : '(no name)') + '</div>' +
+         '<div class="email">' + (p && p.email ? escapeHtml(p.email) : '') + (p && p.parent_email ? ' · 👪 ' + escapeHtml(p.parent_email) : '') + '</div>' +
+         typeLine +
+         picksHtml;
 }
 
 // Add modal
