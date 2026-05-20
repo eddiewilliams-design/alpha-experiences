@@ -375,18 +375,31 @@ module.exports = async (req, res) => {
         }
 
         if (required > 0) {
-          // Count UNIQUE attended sessions (in picks) for this student
+          // Count UNIQUE attended sessions (in THIS pass's picks) for this
+          // student — but ONLY clicks that came through THIS pass's token.
+          //
+          // Without the token filter, an old click from a PRIOR pass whose
+          // session_id happens to be in the NEW pass's selections would
+          // count toward this pass's "attended" total and incorrectly
+          // trigger Fulfilled=Yes on the new pass (same cross-pass leakage
+          // pattern fixed in computePassStatus and handleLoungeAttendanceList).
+          // Legacy rows with no token in col G fall through to count, so we
+          // don't lose accounting for clicks logged before the token column
+          // was wired up.
           const studentEmailLower = studentEmail.toLowerCase();
           const attended = new Set();
           for (let i = 1; i < attendanceRows.length; i++) {
             const ar = attendanceRows[i] || [];
             const ae = (ar[1] || '').toString().toLowerCase().trim();
             const sid = (ar[3] || '').toString().trim();
-            if (ae === studentEmailLower && sid && savedSelections.indexOf(sid) !== -1) {
-              attended.add(sid);
-            }
+            if (ae !== studentEmailLower || !sid) continue;
+            if (savedSelections.indexOf(sid) === -1) continue;
+            // Token attribution: skip clicks tagged with a different pass.
+            const arToken = (ar[6] || '').toString().trim();
+            if (arToken && arToken !== token) continue;
+            attended.add(sid);
           }
-          // Include this current click (just appended above)
+          // Include this current click (just appended above with this pass's token)
           if (sessionId && savedSelections.indexOf(sessionId) !== -1) {
             attended.add(sessionId);
           }
