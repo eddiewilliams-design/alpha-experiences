@@ -1885,10 +1885,15 @@ async function handleLoungePassCreate(req, res) {
     return res.status(400).json({ error: 'bad_request', detail: 'invalid parent email' });
   }
 
-  let accessToken, types;
+  let accessToken, types, sessionsBatch;
   try {
     accessToken = await getAccessToken('https://www.googleapis.com/auth/spreadsheets');
-    types = await readPassTypes(accessToken);
+    [types, sessionsBatch] = await Promise.all([
+      readPassTypes(accessToken),
+      // Need Sessions for Full Week auto-lock (collect all active session ids).
+      // Small read; safe to always do.
+      batchGet(accessToken, ['Sessions!A:K'])
+    ]);
   } catch (err) {
     console.error('pass-create init:', err.message);
     return res.status(500).json({ error: 'server_error' });
@@ -1898,25 +1903,60 @@ async function handleLoungePassCreate(req, res) {
   const newToken = generateToken();
   const today    = todayYMD();
 
+  // ── Auto-lock for Full Week + Celebration modes ──
+  // These pass types have no real "choice" — Full Week covers every
+  // session, Celebration covers the single Friday session. So we skip
+  // the picker ceremony and write selections at pass creation, leaving
+  // the student to land on the confirmed view directly.
+  //
+  // For 'full': snapshot of all currently-active session ids (Sessions
+  //   col I === YES). If new sessions are added later, existing Full
+  //   Week passes won't auto-include them — acceptable trade-off for now;
+  //   computePassStatus could later special-case 'full' to count any
+  //   active session if this becomes a problem.
+  // For 'celebration': hardcoded to the 'celebration' session id (the
+  //   Friday Coaching Celebration row in Sessions).
+  // For 'pick' (2-session): unchanged — student picks via the picker.
+  let lockedFlag    = 'NO';
+  let lockedSesIds  = '';
+  let dateLockedVal = '';
+  if (cfg.mode === 'full') {
+    const sessRows = (sessionsBatch && sessionsBatch.valueRanges && sessionsBatch.valueRanges[0] && sessionsBatch.valueRanges[0].values) || [];
+    const activeIds = [];
+    for (let i = 1; i < sessRows.length; i++) {
+      const r  = sessRows[i] || [];
+      const id = (r[7] || '').toString().trim();          // col H
+      const on = (r[8] || '').toString().trim().toUpperCase(); // col I
+      if (id && on === 'YES') activeIds.push(id);
+    }
+    lockedFlag    = 'YES';
+    lockedSesIds  = activeIds.join(',');
+    dateLockedVal = today;
+  } else if (cfg.mode === 'celebration') {
+    lockedFlag    = 'YES';
+    lockedSesIds  = 'celebration';
+    dateLockedVal = today;
+  }
+
   // Apps Script's onSheetEdit doesn't fire for API writes, but we still
   // mark Email Sent='Yes' so a later USER edit on a different row can't
   // make sendPendingEmails() re-send this one.
   const row = [
-    expType,     // A
-    name,        // B
-    email,       // C
-    parentEmail, // D
-    'Yes',       // E Email Sent
-    'Pending',   // F Fulfilled — auto-flips to 'Yes' by track-join.js once the
-                 //               student attends all picked sessions
-    newToken,    // G Token
-    true,        // H Active (boolean checkbox)
-    today,       // I Date Sent
-    'NO',        // J Selections Locked
-    '',          // K Selected Sessions
-    '',          // L Date Locked
-    '',          // M Date First Clicked
-    notes        // N Notes
+    expType,         // A
+    name,            // B
+    email,           // C
+    parentEmail,     // D
+    'Yes',           // E Email Sent
+    'Pending',       // F Fulfilled — auto-flips to 'Yes' by track-join.js once the
+                     //               student attends all picked sessions
+    newToken,        // G Token
+    true,            // H Active (boolean checkbox)
+    today,           // I Date Sent
+    lockedFlag,      // J Selections Locked
+    lockedSesIds,    // K Selected Sessions
+    dateLockedVal,   // L Date Locked
+    '',              // M Date First Clicked
+    notes            // N Notes
   ];
 
   try {

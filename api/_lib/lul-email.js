@@ -235,15 +235,15 @@ function buildCelebrationEmail({ studentName, sessionUrl, recipient }) {
     : `You ${hl('earned it')}, ${studentName}`;
 
   const intro = recipient === 'parent'
-    ? `${studentName} earned a spot at this Friday's Coaching Celebration. They'll tap below to lock it in. The Zoom link unlocks 5 min before the session starts.`
-    : `You earned a spot at this Friday's Coaching Celebration. Tap below to lock it in. Your Zoom link unlocks 5 min before the session starts.`;
+    ? `${studentName} earned a spot at this Friday's Coaching Celebration. The Zoom link unlocks 5 min before the session starts.`
+    : `You earned a spot at this Friday's Coaching Celebration. The Zoom link unlocks 5 min before the session starts.`;
 
   return shell({
     overline,
     headingHtml,
     intro,
     ctaUrl:   sessionUrl,
-    ctaLabel: 'Lock in my spot →',
+    ctaLabel: 'View my session →',
     recipient
   });
 }
