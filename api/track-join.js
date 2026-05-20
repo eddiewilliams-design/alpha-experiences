@@ -451,7 +451,7 @@ module.exports = async (req, res) => {
       // If this student has already clicked this same session_id more than
       // 90 minutes ago THROUGH THIS SAME PASS, treat it as a re-use attempt
       // and block. The 90-min grace covers double-clicks + the full unlock
-      // window (15 min before start to 45 min after) + safety margin.
+      // window (5 min before start to 35 min after) + safety margin.
       //
       // Important: we filter by col G (pass token) so an old click made on
       // a PRIOR pass doesn't block a new pass. Without that filter, a

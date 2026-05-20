@@ -219,7 +219,7 @@ function fmtSessionTimes(s) {
   if (!s.session_start_iso) return fallback;
   var startUtcMs = Date.parse(s.session_start_iso);
   if (isNaN(startUtcMs)) return fallback;
-  var unlockUtcMs = startUtcMs - 15 * 60 * 1000;
+  var unlockUtcMs = startUtcMs - 5 * 60 * 1000;
 
   var localTz;
   try { localTz = Intl.DateTimeFormat().resolvedOptions().timeZone; }
@@ -490,7 +490,7 @@ init();
 
 // ── Poll for time-lock state every 30s ────────────────────
 // Re-fetches /api/get-sessions so the lock auto-opens when the
-// 15-min-before-start window arrives, without the student needing
+// 5-min-before-start window arrives, without the student needing
 // to refresh the page. Server is the source of truth for the
 // is_unlocked flag and the actual Zoom link.
 setInterval(function refreshSessionsLock() {

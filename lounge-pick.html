@@ -255,7 +255,7 @@ function fmtSessionTimes(s) {
   if (!s.session_start_iso) return fallback;
   var startMs = Date.parse(s.session_start_iso);
   if (isNaN(startMs)) return fallback;
-  var unlockMs = startMs - 15 * 60 * 1000;
+  var unlockMs = startMs - 5 * 60 * 1000;
   var localTz;
   try { localTz = Intl.DateTimeFormat().resolvedOptions().timeZone; }
   catch (e) { return fallback; }

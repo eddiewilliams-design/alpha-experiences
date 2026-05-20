@@ -10,7 +10,7 @@
 // Time-lock (v3): Sessions are weekly (same day-of-week, same
 // time). For each session we compute the NEXT occurrence in
 // Chicago time and only include the actual `link` field when
-// the current time is inside [start − 15 min, start + 45 min].
+// the current time is inside [start − 5 min, start + 35 min].
 // Outside that window, link is omitted entirely (never sent to
 // the browser). The picker re-polls /api/get-sessions every 30s
 // so the link auto-appears when the unlock window opens.
