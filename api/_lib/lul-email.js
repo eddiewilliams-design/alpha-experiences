@@ -193,8 +193,8 @@ function buildPickEmail({ studentName, pickCount, sessionUrl, recipient }) {
     : `Pick your ${hl(`${n} sessions`)}, ${studentName}`;
 
   const intro = recipient === 'parent'
-    ? `${studentName}'s pass is ready. They'll pick their sessions from the link below. Zoom links unlock 15 min before each session starts.`
-    : `Tap below to choose your sessions for this week. Your Zoom links unlock 15 min before each session starts.`;
+    ? `${studentName}'s pass is ready. They'll pick their sessions from the link below. Zoom links unlock 5 min before each session starts.`
+    : `Tap below to choose your sessions for this week. Your Zoom links unlock 5 min before each session starts.`;
 
   return shell({
     overline,
@@ -214,8 +214,8 @@ function buildFullWeekEmail({ studentName, sessionUrl, recipient }) {
     : `${hl('Full Week')} is yours, ${studentName}`;
 
   const intro = recipient === 'parent'
-    ? `${studentName} can join every Lounge session this week. Zoom links unlock 15 min before each session starts.`
-    : `You can join every Lounge session this week. Tap below to see what's on — Zoom links unlock 15 min before each session.`;
+    ? `${studentName} can join every Lounge session this week. Zoom links unlock 5 min before each session starts.`
+    : `You can join every Lounge session this week. Tap below to see what's on — Zoom links unlock 5 min before each session.`;
 
   return shell({
     overline,
@@ -235,8 +235,8 @@ function buildCelebrationEmail({ studentName, sessionUrl, recipient }) {
     : `You ${hl('earned it')}, ${studentName}`;
 
   const intro = recipient === 'parent'
-    ? `${studentName} earned a spot at this Friday's Coaching Celebration. They'll tap below to lock it in. The Zoom link unlocks 15 min before the session starts.`
-    : `You earned a spot at this Friday's Coaching Celebration. Tap below to lock it in. Your Zoom link unlocks 15 min before the session starts.`;
+    ? `${studentName} earned a spot at this Friday's Coaching Celebration. They'll tap below to lock it in. The Zoom link unlocks 5 min before the session starts.`
+    : `You earned a spot at this Friday's Coaching Celebration. Tap below to lock it in. Your Zoom link unlocks 5 min before the session starts.`;
 
   return shell({
     overline,

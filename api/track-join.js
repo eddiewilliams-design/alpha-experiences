@@ -136,6 +136,168 @@ function escHtml(s) {
   ));
 }
 
+// ── Session-window helpers ──
+// Sessions are weekly recurring. The Zoom link is "live" only in the
+// window [start - 5 min, start + 35 min] in America/Chicago, where
+// start is today's weekday occurrence of the session. Outside that
+// window track-join shows a "session not active" page and skips the
+// attendance log + redirect — this matches get-sessions.js's UNLOCK_*
+// constants so the UI hide and the server enforcement agree.
+const TZ_CT = 'America/Chicago';
+const UNLOCK_BEFORE_MS = 5  * 60 * 1000;
+const LOCK_AFTER_MS    = 35 * 60 * 1000;
+const DAY_MAP = {
+  SUN:0, SUNDAY:0,
+  MON:1, MONDAY:1,
+  TUE:2, TUES:2, TUESDAY:2,
+  WED:3, WEDS:3, WEDNESDAY:3,
+  THU:4, THUR:4, THURS:4, THURSDAY:4,
+  FRI:5, FRIDAY:5,
+  SAT:6, SATURDAY:6
+};
+
+function tzOffsetMs(utcMs, tz) {
+  const fmt = new Intl.DateTimeFormat('en-US', {
+    timeZone: tz, hour12: false,
+    year:'numeric', month:'2-digit', day:'2-digit',
+    hour:'2-digit', minute:'2-digit', second:'2-digit'
+  });
+  const parts = fmt.formatToParts(new Date(utcMs));
+  const g = (t, def) => {
+    const p = parts.find(x => x.type === t);
+    if (!p) return def;
+    const n = parseInt(p.value, 10);
+    return isNaN(n) ? def : n;
+  };
+  let h = g('hour', 0);
+  if (h === 24) h = 0;
+  const fakeUtc = Date.UTC(g('year', 1970), g('month', 1) - 1, g('day', 1), h, g('minute', 0), g('second', 0));
+  return fakeUtc - utcMs;
+}
+
+function parseTimeWithCT(s) {
+  if (!s) return null;
+  const stripped = String(s).trim().replace(/\s*(CT|CST|CDT)\s*$/i, '').trim();
+  const m12 = stripped.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)?$/i);
+  if (m12) {
+    let hh = parseInt(m12[1], 10);
+    const mm = parseInt(m12[2], 10);
+    const ap = (m12[3] || '').toUpperCase();
+    if (ap === 'PM' && hh < 12) hh += 12;
+    if (ap === 'AM' && hh === 12) hh = 0;
+    if (hh > 23 || mm > 59 || hh < 0 || mm < 0) return null;
+    return { hh, mm };
+  }
+  const m24 = stripped.match(/^(\d{1,2}):(\d{2})$/);
+  if (m24) {
+    const hh = parseInt(m24[1], 10);
+    const mm = parseInt(m24[2], 10);
+    if (hh > 23 || mm > 59) return null;
+    return { hh, mm };
+  }
+  return null;
+}
+
+// Returns today's (in CT) session start as UTC ms, or null if today's
+// weekday doesn't match dayStr.
+function todaysSessionStartMs(dayStr, timeStr) {
+  const wanted = DAY_MAP[(dayStr || '').toUpperCase().trim()];
+  if (wanted == null) return null;
+  const t = parseTimeWithCT(timeStr);
+  if (!t) return null;
+  const nowMs = Date.now();
+  const fmt = new Intl.DateTimeFormat('en-US', {
+    timeZone: TZ_CT,
+    year:'numeric', month:'2-digit', day:'2-digit', weekday:'short'
+  });
+  const parts = fmt.formatToParts(new Date(nowMs));
+  const gp = type => { const p = parts.find(x => x.type === type); return p ? p.value : ''; };
+  const todayDOW = DAY_MAP[(gp('weekday') || '').toUpperCase()];
+  if (todayDOW !== wanted) return null;
+  const y = parseInt(gp('year'), 10);
+  const m = parseInt(gp('month'), 10) - 1;
+  const d = parseInt(gp('day'), 10);
+  if (isNaN(y) || isNaN(m) || isNaN(d)) return null;
+  // Construct naive UTC for the wall-clock components, then subtract the
+  // CT-vs-UTC offset to land on the true UTC instant for "y-m-d t.hh:t.mm CT".
+  const naiveUtc = Date.UTC(y, m, d, t.hh, t.mm, 0);
+  const offset = tzOffsetMs(naiveUtc, TZ_CT);
+  return naiveUtc - offset;
+}
+
+// Returns { inWindow, reason?, startMs? }.
+// reason ∈ 'wrong-day' | 'too-early' | 'too-late' | 'unknown-day-time' (when
+// the session row doesn't have a usable day/time → caller should treat as
+// "skip enforcement" rather than reject).
+function checkSessionWindow(dayStr, timeStr) {
+  if (!dayStr || !timeStr) return { inWindow: false, reason: 'unknown-day-time' };
+  const startMs = todaysSessionStartMs(dayStr, timeStr);
+  if (startMs == null) return { inWindow: false, reason: 'wrong-day' };
+  const nowMs = Date.now();
+  if (nowMs < startMs - UNLOCK_BEFORE_MS) return { inWindow: false, reason: 'too-early', startMs };
+  if (nowMs > startMs + LOCK_AFTER_MS)    return { inWindow: false, reason: 'too-late',  startMs };
+  return { inWindow: true, startMs };
+}
+
+// "Session not active right now" page — shown when a student clicks
+// a Zoom link outside the session's [start-5min, start+35min] window
+// (or on a different weekday). Behavior mirrors renderAlreadyAttendedPage:
+// no Zoom redirect, no attendance log, just an informational page that
+// points them back to the Lounge.
+function renderSessionNotActivePage({ studentName, sessionName, reason, startMs }) {
+  const name = escHtml(studentName);
+  const session = escHtml(sessionName);
+  let pre, h1, msg;
+  if (reason === 'too-early') {
+    pre = 'Session not active yet';
+    h1  = `${session} hasn't started yet`;
+    const fmt = new Intl.DateTimeFormat('en-US', {
+      timeZone: TZ_CT, weekday: 'short', hour: 'numeric', minute: '2-digit', timeZoneName: 'short'
+    });
+    const when = startMs ? fmt.format(new Date(startMs)) : 'soon';
+    msg = `Hey ${name}, the Zoom link unlocks 5 minutes before the session starts. Come back around <strong>${escHtml(when)}</strong>.`;
+  } else if (reason === 'too-late') {
+    pre = 'Session has ended';
+    h1  = `${session} is over for today`;
+    msg = `Hey ${name}, this session has already finished. Catch the next one on the Lounge schedule.`;
+  } else {
+    // 'wrong-day' or any other reason
+    pre = 'Session not running today';
+    h1  = `${session} isn't running right now`;
+    msg = `Hey ${name}, this session runs on a different day. Tap below to see what's on this week.`;
+  }
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Session not active — Alpha Experiences</title>
+<link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;700;800&display=swap" rel="stylesheet">
+<style>
+  *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+  body{font-family:'Be Vietnam Pro',-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;background:#FAFAFA;color:#072256;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px;}
+  .card{max-width:480px;width:100%;background:#fff;border-radius:20px;border:1.5px solid #DADFE7;padding:36px 32px;text-align:center;box-shadow:0 4px 20px rgba(7,34,86,0.08);}
+  .icon{font-size:48px;margin-bottom:14px;}
+  .pre{font-size:11px;font-weight:800;color:#E59500;letter-spacing:0.06em;text-transform:uppercase;margin-bottom:8px;}
+  h1{font-size:22px;font-weight:800;line-height:1.2;letter-spacing:-0.01em;margin-bottom:10px;}
+  p{font-size:14px;line-height:1.6;color:#072256;margin-bottom:8px;}
+  p.sub{color:#8291AA;font-size:13px;}
+  .cta{display:inline-block;margin-top:18px;padding:14px 32px;background:#006FF9;color:#fff;font-size:15px;font-weight:800;text-decoration:none;border-radius:999px;letter-spacing:0.02em;}
+</style>
+</head>
+<body>
+  <div class="card">
+    <div class="icon">⏰</div>
+    <div class="pre">${pre}</div>
+    <h1>${h1}</h1>
+    <p>${msg}</p>
+    <p class="sub">If you think this is a mistake, reply to your welcome email and we'll take a look.</p>
+    <a class="cta" href="/lounge">← Back to my Lounge passes</a>
+  </div>
+</body>
+</html>`;
+}
+
 function renderAlreadyAttendedPage({ studentName, sessionName }) {
   const name = escHtml(studentName);
   const session = escHtml(sessionName);
@@ -247,14 +409,41 @@ module.exports = async (req, res) => {
 
       // NEW: append every click to LUL_Attendance
       // Match the dest URL against Sessions col G to resolve session_id + name.
+      // Also pull day (col D) + time (col E) so we can enforce the live-window
+      // gate below.
       let sessionId = '';
       let sessionName = '';
+      let sessionDay  = '';
+      let sessionTime = '';
       for (let i = 1; i < sessionRows.length; i++) {
         const link = (sessionRows[i][6] || '').toString().trim(); // col G
         if (link && link === redirectTo) {
-          sessionName = (sessionRows[i][0] || '').toString(); // col A
-          sessionId   = (sessionRows[i][7] || '').toString(); // col H
+          sessionName = (sessionRows[i][0] || '').toString();         // col A
+          sessionDay  = (sessionRows[i][3] || '').toString().trim();  // col D — day_of_week
+          sessionTime = (sessionRows[i][4] || '').toString().trim();  // col E — start_time
+          sessionId   = (sessionRows[i][7] || '').toString();         // col H
           break;
+        }
+      }
+
+      // ── Session-window enforcement ──
+      // The Zoom link is only "live" within [start - 5 min, start + 35 min]
+      // in America/Chicago for today's occurrence of the session's day_of_week.
+      // Outside that window, render a "session not active" page and SKIP the
+      // attendance log + Zoom redirect entirely. Mirrors get-sessions.js so
+      // the UI hide and the server enforcement agree. We only enforce when
+      // the session resolved AND has a usable day/time — unresolved or
+      // legacy sessions fall through to original behavior.
+      if (sessionId && sessionDay && sessionTime) {
+        const winCheck = checkSessionWindow(sessionDay, sessionTime);
+        if (!winCheck.inWindow && winCheck.reason !== 'unknown-day-time') {
+          res.setHeader('Content-Type', 'text/html; charset=utf-8');
+          return res.status(200).send(renderSessionNotActivePage({
+            studentName: studentName || 'there',
+            sessionName: sessionName || 'this session',
+            reason:      winCheck.reason,
+            startMs:     winCheck.startMs
+          }));
         }
       }
 

@@ -214,7 +214,7 @@ function fmtSessionTimes(s) {
   var fallback = {
     dayChip: rawDay,
     timeLine: rawTime,
-    unlockAtLine: 'Unlocks 15 min before start'
+    unlockAtLine: 'Unlocks 5 min before start'
   };
   if (!s.session_start_iso) return fallback;
   var startUtcMs = Date.parse(s.session_start_iso);
@@ -350,7 +350,7 @@ function showConfirmed() {
       a.innerHTML    = '<span>' + s.emoji + ' <strong>' + esc(s.name) + '</strong> — ' + esc(ft.dayChip) + ' ' + esc(ft.timeLine) + '</span><span class="arrow">→</span>';
       div.appendChild(a);
     } else {
-      // Locked: same row layout, but no clickable link until 15 min before start
+      // Locked: same row layout, but no clickable link until 5 min before start
       var span       = document.createElement('div');
       span.className = 'confirmed-link';
       span.style.cursor   = 'default';

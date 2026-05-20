@@ -30,8 +30,8 @@
 // ============================================================
 
 const TZ                  = 'America/Chicago';
-const UNLOCK_BEFORE_MS    = 15 * 60 * 1000; // 15 min before start
-const LOCK_AFTER_MS       = 45 * 60 * 1000; // 45 min after start (sessions are 30 min)
+const UNLOCK_BEFORE_MS    = 5  * 60 * 1000; // 5 min before start
+const LOCK_AFTER_MS       = 35 * 60 * 1000; // 35 min after start (30 min session + 5 min grace)
 
 const DAY_MAP = {
   SUN:0, SUNDAY:0,

@@ -251,7 +251,7 @@ function passEmojiOnly(raw){
 function fmtSessionTimes(s) {
   var rawTime = s.time || '';
   var rawDay  = s.day  || '';
-  var fallback = { dayChip: rawDay, timeLine: rawTime, unlockAtLine: 'Unlocks 15 min before start' };
+  var fallback = { dayChip: rawDay, timeLine: rawTime, unlockAtLine: 'Unlocks 5 min before start' };
   if (!s.session_start_iso) return fallback;
   var startMs = Date.parse(s.session_start_iso);
   if (isNaN(startMs)) return fallback;
