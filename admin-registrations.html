@@ -106,6 +106,9 @@ input::placeholder{color:var(--aa-dark-grey);}
 .chip-pending{background:var(--aa-light-grey);color:var(--aa-dark-grey);border-color:var(--aa-med-grey);}
 .chip-yes{background:var(--aa-light-green);color:#1a5205;}
 .chip-no{background:#fde8e8;color:#8b1a1a;}
+/* Static (non-clickable) variant — same visual, no pointer/hover affordance. */
+.chip-static{cursor:default;}
+.chip-static:hover{filter:none;}
 
 /* ── Row edit button ── */
 .btn-row-edit{background:#fff;color:var(--aa-navy);font-size:11px;font-weight:700;padding:5px 12px;border-radius:999px;border:1.5px solid var(--aa-med-grey);cursor:pointer;font-family:inherit;}
@@ -256,6 +259,7 @@ input::placeholder{color:var(--aa-dark-grey);}
             <th>Parent Email</th>
             <th>Session</th>
             <th>Registered</th>
+            <th>Confirmation</th>
             <th>Attended</th>
             <th></th>
           </tr>
@@ -419,6 +423,21 @@ function attendanceChipClass(v){
   if (v === 'NO')  return 'chip chip-no';
   return 'chip chip-pending';
 }
+// Confirmation email chip — non-clickable, just a status indicator.
+// Sheet col I values: "Yes" (sent), "FAILED" (Intercom error), "" (not yet
+// processed — legacy rows registered before the trigger existed).
+function emailChipClass(v){
+  var s = (v || '').toString().toUpperCase();
+  if (s === 'YES')    return 'chip chip-yes chip-static';
+  if (s === 'FAILED') return 'chip chip-no chip-static';
+  return 'chip chip-pending chip-static';
+}
+function emailChipLabel(v){
+  var s = (v || '').toString().toUpperCase();
+  if (s === 'YES')    return 'Sent';
+  if (s === 'FAILED') return 'Failed';
+  return '—';
+}
 function attendanceChipLabel(v){
   if (v === 'YES') return 'Yes';
   if (v === 'NO')  return 'No';
@@ -512,6 +531,16 @@ function renderTable(){
     tdDate.textContent = formatTripDate(r.purchase_date);
     tr.appendChild(tdDate);
 
+    var tdEmail2 = document.createElement('td');
+    var emailChip = document.createElement('span');
+    emailChip.className   = emailChipClass(r.email_sent);
+    emailChip.textContent = emailChipLabel(r.email_sent);
+    emailChip.title       = r.email_sent
+      ? ('Confirmation email status: ' + r.email_sent)
+      : 'No confirmation email recorded for this registration';
+    tdEmail2.appendChild(emailChip);
+    tr.appendChild(tdEmail2);
+
     var tdAtt = document.createElement('td');
     var chip = document.createElement('button');
     chip.type = 'button';
@@ -542,7 +571,7 @@ function csvEscape(v){
 }
 function exportCsv(){
   var rows = filteredRegs();
-  var headers = ['Trip','Student','Student Email','Parent Email','Session','Registered','Attended'];
+  var headers = ['Trip','Student','Student Email','Parent Email','Session','Registered','Confirmation','Attended'];
   var out = [headers.map(csvEscape).join(',')];
   rows.forEach(function(r){
     out.push([
@@ -552,6 +581,7 @@ function exportCsv(){
       r.parent_email,
       r.session_time || r.session_id,
       r.purchase_date,
+      emailChipLabel(r.email_sent),
       attendanceChipLabel(r.attended)
     ].map(csvEscape).join(','));
   });

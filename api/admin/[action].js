@@ -692,9 +692,16 @@ async function handleRegCreate(req, res) {
     return res.status(500).json({ error: 'server_error' });
   }
 
-  // Verify the trip + session exist (and that the session belongs to the trip)
+  // Verify the trip + session exist (and that the session belongs to the trip).
+  // We pull wider ranges than strict validation needs so we can pass trip title
+  // + session date/time into the confirmation email below.
+  //   FT_Catalog: A trip_id, B title, C description, D emoji, E trip_date
+  //   FT_Sessions: A session_id, B trip_id, C start_time, D end_time, E zoom, F nearpod
+  let tripTitle = '';
+  let tripDate  = '';
+  let sessionStartTime = '';
   try {
-    const sheet = await batchGet(token, ['FT_Catalog!A:A', 'FT_Sessions!A:B', 'FT_Purchases!A:I']);
+    const sheet = await batchGet(token, ['FT_Catalog!A:E', 'FT_Sessions!A:F', 'FT_Purchases!A:I']);
     const ranges = (sheet && sheet.valueRanges) || [];
     const catalogRows  = (ranges[0] && ranges[0].values) || [];
     const sessionRows  = (ranges[1] && ranges[1].values) || [];
@@ -702,7 +709,13 @@ async function handleRegCreate(req, res) {
 
     let tripExists = false;
     for (let i = 1; i < catalogRows.length; i++) {
-      if ((catalogRows[i][0] || '').toString().trim() === tripId) { tripExists = true; break; }
+      const r = catalogRows[i];
+      if ((r[0] || '').toString().trim() === tripId) {
+        tripExists = true;
+        tripTitle  = (r[1] || '').toString();
+        tripDate   = (r[4] || '').toString().trim();
+        break;
+      }
     }
     if (!tripExists) return res.status(400).json({ error: 'unknown_trip' });
 
@@ -710,7 +723,11 @@ async function handleRegCreate(req, res) {
     for (let i = 1; i < sessionRows.length; i++) {
       const r = sessionRows[i];
       if ((r[0] || '').toString().trim() === sessionId &&
-          (r[1] || '').toString().trim() === tripId) { sessionMatch = true; break; }
+          (r[1] || '').toString().trim() === tripId) {
+        sessionMatch     = true;
+        sessionStartTime = (r[2] || '').toString().trim();
+        break;
+      }
     }
     if (!sessionMatch) return res.status(400).json({ error: 'unknown_session' });
 
@@ -749,7 +766,111 @@ async function handleRegCreate(req, res) {
     return res.status(500).json({ error: 'server_error' });
   }
 
-  return res.status(200).json({ ok: true });
+  // Fire registration confirmation email via Intercom (best-effort).
+  // We never block the registration on email failure — the row is
+  // already written; a failed send just logs server-side and stamps
+  // col I = FAILED so admins can see it on /admin/registrations.
+  let emailStatus = 'sent';
+  let emailError  = null;
+  try {
+    const { sendRegistrationEmail } = require('../_lib/vft-email.js');
+    const sessionDateCt = formatSessionDateCt(tripDate, sessionStartTime);
+    await sendRegistrationEmail({
+      studentName,
+      studentEmail,
+      parentEmail,
+      tripId,
+      tripTitle,
+      sessionDateCt
+    });
+  } catch (err) {
+    emailStatus = 'failed';
+    emailError  = err.message || String(err);
+    console.error('reg-create email:', emailError);
+  }
+
+  // Stamp FT_Purchases col I with the outcome so admins can see it
+  // in the sheet AND on /admin/registrations. Find the row we just
+  // appended by composite key (student_email + trip_id + session_id),
+  // which we know is unique among active rows (enforced above).
+  // Wrapped in try/catch — a stamping failure should never bubble
+  // up as a registration failure.
+  try {
+    const sheet = await batchGet(token, ['FT_Purchases!A:I']);
+    const rows = (sheet && sheet.valueRanges && sheet.valueRanges[0] && sheet.valueRanges[0].values) || [];
+    let appendedRowNum = -1;
+    for (let i = rows.length - 1; i >= 1; i--) {
+      const r = rows[i];
+      if ((r[1] || '').toString().toLowerCase().trim() === studentEmail &&
+          (r[3] || '').toString().trim() === sessionId &&
+          (r[4] || '').toString().trim() === tripId) {
+        appendedRowNum = i + 1;
+        break;
+      }
+    }
+    if (appendedRowNum > 0) {
+      const stamp = (emailStatus === 'sent') ? 'Yes' : 'FAILED';
+      await sheetsUpdate(token, `FT_Purchases!I${appendedRowNum}`, [[stamp]]);
+    }
+  } catch (err) {
+    console.error('reg-create email_sent stamp error:', err.message);
+  }
+
+  return res.status(200).json({ ok: true, email_status: emailStatus, email_error: emailError });
+}
+
+// Format a trip date ("2026-05-21") + session start time ("1:00 PM" or
+// "13:00") into a human-readable string in America/Chicago — e.g.
+// "Thu, May 21 at 1:00 PM CT". Used by the registration confirmation
+// email. Falls back gracefully when fields are missing or malformed.
+function formatSessionDateCt(tripDate, startTime) {
+  const TZ = 'America/Chicago';
+
+  function normalizeTime(s) {
+    if (!s) return '';
+    const t = String(s).trim();
+    const m12 = t.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
+    if (m12) {
+      const hh = parseInt(m12[1], 10);
+      const mm = m12[2];
+      const ap = m12[3].toUpperCase();
+      return `${hh}:${mm} ${ap}`;
+    }
+    const m24 = t.match(/^(\d{1,2}):(\d{2})$/);
+    if (m24) {
+      let hh = parseInt(m24[1], 10);
+      const mm = m24[2];
+      const ap = hh >= 12 ? 'PM' : 'AM';
+      hh = hh % 12; if (hh === 0) hh = 12;
+      return `${hh}:${mm} ${ap}`;
+    }
+    return t;
+  }
+
+  const timeDisplay = normalizeTime(startTime);
+  const dm = String(tripDate || '').match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!dm) {
+    return timeDisplay ? `${timeDisplay} CT` : '';
+  }
+  const y = parseInt(dm[1], 10);
+  const m = parseInt(dm[2], 10);
+  const d = parseInt(dm[3], 10);
+
+  const utcMs = Date.UTC(y, m - 1, d, 12, 0, 0);
+  let datePart;
+  try {
+    const fmt = new Intl.DateTimeFormat('en-US', {
+      timeZone: TZ,
+      weekday:  'short',
+      month:    'short',
+      day:      'numeric'
+    });
+    datePart = fmt.format(new Date(utcMs));
+  } catch (_) {
+    datePart = `${m}/${d}`;
+  }
+
+  return timeDisplay ? `${datePart} at ${timeDisplay} CT` : `${datePart} CT`;
 }
 
 // ── handleRegUpdate: edit an existing registration in place ──
