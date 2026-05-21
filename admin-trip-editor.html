@@ -452,9 +452,10 @@ function addPrepRow(p){
       <div class="field-group">
         <label>Type</label>
         <select data-field="type">
-          <option value="video"    ${typeVal==='video'?'selected':''}>Video</option>
-          <option value="reading"  ${typeVal==='reading'?'selected':''}>Reading</option>
-          <option value="activity" ${typeVal==='activity'?'selected':''}>Activity</option>
+          <option value="video"      ${typeVal==='video'?'selected':''}>Video</option>
+          <option value="reading"    ${typeVal==='reading'?'selected':''}>Reading</option>
+          <option value="activity"   ${typeVal==='activity'?'selected':''}>Activity</option>
+          <option value="streetview" ${typeVal==='streetview'?'selected':''}>360° Street View (Google Maps)</option>
         </select>
       </div>
     </div>
@@ -462,6 +463,9 @@ function addPrepRow(p){
       <div class="field-group">
         <label>URL</label>
         <input type="url" data-field="url" value="${escapeAttr(p.url || '')}" placeholder="https://...">
+        <p class="field-hint" data-streetview-hint style="display:${typeVal==='streetview'?'block':'none'};font-size:11px;color:#8291AA;margin-top:6px;line-height:1.5;">
+          Open Google Maps → find the place → drop the orange pegman to enter Street View → menu (⋮) → <strong>Share or embed image</strong> → <strong>Embed</strong> tab → copy the URL from the iframe's <code>src=&quot;...&quot;</code>. Paste that here.
+        </p>
       </div>
       <div class="field-group">
         <label>Duration</label>
@@ -469,6 +473,15 @@ function addPrepRow(p){
       </div>
     </div>
   `;
+
+  // Toggle the Street View hint when the type dropdown changes.
+  var sel  = card.querySelector('select[data-field="type"]');
+  var hint = card.querySelector('[data-streetview-hint]');
+  if (sel && hint) {
+    sel.addEventListener('change', function(){
+      hint.style.display = (sel.value === 'streetview') ? 'block' : 'none';
+    });
+  }
 
   list.appendChild(card);
 }

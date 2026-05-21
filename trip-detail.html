@@ -131,8 +131,22 @@ body.has-bg-image .hero-scallop{background:transparent;}
 .prep-info{flex:1;min-width:0;}
 .prep-name{font-size:14px;font-weight:700;color:var(--aa-navy);margin-bottom:2px;}
 .prep-meta{font-size:11px;color:var(--aa-dark-grey);font-weight:600;}
-.prep-btn{background:#fff;border:1.5px solid var(--aa-blue);color:var(--aa-blue);font-size:12px;font-weight:700;padding:7px 16px;border-radius:999px;white-space:nowrap;cursor:pointer;text-decoration:none;display:inline-block;}
+.prep-btn{background:#fff;border:1.5px solid var(--aa-blue);color:var(--aa-blue);font-size:12px;font-weight:700;padding:7px 16px;border-radius:999px;white-space:nowrap;cursor:pointer;text-decoration:none;display:inline-block;font-family:inherit;}
 .prep-empty{text-align:center;color:var(--aa-dark-grey);font-size:13px;padding:8px 0;}
+
+/* ── Prep viewer modal ──
+   Reusable in-portal viewer for prep items that should NOT open in a
+   new tab (Street View embeds, future PDF/article/360 video viewers).
+   Backdrop click + Esc + close button all dismiss. */
+.prep-modal-backdrop{position:fixed;inset:0;background:rgba(7,34,86,0.72);display:none;align-items:center;justify-content:center;z-index:1000;padding:16px;}
+.prep-modal-backdrop.open{display:flex;}
+.prep-modal{background:#fff;border-radius:18px;width:100%;max-width:1024px;max-height:92vh;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 10px 40px rgba(0,0,0,0.3);}
+.prep-modal-head{display:flex;align-items:center;justify-content:space-between;padding:14px 18px;border-bottom:1px solid var(--aa-light-grey);flex-shrink:0;}
+.prep-modal-title{font-size:14px;font-weight:800;color:var(--aa-navy);line-height:1.3;}
+.prep-modal-close{background:transparent;border:none;font-size:24px;font-weight:400;color:var(--aa-dark-grey);cursor:pointer;padding:0 4px;line-height:1;font-family:inherit;}
+.prep-modal-close:hover{color:var(--aa-navy);}
+.prep-modal-body{flex:1;min-height:0;display:flex;background:#000;}
+.prep-modal-body iframe{flex:1;border:0;width:100%;height:100%;min-height:520px;background:#000;}
 
 /* ── Session Links ── */
 .session-row{display:flex;align-items:center;gap:14px;border-radius:14px;padding:14px 16px;margin-bottom:10px;border:1.5px solid transparent;transition:all 0.15s;flex-wrap:wrap;}
@@ -292,6 +306,18 @@ body.has-bg-image .hero-scallop{background:transparent;}
   <svg width="24" height="20" viewBox="0 0 67 55" fill="none"><path d="M66.3126 50.8822L48.3919 1.76245C48.0093 0.703285 46.9977 0 45.867 0H20.6096C19.479 0 18.4673 0.703285 18.0848 1.76245L0.164039 50.8822C-0.473557 52.6277 0.82714 54.4749 2.68892 54.4749H25.9059C27.0366 54.4749 28.0483 53.7716 28.4308 52.7125L33.2426 39.5365L38.0543 52.7125C38.4368 53.7716 39.4485 54.4749 40.5792 54.4749H63.7962C65.658 54.4749 66.9587 52.6277 66.3211 50.8822H66.3126ZM40.9532 51.255L34.9598 34.8253L45.9945 4.58406L63.0226 51.2635H40.9532V51.255Z" fill="#FAFAFA" opacity="0.4"/></svg>
   <p class="footer-text">Alpha Experiences · Alpha Anywhere</p>
 </footer>
+
+<!-- Prep viewer modal — opened from prep items that should render inline
+     (Street View today; future: PDF, article, self-hosted 360° video). -->
+<div class="prep-modal-backdrop" id="prep-modal" role="dialog" aria-modal="true" aria-labelledby="prep-modal-title">
+  <div class="prep-modal">
+    <div class="prep-modal-head">
+      <div class="prep-modal-title" id="prep-modal-title">Prep item</div>
+      <button type="button" class="prep-modal-close" id="prep-modal-close" aria-label="Close">×</button>
+    </div>
+    <div class="prep-modal-body" id="prep-modal-body"></div>
+  </div>
+</div>
 
 <script>
 // ── Helpers ─────────────────────────────────────────────────
@@ -493,10 +519,11 @@ function renderPrep(prep){
     var type = (item.type || '').toLowerCase();
     var iconClass = 'prep-icon ';
     var iconLabel;
-    if (type === 'video')         { iconClass += 'prep-icon-blue';   iconLabel = '▶'; }
-    else if (type === 'reading')  { iconClass += 'prep-icon-yellow'; iconLabel = '📖'; }
-    else if (type === 'activity') { iconClass += 'prep-icon-green';  iconLabel = '✦'; }
-    else                          { iconClass += 'prep-icon-blue';   iconLabel = '•'; }
+    if (type === 'video')           { iconClass += 'prep-icon-blue';   iconLabel = '▶'; }
+    else if (type === 'reading')    { iconClass += 'prep-icon-yellow'; iconLabel = '📖'; }
+    else if (type === 'activity')   { iconClass += 'prep-icon-green';  iconLabel = '✦'; }
+    else if (type === 'streetview') { iconClass += 'prep-icon-blue';   iconLabel = '🌐'; }
+    else                            { iconClass += 'prep-icon-blue';   iconLabel = '•'; }
     icon.className   = iconClass;
     icon.textContent = iconLabel;
     icon.style.color = '#fff';
@@ -512,24 +539,78 @@ function renderPrep(prep){
     meta.className   = 'prep-meta';
     var metaBits = [];
     if (item.duration) metaBits.push(item.duration);
-    if (item.type)     metaBits.push(item.type.charAt(0).toUpperCase() + item.type.slice(1));
+    if (item.type) {
+      // Friendlier label for the new 'streetview' type so the meta line
+      // doesn't read "Streetview" — show "360° Street View" instead.
+      var typeLabel = (type === 'streetview')
+        ? '360° Street View'
+        : item.type.charAt(0).toUpperCase() + item.type.slice(1);
+      metaBits.push(typeLabel);
+    }
     meta.textContent = metaBits.join('  ·  ');
     info.appendChild(meta);
     row.appendChild(info);
 
     var url = safeUrl(item.url);
     if (url) {
-      var btn = document.createElement('a');
-      btn.className = 'prep-btn';
-      btn.href      = url;
-      btn.target    = '_blank';
-      btn.rel       = 'noopener noreferrer';
-      btn.textContent = (type === 'video' ? 'Watch' : (type === 'reading' ? 'Read' : 'Open')) + ' →';
-      row.appendChild(btn);
+      // Branch on prep type: inline-viewer types open the modal; everything
+      // else keeps the existing new-tab link behavior so we can ship one
+      // viewer at a time without disturbing the others.
+      if (type === 'streetview') {
+        var btn = document.createElement('button');
+        btn.type        = 'button';
+        btn.className   = 'prep-btn';
+        btn.textContent = 'Explore →';
+        btn.addEventListener('click', function(){
+          openPrepModal({ title: item.title || 'Street View', url: url, kind: 'streetview' });
+        });
+        row.appendChild(btn);
+      } else {
+        var a = document.createElement('a');
+        a.className   = 'prep-btn';
+        a.href        = url;
+        a.target      = '_blank';
+        a.rel         = 'noopener noreferrer';
+        a.textContent = (type === 'video' ? 'Watch' : (type === 'reading' ? 'Read' : 'Open')) + ' →';
+        row.appendChild(a);
+      }
     }
 
     list.appendChild(row);
   });
+}
+
+// ── Prep viewer modal ──────────────────────────────────────
+// Opens an in-portal modal for prep items that should not leave the
+// portal. Today: 'streetview'. Future: PDF, article, 360° video.
+function openPrepModal(opts) {
+  var modal = document.getElementById('prep-modal');
+  var title = document.getElementById('prep-modal-title');
+  var body  = document.getElementById('prep-modal-body');
+  if (!modal || !title || !body) return;
+  title.textContent = opts.title || 'Prep item';
+  body.innerHTML = '';
+  if (opts.kind === 'streetview') {
+    var iframe = document.createElement('iframe');
+    iframe.src             = opts.url;
+    iframe.title           = opts.title || 'Street View';
+    iframe.loading         = 'lazy';
+    iframe.allow           = 'fullscreen; accelerometer; gyroscope';
+    iframe.allowFullscreen = true;
+    iframe.referrerPolicy  = 'no-referrer-when-downgrade';
+    body.appendChild(iframe);
+  }
+  modal.classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+function closePrepModal() {
+  var modal = document.getElementById('prep-modal');
+  var body  = document.getElementById('prep-modal-body');
+  if (!modal) return;
+  modal.classList.remove('open');
+  // Clear iframe so video / position state doesn't persist between opens.
+  if (body) body.innerHTML = '';
+  document.body.style.overflow = '';
 }
 
 function renderSessions(sessions){
@@ -697,6 +778,21 @@ async function init(){
   }
 
   await loadAndRender(tripId);
+
+  // Prep modal close handlers — X button, backdrop click, and Esc.
+  var prepModalEl = document.getElementById('prep-modal');
+  var prepCloseEl = document.getElementById('prep-modal-close');
+  if (prepCloseEl) prepCloseEl.addEventListener('click', closePrepModal);
+  if (prepModalEl) {
+    prepModalEl.addEventListener('click', function(e){
+      if (e.target === prepModalEl) closePrepModal();
+    });
+  }
+  document.addEventListener('keydown', function(e){
+    if (e.key === 'Escape' && prepModalEl && prepModalEl.classList.contains('open')) {
+      closePrepModal();
+    }
+  });
 
   // Poll so the lock auto-opens (and links appear) without a page refresh.
   // Only re-renders the sessions card on each tick.
