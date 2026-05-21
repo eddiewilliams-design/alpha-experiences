@@ -562,15 +562,14 @@ function renderPrep(prep){
     if (iframeMatch) rawUrl = iframeMatch[1];
     var url = safeUrl(rawUrl);
     if (url) {
-      // Branch on prep type: inline-viewer types open the modal; everything
-      // else keeps the existing new-tab link behavior so we can ship one
-      // viewer at a time without disturbing the others.
-      //
-      // Videos: only open in modal if the URL looks like a direct video file
-      // (mp4/webm/mov/m4v/ogv ending or a Supabase Storage URL). YouTube,
-      // Vimeo, and other embed-pages still open in a new tab — we can't
-      // play those in a <video> element.
+      // Branch on prep type and URL shape. The modal renders three kinds:
+      //   - 'streetview' for Google Maps Street View embeds
+      //   - 'video'      for hosted video files (.mp4 etc, Supabase Storage)
+      //   - 'youtube'    for YouTube URLs (embedded with locked-down params)
+      // Everything else (Vimeo, reading PDFs, activities, etc.) still opens
+      // in a new tab.
       var isHostedVideo = type === 'video' && looksLikeVideoFile(url);
+      var youTubeId     = type === 'video' ? extractYouTubeId(url) : null;
       if (type === 'streetview') {
         var btn = document.createElement('button');
         btn.type        = 'button';
@@ -589,6 +588,15 @@ function renderPrep(prep){
           openPrepModal({ title: item.title || 'Video', url: url, kind: 'video' });
         });
         row.appendChild(vbtn);
+      } else if (youTubeId) {
+        var ybtn = document.createElement('button');
+        ybtn.type        = 'button';
+        ybtn.className   = 'prep-btn';
+        ybtn.textContent = 'Watch →';
+        ybtn.addEventListener('click', function(){
+          openPrepModal({ title: item.title || 'Video', youtubeId: youTubeId, kind: 'youtube' });
+        });
+        row.appendChild(ybtn);
       } else {
         var a = document.createElement('a');
         a.className   = 'prep-btn';
@@ -614,6 +622,24 @@ function looksLikeVideoFile(url) {
   if (/\.(mp4|webm|mov|m4v|ogv)(\?|#|$)/i.test(url)) return true;
   if (/supabase\.co\/storage\/v1\/object\/public\/ft-prep\//i.test(url)) return true;
   return false;
+}
+
+// Extracts a YouTube video ID from any common URL shape:
+//   https://youtu.be/VIDEO_ID
+//   https://www.youtube.com/watch?v=VIDEO_ID
+//   https://m.youtube.com/watch?v=VIDEO_ID
+//   https://www.youtube.com/embed/VIDEO_ID
+//   https://www.youtube.com/v/VIDEO_ID
+//   https://www.youtube.com/shorts/VIDEO_ID
+// Returns the 11-character ID, or null if not a YouTube URL.
+function extractYouTubeId(url) {
+  if (!url) return null;
+  var m;
+  m = url.match(/youtu\.be\/([a-zA-Z0-9_-]{11})/);
+  if (m) return m[1];
+  m = url.match(/youtube\.com\/(?:watch\?(?:[^#]*&)?v=|embed\/|v\/|shorts\/)([a-zA-Z0-9_-]{11})/);
+  if (m) return m[1];
+  return null;
 }
 
 // ── Prep viewer modal ──────────────────────────────────────
@@ -644,6 +670,25 @@ function openPrepModal(opts) {
     video.preload     = 'metadata';
     video.setAttribute('controlsList', 'nodownload');
     body.appendChild(video);
+  } else if (opts.kind === 'youtube') {
+    // YouTube iframe with branding/escape-hatch params dialed down:
+    //   modestbranding=1  hides the YouTube logo on the controls bar
+    //   rel=0             at end, related videos only from the same channel
+    //   iv_load_policy=3  hides video annotations
+    //   playsinline=1     plays in-place on iOS (no fullscreen takeover)
+    //   fs=1              keeps the in-player fullscreen button enabled
+    // A small "YouTube" wordmark in the bottom-right is unavoidable from
+    // YouTube's TOS, but the surrounding modal traps the student so they
+    // can't accidentally drift to youtube.com mid-video.
+    var ytFrame = document.createElement('iframe');
+    var params  = 'modestbranding=1&rel=0&iv_load_policy=3&playsinline=1&fs=1';
+    ytFrame.src             = 'https://www.youtube-nocookie.com/embed/' + opts.youtubeId + '?' + params;
+    ytFrame.title           = opts.title || 'Video';
+    ytFrame.loading         = 'lazy';
+    ytFrame.allow           = 'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share; fullscreen';
+    ytFrame.allowFullscreen = true;
+    ytFrame.referrerPolicy  = 'strict-origin-when-cross-origin';
+    body.appendChild(ytFrame);
   }
   modal.classList.add('open');
   document.body.style.overflow = 'hidden';
