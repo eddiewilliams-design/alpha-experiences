@@ -532,11 +532,13 @@ function addPrepRow(p){
         fileInput.value = '';
         return;
       }
-      // Trip ID is the slug input at the top of the form.
-      var tripId = (document.getElementById('f-trip-id') || {}).value || '';
-      tripId = String(tripId).trim();
+      // Trip ID is held in the TRIP_ID global, set after the trip is first
+      // saved (server slugifies the title and assigns the ID). For brand-new
+      // trips, the admin must save once before uploading so we have an
+      // object-path prefix in Supabase.
+      var tripId = String(TRIP_ID || '').trim();
       if (!tripId) {
-        statusEl.textContent = '✗ Save the trip ID first, then upload.';
+        statusEl.textContent = '✗ Save the trip once first to assign an ID, then upload.';
         statusEl.style.color = '#a31515';
         fileInput.value = '';
         return;
