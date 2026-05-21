@@ -551,7 +551,15 @@ function renderPrep(prep){
     info.appendChild(meta);
     row.appendChild(info);
 
-    var url = safeUrl(item.url);
+    // Defensive: if a Street View prep item was saved with the full
+    // <iframe src="..."> blob (the natural copy from Google Maps) instead
+    // of just the URL, pull the src out before passing to safeUrl. The
+    // admin editor now does this on paste too, but normalizing here means
+    // existing rows start working without needing to re-save them.
+    var rawUrl  = item.url || '';
+    var iframeMatch = rawUrl.match(/<iframe[^>]*\bsrc=["']([^"']+)["']/i);
+    if (iframeMatch) rawUrl = iframeMatch[1];
+    var url = safeUrl(rawUrl);
     if (url) {
       // Branch on prep type: inline-viewer types open the modal; everything
       // else keeps the existing new-tab link behavior so we can ship one

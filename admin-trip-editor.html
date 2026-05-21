@@ -464,7 +464,7 @@ function addPrepRow(p){
         <label>URL</label>
         <input type="url" data-field="url" value="${escapeAttr(p.url || '')}" placeholder="https://...">
         <p class="field-hint" data-streetview-hint style="display:${typeVal==='streetview'?'block':'none'};font-size:11px;color:#8291AA;margin-top:6px;line-height:1.5;">
-          Open Google Maps → find the place → drop the orange pegman to enter Street View → menu (⋮) → <strong>Share or embed image</strong> → <strong>Embed</strong> tab → copy the URL from the iframe's <code>src=&quot;...&quot;</code>. Paste that here.
+          Open Google Maps → find the place → drop the orange pegman to enter Street View → menu (⋮) → <strong>Share or embed image</strong> → <strong>Embed</strong> tab → click <strong>Copy HTML</strong>. Paste the whole <code>&lt;iframe&gt;</code> snippet right here — we'll pull the URL out automatically.
         </p>
       </div>
       <div class="field-group">
@@ -481,6 +481,22 @@ function addPrepRow(p){
     sel.addEventListener('change', function(){
       hint.style.display = (sel.value === 'streetview') ? 'block' : 'none';
     });
+  }
+
+  // If the admin pastes the full <iframe ...> snippet (the natural copy from
+  // Google Maps → Share or embed → Embed → Copy HTML), pull just the src URL
+  // out of it. Keeps the stored value clean and lets the student-side iframe
+  // load it directly.
+  var urlInput = card.querySelector('input[data-field="url"]');
+  if (urlInput) {
+    var extractIframeSrc = function() {
+      var v = urlInput.value;
+      var m = v && v.match(/<iframe[^>]*\bsrc=["']([^"']+)["']/i);
+      if (m) urlInput.value = m[1];
+    };
+    urlInput.addEventListener('paste',  function(){ setTimeout(extractIframeSrc, 0); });
+    urlInput.addEventListener('change', extractIframeSrc);
+    urlInput.addEventListener('blur',   extractIframeSrc);
   }
 
   list.appendChild(card);
