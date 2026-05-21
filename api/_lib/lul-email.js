@@ -16,7 +16,10 @@
 
 const https = require('https');
 
-const INTERCOM_ADMIN_ID = '10384075';
+// Was 10384075 (Breakthrough sender) until 2026-05-21; consolidated onto
+// the same "Experiences" teammate as vft-email.js so all student-facing
+// emails come from one unified sender — "Experiences from Alpha Anywhere".
+const INTERCOM_ADMIN_ID = '10667875';
 const VERCEL_BASE_URL   = 'https://alpha-experiences.vercel.app/lul';
 const ALPHA_LOGO_URL    = 'https://i.imgur.com/DaRDdu5.png';
 
