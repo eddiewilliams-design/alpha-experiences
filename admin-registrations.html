@@ -89,14 +89,17 @@ input::placeholder{color:var(--aa-dark-grey);}
 
 /* ── Table ── */
 .table-card{background:#fff;border-radius:20px;border:1.5px solid var(--aa-med-grey);overflow:auto;}
-.reg-table{width:100%;border-collapse:collapse;min-width:720px;}
-.reg-table th{background:var(--aa-light-grey);font-size:11px;font-weight:700;color:var(--aa-dark-grey);text-transform:uppercase;letter-spacing:0.05em;padding:12px 18px;text-align:left;border-bottom:1px solid var(--aa-med-grey);white-space:nowrap;}
-.reg-table td{padding:13px 18px;font-size:13px;color:var(--aa-navy);border-bottom:1px solid var(--aa-light-grey);vertical-align:middle;}
+.reg-table{width:100%;border-collapse:collapse;min-width:1080px;}
+.reg-table th{background:var(--aa-light-grey);font-size:11px;font-weight:700;color:var(--aa-dark-grey);text-transform:uppercase;letter-spacing:0.05em;padding:12px 14px;text-align:left;border-bottom:1px solid var(--aa-med-grey);white-space:nowrap;}
+.reg-table td{padding:13px 14px;font-size:13px;color:var(--aa-navy);border-bottom:1px solid var(--aa-light-grey);vertical-align:middle;}
 .reg-table tr:last-child td{border-bottom:none;}
 .reg-table tr:hover td{background:var(--aa-light-grey);}
-.td-email{color:var(--aa-dark-grey);font-size:12px;word-break:break-all;}
+/* Emails: break at natural boundaries (@, .) not every character. The
+   table is horizontally scrollable on narrow viewports via .table-card
+   overflow:auto, so we don't need character-level breaking. */
+.td-email{color:var(--aa-dark-grey);font-size:12px;word-break:break-word;overflow-wrap:anywhere;min-width:180px;}
 .td-session{font-weight:700;color:var(--aa-blue);font-size:12px;white-space:nowrap;}
-.td-trip{font-size:12px;color:var(--aa-dark-grey);}
+.td-trip{font-size:12px;color:var(--aa-dark-grey);min-width:130px;}
 .td-trip strong{color:var(--aa-navy);}
 .td-date{color:var(--aa-dark-grey);font-size:12px;white-space:nowrap;}
 
