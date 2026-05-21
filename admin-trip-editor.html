@@ -466,6 +466,16 @@ function addPrepRow(p){
         <p class="field-hint" data-streetview-hint style="display:${typeVal==='streetview'?'block':'none'};font-size:11px;color:#8291AA;margin-top:6px;line-height:1.5;">
           Open Google Maps → find the place → drop the orange pegman to enter Street View → menu (⋮) → <strong>Share or embed image</strong> → <strong>Embed</strong> tab → click <strong>Copy HTML</strong>. Paste the whole <code>&lt;iframe&gt;</code> snippet right here — we'll pull the URL out automatically.
         </p>
+        <div class="field-hint" data-video-upload style="display:${typeVal==='video'?'block':'none'};margin-top:8px;">
+          <input type="file" data-field="upload-file" accept="video/mp4,video/webm,video/quicktime,video/x-m4v,video/ogg" style="display:none;">
+          <button type="button" class="upload-btn" data-field="upload-btn" style="font-size:11px;font-weight:700;color:#006FF9;background:#fff;border:1.5px dashed #006FF9;border-radius:8px;padding:8px 14px;cursor:pointer;font-family:inherit;">
+            ⬆ Upload video file (replaces URL)
+          </button>
+          <span class="upload-status" data-field="upload-status" style="margin-left:10px;font-size:11px;color:#8291AA;"></span>
+          <p style="font-size:11px;color:#8291AA;margin-top:6px;line-height:1.5;">
+            Self-host with the upload button (max 50 MB · mp4/webm/mov/m4v/ogv) or paste any direct video URL above. YouTube links also work but will open in a new tab instead of inline.
+          </p>
+        </div>
       </div>
       <div class="field-group">
         <label>Duration</label>
@@ -474,12 +484,14 @@ function addPrepRow(p){
     </div>
   `;
 
-  // Toggle the Street View hint when the type dropdown changes.
-  var sel  = card.querySelector('select[data-field="type"]');
-  var hint = card.querySelector('[data-streetview-hint]');
-  if (sel && hint) {
+  // Toggle the Street View hint + video upload widget per prep type.
+  var sel        = card.querySelector('select[data-field="type"]');
+  var streetHint = card.querySelector('[data-streetview-hint]');
+  var videoBlock = card.querySelector('[data-video-upload]');
+  if (sel) {
     sel.addEventListener('change', function(){
-      hint.style.display = (sel.value === 'streetview') ? 'block' : 'none';
+      if (streetHint) streetHint.style.display = (sel.value === 'streetview') ? 'block' : 'none';
+      if (videoBlock) videoBlock.style.display = (sel.value === 'video')      ? 'block' : 'none';
     });
   }
 
@@ -497,6 +509,92 @@ function addPrepRow(p){
     urlInput.addEventListener('paste',  function(){ setTimeout(extractIframeSrc, 0); });
     urlInput.addEventListener('change', extractIframeSrc);
     urlInput.addEventListener('blur',   extractIframeSrc);
+  }
+
+  // Video upload pipeline:
+  //   1. Admin clicks "Upload video file" → native file picker opens
+  //   2. On file pick, request a signed Supabase upload URL from our admin API
+  //   3. PUT the file directly to Supabase (using XHR so we can show progress)
+  //   4. On success, populate the URL field with the public URL
+  // Cap is 500 MB (matches MAX_BYTES in api/admin/[action].js handlePrepUploadUrl).
+  var fileInput  = card.querySelector('input[data-field="upload-file"]');
+  var uploadBtn  = card.querySelector('button[data-field="upload-btn"]');
+  var statusEl   = card.querySelector('[data-field="upload-status"]');
+  if (uploadBtn && fileInput && urlInput && statusEl) {
+    var MAX_BYTES = 50 * 1024 * 1024;  // matches server cap in handlePrepUploadUrl
+    uploadBtn.addEventListener('click', function(){ fileInput.click(); });
+    fileInput.addEventListener('change', async function(){
+      var file = fileInput.files && fileInput.files[0];
+      if (!file) return;
+      if (file.size > MAX_BYTES) {
+        statusEl.textContent = '✗ File too large (max 50 MB).';
+        statusEl.style.color = '#a31515';
+        fileInput.value = '';
+        return;
+      }
+      // Trip ID is the slug input at the top of the form.
+      var tripId = (document.getElementById('f-trip-id') || {}).value || '';
+      tripId = String(tripId).trim();
+      if (!tripId) {
+        statusEl.textContent = '✗ Save the trip ID first, then upload.';
+        statusEl.style.color = '#a31515';
+        fileInput.value = '';
+        return;
+      }
+
+      uploadBtn.disabled = true;
+      statusEl.style.color = '#006FF9';
+      statusEl.textContent = '⏳ Requesting upload URL…';
+
+      try {
+        // Step 1: mint a signed upload URL
+        var mintRes = await fetch('/api/admin/prep-upload-url', {
+          method: 'POST',
+          credentials: 'same-origin',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            trip_id:        tripId,
+            filename:       file.name,
+            content_length: file.size
+          })
+        });
+        var mintData = {};
+        try { mintData = await mintRes.json(); } catch(_) {}
+        if (mintRes.status !== 200) {
+          throw new Error(mintData.detail || mintData.error || ('mint failed (' + mintRes.status + ')'));
+        }
+
+        // Step 2: PUT the file directly to Supabase via XHR (for progress)
+        statusEl.textContent = '⏳ Uploading 0%…';
+        await new Promise(function(resolve, reject){
+          var xhr = new XMLHttpRequest();
+          xhr.open('PUT', mintData.upload_url, true);
+          xhr.setRequestHeader('Content-Type', file.type || 'application/octet-stream');
+          xhr.upload.addEventListener('progress', function(e){
+            if (!e.lengthComputable) return;
+            var pct = Math.round((e.loaded / e.total) * 100);
+            statusEl.textContent = '⏳ Uploading ' + pct + '%…';
+          });
+          xhr.onload  = function(){
+            if (xhr.status >= 200 && xhr.status < 300) resolve();
+            else reject(new Error('upload failed (' + xhr.status + ')'));
+          };
+          xhr.onerror = function(){ reject(new Error('upload network error')); };
+          xhr.send(file);
+        });
+
+        // Step 3: populate the URL field with the public URL
+        urlInput.value = mintData.public_url;
+        statusEl.textContent = '✓ Uploaded — URL filled in. Save the trip to persist.';
+        statusEl.style.color = '#1a5205';
+      } catch (err) {
+        statusEl.textContent = '✗ ' + err.message;
+        statusEl.style.color = '#a31515';
+      } finally {
+        uploadBtn.disabled = false;
+        fileInput.value = '';
+      }
+    });
   }
 
   list.appendChild(card);

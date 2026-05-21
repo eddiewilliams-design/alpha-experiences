@@ -136,7 +136,7 @@ body.has-bg-image .hero-scallop{background:transparent;}
 
 /* ── Prep viewer modal ──
    Reusable in-portal viewer for prep items that should NOT open in a
-   new tab (Street View embeds, future PDF/article/360 video viewers).
+   new tab (Street View embeds, hosted videos, future PDF/article/360 viewers).
    Backdrop click + Esc + close button all dismiss. */
 .prep-modal-backdrop{position:fixed;inset:0;background:rgba(7,34,86,0.72);display:none;align-items:center;justify-content:center;z-index:1000;padding:16px;}
 .prep-modal-backdrop.open{display:flex;}
@@ -147,6 +147,7 @@ body.has-bg-image .hero-scallop{background:transparent;}
 .prep-modal-close:hover{color:var(--aa-navy);}
 .prep-modal-body{flex:1;min-height:0;display:flex;background:#000;}
 .prep-modal-body iframe{flex:1;border:0;width:100%;height:100%;min-height:520px;background:#000;}
+.prep-modal-body video{flex:1;width:100%;height:100%;min-height:520px;background:#000;object-fit:contain;}
 
 /* ── Session Links ── */
 .session-row{display:flex;align-items:center;gap:14px;border-radius:14px;padding:14px 16px;margin-bottom:10px;border:1.5px solid transparent;transition:all 0.15s;flex-wrap:wrap;}
@@ -564,6 +565,12 @@ function renderPrep(prep){
       // Branch on prep type: inline-viewer types open the modal; everything
       // else keeps the existing new-tab link behavior so we can ship one
       // viewer at a time without disturbing the others.
+      //
+      // Videos: only open in modal if the URL looks like a direct video file
+      // (mp4/webm/mov/m4v/ogv ending or a Supabase Storage URL). YouTube,
+      // Vimeo, and other embed-pages still open in a new tab — we can't
+      // play those in a <video> element.
+      var isHostedVideo = type === 'video' && looksLikeVideoFile(url);
       if (type === 'streetview') {
         var btn = document.createElement('button');
         btn.type        = 'button';
@@ -573,6 +580,15 @@ function renderPrep(prep){
           openPrepModal({ title: item.title || 'Street View', url: url, kind: 'streetview' });
         });
         row.appendChild(btn);
+      } else if (isHostedVideo) {
+        var vbtn = document.createElement('button');
+        vbtn.type        = 'button';
+        vbtn.className   = 'prep-btn';
+        vbtn.textContent = 'Watch →';
+        vbtn.addEventListener('click', function(){
+          openPrepModal({ title: item.title || 'Video', url: url, kind: 'video' });
+        });
+        row.appendChild(vbtn);
       } else {
         var a = document.createElement('a');
         a.className   = 'prep-btn';
@@ -588,9 +604,21 @@ function renderPrep(prep){
   });
 }
 
+// Returns true if the URL points at a direct video file we can play
+// in a <video> element — vs. a YouTube/Vimeo page that has to open in
+// a new tab. Catches both file-extension URLs (.../whatever.mp4) and
+// Supabase Storage public URLs (which don't always carry an extension
+// in the path but are always served as the raw file).
+function looksLikeVideoFile(url) {
+  if (!url) return false;
+  if (/\.(mp4|webm|mov|m4v|ogv)(\?|#|$)/i.test(url)) return true;
+  if (/supabase\.co\/storage\/v1\/object\/public\/ft-prep\//i.test(url)) return true;
+  return false;
+}
+
 // ── Prep viewer modal ──────────────────────────────────────
 // Opens an in-portal modal for prep items that should not leave the
-// portal. Today: 'streetview'. Future: PDF, article, 360° video.
+// portal. Today: 'streetview', 'video'. Future: PDF, article, 360° video.
 function openPrepModal(opts) {
   var modal = document.getElementById('prep-modal');
   var title = document.getElementById('prep-modal-title');
@@ -607,6 +635,15 @@ function openPrepModal(opts) {
     iframe.allowFullscreen = true;
     iframe.referrerPolicy  = 'no-referrer-when-downgrade';
     body.appendChild(iframe);
+  } else if (opts.kind === 'video') {
+    var video = document.createElement('video');
+    video.src         = opts.url;
+    video.controls    = true;
+    video.autoplay    = false;
+    video.playsInline = true;
+    video.preload     = 'metadata';
+    video.setAttribute('controlsList', 'nodownload');
+    body.appendChild(video);
   }
   modal.classList.add('open');
   document.body.style.overflow = 'hidden';
@@ -616,8 +653,13 @@ function closePrepModal() {
   var body  = document.getElementById('prep-modal-body');
   if (!modal) return;
   modal.classList.remove('open');
-  // Clear iframe so video / position state doesn't persist between opens.
-  if (body) body.innerHTML = '';
+  if (body) {
+    // Pause any playing video before tearing down so audio doesn't keep going
+    // for a beat after the modal closes.
+    var v = body.querySelector('video');
+    if (v) { try { v.pause(); } catch(_) {} }
+    body.innerHTML = '';
+  }
   document.body.style.overflow = '';
 }
 

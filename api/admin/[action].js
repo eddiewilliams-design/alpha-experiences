@@ -1143,6 +1143,115 @@ async function handleSubDelete(req, res) {
   return res.status(200).json({ ok: true });
 }
 
+// ── handlePrepUploadUrl: mint a signed Supabase upload URL for a
+// prep-materials file (videos, 360 videos, PDFs). Admin-only — auth
+// is enforced by the dispatcher at the top of this file, no per-row
+// purchase check needed (unlike student-side submissions/upload-url.js).
+//
+// Bucket: ft-prep (admin creates in Supabase dashboard with public read
+//   + ~500MB file size limit + service-key writes).
+// Allowed extensions: video (mp4/webm/mov/m4v/ogv), PDF, image fallback.
+// Size cap: 500 MB enforced client-side; server reports the cap so the
+//   admin UI can validate before initiating the upload.
+//
+// Body (JSON): { trip_id, filename, content_length? }
+// Response (200): { upload_url, public_url, path, max_bytes }
+async function handlePrepUploadUrl(req, res) {
+  if (req.method !== 'POST') return res.status(405).json({ error: 'method_not_allowed' });
+
+  const BUCKET      = 'ft-prep';
+  const MAX_BYTES   = 50 * 1024 * 1024;         // 50 MB — matches Supabase
+                                                //   global file-size limit
+                                                //   under the default Pro
+                                                //   spend cap. Raise here
+                                                //   AND in Supabase if you
+                                                //   ever turn off the cap.
+  const ALLOWED_EXT = ['mp4', 'webm', 'mov', 'm4v', 'ogv', 'pdf', 'jpg', 'jpeg', 'png'];
+
+  let body;
+  try { body = await readJsonBody(req); }
+  catch (e) { return res.status(400).json({ error: 'bad_json' }); }
+
+  const tripId       = (body.trip_id  || '').toString().trim();
+  const filenameRaw  = (body.filename || '').toString().trim();
+  const contentLength = parseInt(body.content_length, 10);
+
+  if (!tripId)      return res.status(400).json({ error: 'bad_request', detail: 'trip_id required' });
+  if (!filenameRaw) return res.status(400).json({ error: 'bad_request', detail: 'filename required' });
+
+  const ext = (filenameRaw.toLowerCase().match(/\.([a-z0-9]+)$/) || [])[1] || '';
+  if (ALLOWED_EXT.indexOf(ext) === -1) {
+    return res.status(400).json({ error: 'bad_extension', detail: 'allowed: ' + ALLOWED_EXT.join(', ') });
+  }
+  if (!isNaN(contentLength) && contentLength > MAX_BYTES) {
+    return res.status(400).json({ error: 'file_too_large', detail: 'max ' + MAX_BYTES + ' bytes', max_bytes: MAX_BYTES });
+  }
+
+  const SUPABASE_URL = (process.env.SUPABASE_URL || '').replace(/\/$/, '');
+  const SERVICE_KEY  = process.env.SUPABASE_SERVICE_KEY;
+  if (!SUPABASE_URL || !SERVICE_KEY) {
+    console.error('Supabase env vars missing for prep-upload-url');
+    return res.status(500).json({ error: 'server_config_error' });
+  }
+
+  // Sanitize filename and build path: {trip_id}/{ISO}-{rand}-{safe_filename}
+  const safeName = (filenameRaw.split(/[\\/]/).pop() || 'upload')
+    .replace(/[^a-zA-Z0-9._-]+/g, '-').slice(0, 80) || 'upload';
+  const stamp = new Date().toISOString().replace(/[:.]/g, '-');
+  const rand  = crypto.randomBytes(3).toString('hex');
+  const path  = `${tripId}/${stamp}-${rand}-${safeName}`;
+
+  // Mint signed upload URL from Supabase Storage.
+  const signEndpoint = `${SUPABASE_URL}/storage/v1/object/upload/sign/${BUCKET}/${path}`;
+  let signRes;
+  try {
+    signRes = await httpsRequest('POST', signEndpoint, {
+      'Authorization': 'Bearer ' + SERVICE_KEY,
+      'Content-Type':  'application/json'
+    }, '{}');
+  } catch (err) {
+    console.error('prep-upload-url supabase request failed:', err.message);
+    return res.status(502).json({ error: 'upstream_error' });
+  }
+  if (signRes.status < 200 || signRes.status >= 300) {
+    console.error('prep-upload-url supabase returned', signRes.status, signRes.body);
+    return res.status(502).json({ error: 'upstream_error', detail: signRes.body });
+  }
+
+  let signed;
+  try { signed = JSON.parse(signRes.body || '{}'); }
+  catch (e) {
+    console.error('prep-upload-url supabase non-JSON:', signRes.body);
+    return res.status(502).json({ error: 'upstream_error' });
+  }
+
+  // Supabase API has shifted shapes over the years — try them all.
+  let uploadUrl = '';
+  if (signed.signedUrl) {
+    uploadUrl = signed.signedUrl.startsWith('http')
+      ? signed.signedUrl
+      : `${SUPABASE_URL}/storage/v1${signed.signedUrl}`;
+  } else if (signed.url) {
+    uploadUrl = signed.url.startsWith('http')
+      ? signed.url
+      : `${SUPABASE_URL}/storage/v1${signed.url}`;
+  } else if (signed.token) {
+    uploadUrl = `${SUPABASE_URL}/storage/v1/object/upload/sign/${BUCKET}/${path}?token=${encodeURIComponent(signed.token)}`;
+  } else {
+    console.error('prep-upload-url supabase missing url/token:', signed);
+    return res.status(502).json({ error: 'upstream_error' });
+  }
+
+  const publicUrl = `${SUPABASE_URL}/storage/v1/object/public/${BUCKET}/${path}`;
+
+  return res.status(200).json({
+    upload_url: uploadUrl,
+    public_url: publicUrl,
+    path:       path,
+    max_bytes:  MAX_BYTES
+  });
+}
+
 // ── Admin access list / add / remove ───────────────────────
 const ALLOWED_ADMIN_DOMAINS = ['2hourlearning.com', 'alpha.school'];
 function isAllowedDomainEmail(email) {
@@ -3040,6 +3149,7 @@ module.exports = async (req, res) => {
     case 'reg-attendance':        return handleRegAttendance(req, res);
     case 'subs-list':             return handleSubsList(req, res);
     case 'sub-delete':            return handleSubDelete(req, res);
+    case 'prep-upload-url':       return handlePrepUploadUrl(req, res);
     case 'admins-list':           return handleAdminsList(req, res);
     case 'admin-add':             return handleAdminAdd(req, res);
     case 'admin-remove':          return handleAdminRemove(req, res);
