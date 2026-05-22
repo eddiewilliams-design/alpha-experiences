@@ -98,6 +98,25 @@ body{font-family:'Be Vietnam Pro',sans-serif;background:var(--aa-white);min-heig
 .confirmed-link{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;background:#fff;border:1.5px solid var(--aa-green);border-radius:10px;text-decoration:none;color:var(--aa-navy);font-weight:600;font-size:13px;transition:background 0.15s;}
 .confirmed-link:hover{background:var(--aa-light-green);}
 .confirmed-link .arrow{font-size:14px;color:var(--aa-green);}
+/* Per-pick "Change" affordance — appears on the right of unattended picks */
+.confirmed-link .pick-change{font-size:11px;font-weight:700;color:var(--aa-blue);background:#fff;border:1.5px solid var(--aa-blue);border-radius:999px;padding:4px 12px;cursor:pointer;font-family:inherit;line-height:1.2;}
+.confirmed-link .pick-change:hover{background:var(--aa-light-blue);}
+.confirmed-link .pick-attended{font-size:11px;font-weight:800;color:#1a5205;background:var(--aa-light-green);border:1px solid #a3d291;border-radius:999px;padding:4px 10px;letter-spacing:0.02em;}
+
+/* Swap modal: lightweight overlay reused for student + (later) admin */
+.swap-backdrop{position:fixed;inset:0;background:rgba(7,34,86,0.6);display:none;align-items:center;justify-content:center;z-index:1000;padding:16px;}
+.swap-backdrop.open{display:flex;}
+.swap-modal{background:#fff;border-radius:18px;width:100%;max-width:460px;max-height:80vh;display:flex;flex-direction:column;overflow:hidden;}
+.swap-head{padding:18px 20px 10px;border-bottom:1px solid var(--aa-light-grey);}
+.swap-title{font-family:'AF Sobremesa','Be Vietnam Pro',sans-serif;font-weight:800;font-size:15px;color:var(--aa-navy);}
+.swap-sub{font-size:12px;color:var(--aa-dark-grey);margin-top:4px;}
+.swap-list{padding:12px 16px;overflow-y:auto;flex:1;display:flex;flex-direction:column;gap:6px;}
+.swap-option{display:flex;align-items:center;gap:10px;padding:11px 14px;border:1.5px solid var(--aa-med-grey);border-radius:10px;background:#fff;cursor:pointer;font-family:inherit;font-size:13px;color:var(--aa-navy);text-align:left;font-weight:600;}
+.swap-option:hover{border-color:var(--aa-blue);background:var(--aa-light-blue);}
+.swap-foot{padding:12px 18px 18px;border-top:1px solid var(--aa-light-grey);display:flex;justify-content:flex-end;gap:8px;}
+.swap-cancel{font-size:13px;font-weight:700;color:var(--aa-dark-grey);background:#fff;border:1.5px solid var(--aa-med-grey);border-radius:999px;padding:8px 18px;cursor:pointer;font-family:inherit;}
+.swap-cancel:hover{color:var(--aa-navy);}
+.swap-empty{padding:18px;color:var(--aa-dark-grey);font-size:13px;text-align:center;}
 
 /* Loading + error */
 .page-loading,.page-error{display:flex;align-items:center;justify-content:center;flex-direction:column;padding:80px 24px;background:var(--aa-light-grey);min-height:60vh;text-align:center;flex:1;}
@@ -201,6 +220,22 @@ body{font-family:'Be Vietnam Pro',sans-serif;background:var(--aa-white);min-heig
   <svg width="24" height="20" viewBox="0 0 67 55" fill="none"><path d="M66.3126 50.8822L48.3919 1.76245C48.0093 0.703285 46.9977 0 45.867 0H20.6096C19.479 0 18.4673 0.703285 18.0848 1.76245L0.164039 50.8822C-0.473557 52.6277 0.82714 54.4749 2.68892 54.4749H25.9059C27.0366 54.4749 28.0483 53.7716 28.4308 52.7125L33.2426 39.5365L38.0543 52.7125C38.4368 53.7716 39.4485 54.4749 40.5792 54.4749H63.7962C65.658 54.4749 66.9587 52.6277 66.3211 50.8822H66.3126ZM40.9532 51.255L34.9598 34.8253L45.9945 4.58406L63.0226 51.2635H40.9532V51.255Z" fill="#FAFAFA" opacity="0.4"/></svg>
   <p class="footer-text" style="margin-top:8px;">Alpha Experiences · Alpha Anywhere</p>
 </footer>
+
+<!-- Swap-pick modal: shown when the student clicks "Change" on an
+     unattended pick in the confirmed view. Lists alternative sessions
+     (active, not currently picked, not previously attended). -->
+<div class="swap-backdrop" id="swap-modal" role="dialog" aria-modal="true" aria-labelledby="swap-title">
+  <div class="swap-modal">
+    <div class="swap-head">
+      <div class="swap-title" id="swap-title">Change your pick</div>
+      <div class="swap-sub" id="swap-sub"></div>
+    </div>
+    <div class="swap-list" id="swap-list"></div>
+    <div class="swap-foot">
+      <button type="button" class="swap-cancel" id="swap-cancel">Cancel</button>
+    </div>
+  </div>
+</div>
 
 <script>
 // ── State ────────────────────────────────────────────────
@@ -466,27 +501,176 @@ function showConfirmed(){
     show = SESSIONS.filter(function(s){ return SELECTED.has(s.session_id); });
   }
 
+  // Attended set: a saved pick is immutable once its session_id has a
+  // matching LUL_Attendance row for this pass's token. Pick-mode
+  // students see "Change" on unattended picks and an "✓ Attended" badge
+  // on the ones they've used. Full mode shows the whole calendar so
+  // we don't surface any swap UI there.
+  var attendedSet = new Set(PASS.attended_session_ids || []);
+  var canSwap     = (PASS.pass_mode === 'two' || PASS.pass_mode === 'one');
+
   show.forEach(function(s){
     var ft = fmtSessionTimes(s);
+    var isPicked   = SELECTED.has(s.session_id);
+    var isAttended = attendedSet.has(s.session_id);
+    var showChange = canSwap && isPicked && !isAttended;
+
+    // Build the right-hand chip (live link, lock badge, or swap controls)
+    var rightHtml;
     if (s.is_unlocked && s.link) {
+      rightHtml = '<span class="arrow">→</span>';
+    } else {
+      rightHtml = '<span class="arrow" style="font-size:11px;color:#6b3a00;background:#FFF7E5;padding:3px 10px;border-radius:999px;border:1px solid #f0c060;">🔒 ' + esc(ft.unlockAtLine) + '</span>';
+    }
+
+    // Picks that are attended through this pass get a small green badge
+    // and skip the Change button entirely — they're immutable.
+    if (canSwap && isPicked && isAttended) {
+      rightHtml = '<span class="pick-attended">✓ Attended</span> ' + rightHtml;
+    } else if (showChange) {
+      rightHtml = '<button type="button" class="pick-change" data-swap-sid="' + esc(s.session_id) + '" data-swap-name="' + esc(s.name) + '">Change</button> ' + rightHtml;
+    }
+
+    var content =
+      '<span>' + passEmojiOnly(s.emoji) +
+      ' <strong>' + esc(s.name) + '</strong> — ' +
+      esc(ft.dayChip) + ' ' + esc(ft.timeLine) + '</span>' + rightHtml;
+
+    if (s.is_unlocked && s.link) {
+      // Wrap the whole row in an <a> so the unlocked link fires on click,
+      // but inner buttons (Change) stopPropagation so they don't trigger
+      // the join navigation.
       var a = document.createElement('a');
       a.href      = trackUrl(s.link);
       a.target    = '_blank';
       a.rel       = 'noopener noreferrer';
       a.className = 'confirmed-link';
-      a.innerHTML = '<span>' + passEmojiOnly(s.emoji) + ' <strong>' + esc(s.name) + '</strong> — ' + esc(ft.dayChip) + ' ' + esc(ft.timeLine) + '</span><span class="arrow">→</span>';
+      a.innerHTML = content;
       div.appendChild(a);
     } else {
       var d = document.createElement('div');
       d.className = 'confirmed-link';
       d.style.cursor  = 'default';
       d.style.opacity = '0.75';
-      d.innerHTML = '<span>' + passEmojiOnly(s.emoji) + ' <strong>' + esc(s.name) + '</strong> — ' + esc(ft.dayChip) + ' ' + esc(ft.timeLine) + '</span><span class="arrow" style="font-size:11px;color:#6b3a00;background:#FFF7E5;padding:3px 10px;border-radius:999px;border:1px solid #f0c060;">🔒 ' + esc(ft.unlockAtLine) + '</span>';
+      d.innerHTML = content;
       div.appendChild(d);
     }
   });
 
+  // Wire up Change buttons after the rows render. Stop propagation so a
+  // click on Change inside an <a> wrapper doesn't navigate.
+  div.querySelectorAll('button.pick-change').forEach(function(btn){
+    btn.addEventListener('click', function(e){
+      e.preventDefault();
+      e.stopPropagation();
+      openSwapModal(btn.getAttribute('data-swap-sid'), btn.getAttribute('data-swap-name'));
+    });
+  });
+
   document.getElementById('confirmed-box').className = 'confirmed-box visible';
+}
+
+// ── Swap-pick handlers ────────────────────────────────────
+// State for the swap modal — which session_id we're replacing.
+var SWAP_OUT_SID = '';
+
+// Open the swap modal for a single unattended pick. Options shown:
+// active sessions that are NOT in current picks AND NOT in this pass's
+// attended set. (Attended sessions are hidden so the student can't pick
+// the same session they already attended on a different pass.)
+function openSwapModal(outSid, outName) {
+  SWAP_OUT_SID = outSid;
+  var attendedSet = new Set(PASS.attended_session_ids || []);
+  var pickedSet   = new Set(SELECTED);
+
+  var sub = document.getElementById('swap-sub');
+  sub.textContent = 'Replace "' + (outName || 'this session') + '" with another option.';
+
+  var list = document.getElementById('swap-list');
+  list.innerHTML = '';
+  var options = SESSIONS.filter(function(s){
+    if (pickedSet.has(s.session_id))   return false;  // already picked
+    if (attendedSet.has(s.session_id)) return false;  // already attended
+    return true;
+  });
+
+  if (!options.length) {
+    var empty = document.createElement('div');
+    empty.className = 'swap-empty';
+    empty.textContent = 'No other sessions available this week.';
+    list.appendChild(empty);
+  } else {
+    options.forEach(function(s){
+      var ft = fmtSessionTimes(s);
+      var btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'swap-option';
+      btn.innerHTML = '<span style="font-size:18px;">' + passEmojiOnly(s.emoji) + '</span>' +
+                      '<span><strong>' + esc(s.name) + '</strong><br>' +
+                      '<span style="font-weight:500;color:var(--aa-dark-grey);font-size:11px;">' +
+                      esc(ft.dayChip) + ' ' + esc(ft.timeLine) + '</span></span>';
+      btn.addEventListener('click', function(){ performSwap(s.session_id); });
+      list.appendChild(btn);
+    });
+  }
+
+  document.getElementById('swap-modal').classList.add('open');
+}
+
+function closeSwapModal() {
+  SWAP_OUT_SID = '';
+  document.getElementById('swap-modal').classList.remove('open');
+}
+
+// Apply the swap: build new selections array (remove out_sid, add in_sid)
+// and call save-pick. On success, reload the pass so the confirmed view
+// re-renders with the new pick.
+async function performSwap(inSid) {
+  if (!SWAP_OUT_SID || !inSid) return;
+  var newSelections = [];
+  SELECTED.forEach(function(sid){
+    if (sid !== SWAP_OUT_SID) newSelections.push(sid);
+  });
+  newSelections.push(inSid);
+
+  closeSwapModal();
+
+  try {
+    var r = await fetch('/api/lul/save-pick', {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ pass: PASS_TOKEN, selections: newSelections })
+    });
+    if (r.status !== 200) {
+      var err = {}; try { err = await r.json(); } catch (_) {}
+      throw new Error(err.detail || err.error || ('save failed: ' + r.status));
+    }
+  } catch (err) {
+    console.error(err);
+    alert('Couldn\'t change your pick: ' + err.message);
+    return;
+  }
+
+  // Re-fetch pick-data so the confirmed view picks up the change AND
+  // any updates to attendance state (e.g. if the student attended in
+  // the time it took to swap).
+  await reloadPass();
+}
+
+// Re-fetch /api/lul/pick-data and re-render the confirmed view.
+async function reloadPass() {
+  try {
+    var r = await fetch('/api/lul/pick-data?pass=' + encodeURIComponent(PASS_TOKEN), { credentials: 'same-origin' });
+    if (r.status !== 200) throw new Error('reload failed: ' + r.status);
+    var data = await r.json();
+    PASS     = data.pass;
+    SESSIONS = data.sessions || [];
+    SELECTED = new Set(PASS.saved_selections || []);
+    showConfirmed();
+  } catch (e) {
+    console.error('reloadPass:', e.message);
+  }
 }
 
 // ── Lock-in handler ───────────────────────────────────────
@@ -610,6 +794,21 @@ async function init(){
       }
     } catch (e) { /* ignore */ }
   }, 30000);
+
+  // Swap-pick modal close handlers — Cancel button, backdrop click, Esc.
+  var swapEl     = document.getElementById('swap-modal');
+  var swapCancel = document.getElementById('swap-cancel');
+  if (swapCancel) swapCancel.addEventListener('click', closeSwapModal);
+  if (swapEl) {
+    swapEl.addEventListener('click', function(e){
+      if (e.target === swapEl) closeSwapModal();
+    });
+  }
+  document.addEventListener('keydown', function(e){
+    if (e.key === 'Escape' && swapEl && swapEl.classList.contains('open')) {
+      closeSwapModal();
+    }
+  });
 }
 
 init();

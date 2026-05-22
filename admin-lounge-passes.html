@@ -421,6 +421,27 @@ body{font-family:'Be Vietnam Pro',sans-serif;background:var(--aa-white);min-heig
   </div>
 </div>
 
+<!-- ── Swap pick (per-pick swap from the picks meta line) ── -->
+<div class="modal-backdrop" id="modal-swap-backdrop">
+  <div class="modal" role="dialog" aria-modal="true" style="max-width:480px;">
+    <div class="modal-head">
+      <div class="modal-title">Change this pick</div>
+      <button class="modal-close" id="modal-swap-close" aria-label="Close">×</button>
+    </div>
+    <div class="modal-body">
+      <div id="modal-swap-error" class="banner error" style="display:none;"></div>
+      <div class="confirm-summary" id="swap-summary"></div>
+      <div class="field-help" id="swap-help" style="margin-bottom:10px;">
+        Replace <strong id="swap-out-label">this session</strong> with one of the options below. Sessions the student already attended don't appear.
+      </div>
+      <div id="swap-options" style="display:flex;flex-direction:column;gap:6px;max-height:300px;overflow-y:auto;"></div>
+    </div>
+    <div class="modal-foot">
+      <button type="button" class="btn-grey" id="btn-swap-cancel">Cancel</button>
+    </div>
+  </div>
+</div>
+
 <!-- ── Unlock selections confirm ── -->
 <div class="modal-backdrop" id="modal-unlock-backdrop">
   <div class="modal" role="dialog" aria-modal="true">
@@ -519,11 +540,15 @@ function setupUserMenu(user){
 var STATE = {
   passes: [],
   types:  [],
+  allSessions: [],   // all active sessions from Sessions tab — populated by lounge-passes-list
   filters: { search: '', status: '', type: '', dateFrom: '', dateTo: '' },
   activePass: null,
   // 'pass' = scoped to STATE.activePass's date window (default)
   // 'student' = unscoped, showing all clicks across every pass for the student
-  attendanceScope: 'pass'
+  attendanceScope: 'pass',
+  // Per-pick swap modal state — which pass and which pick we're replacing
+  swapPass: null,
+  swapOutSid: ''
 };
 
 function statusLabel(s){
@@ -630,11 +655,39 @@ function renderPasses(){
     // Picks meta line — only meaningful for 'pick' mode passes (2-session
     // and N-session). Full Week and Friday Celebration have implicit
     // selections, so the line is suppressed for those.
+    //
+    // Each locked-in pick renders as a small inline chip. Picks the
+    // student has actually attended through this pass get a ✓ marker
+    // and are immutable. Unattended picks expose a "Change" link that
+    // opens the swap modal so admin can replace just that one pick.
     if (p.mode === 'pick') {
       var pk = document.createElement('div');
       pk.className = 'pass-meta-line pass-picks';
       if (p.selections_locked && p.selected_sessions && p.selected_sessions.length) {
-        pk.textContent = '🎯 ' + p.selected_sessions.map(function(s){ return s.name || s.id; }).join(' · ');
+        var attendedSet = new Set(p.attended_session_ids || []);
+        pk.appendChild(document.createTextNode('🎯 '));
+        p.selected_sessions.forEach(function(s, idx){
+          if (idx > 0) pk.appendChild(document.createTextNode(' · '));
+          var label = document.createElement('span');
+          var attended = attendedSet.has(s.id);
+          if (attended) {
+            label.style.cssText = 'color:#1a5205;font-weight:700;';
+            label.textContent = '✓ ' + (s.name || s.id);
+            label.title = 'Already attended — can\'t change.';
+          } else {
+            label.textContent = (s.name || s.id);
+            var change = document.createElement('button');
+            change.type = 'button';
+            change.textContent = 'Change';
+            change.style.cssText = 'font-size:10px;font-weight:700;color:var(--aa-blue);background:transparent;border:none;cursor:pointer;padding:0 0 0 4px;font-family:inherit;text-decoration:underline;';
+            change.addEventListener('click', function(){
+              openAdminSwapModal(p, s.id, s.name || s.id);
+            });
+            label.appendChild(document.createTextNode(' '));
+            label.appendChild(change);
+          }
+          pk.appendChild(label);
+        });
         pk.title = 'Locked in' + (p.date_locked ? ' ' + fmtDate(p.date_locked) : '');
       } else if (p.selected_session_ids && p.selected_session_ids.length) {
         pk.textContent = '🎯 ' + p.selected_session_ids.length + ' picked (not yet locked)';
@@ -1348,6 +1401,86 @@ async function confirmCancel(){
   }
 }
 
+// ── Swap-pick modal ───────────────────────────────────────
+// Lets admin replace one unattended pick on a pick-mode pass without
+// wiping the whole pass. Other picks stay locked. Attended picks are
+// excluded from both the source UI (no Change button) and the
+// replacement options (can't pick a session the student already
+// attended on this pass).
+function openAdminSwapModal(p, outSid, outName){
+  STATE.swapPass   = p;
+  STATE.swapOutSid = outSid;
+
+  document.getElementById('swap-summary').innerHTML = passSummaryHtml(p);
+  document.getElementById('swap-out-label').textContent = outName || 'this session';
+  document.getElementById('modal-swap-error').style.display = 'none';
+
+  // Build the options list — every active session that isn't already
+  // picked on this pass and wasn't already attended via this pass.
+  var pickedSet   = new Set((p.selected_session_ids || []));
+  var attendedSet = new Set((p.attended_session_ids || []));
+  var listEl = document.getElementById('swap-options');
+  listEl.innerHTML = '';
+
+  var candidates = (STATE.allSessions || []).filter(function(s){
+    if (pickedSet.has(s.id))   return false;
+    if (attendedSet.has(s.id)) return false;
+    return true;
+  });
+
+  if (!candidates.length) {
+    var empty = document.createElement('div');
+    empty.style.cssText = 'padding:14px;color:var(--aa-dark-grey);font-size:13px;text-align:center;';
+    empty.textContent = 'No other active sessions available right now.';
+    listEl.appendChild(empty);
+  } else {
+    candidates.forEach(function(s){
+      var btn = document.createElement('button');
+      btn.type = 'button';
+      btn.style.cssText = 'display:flex;align-items:center;gap:10px;padding:11px 14px;border:1.5px solid var(--aa-med-grey);border-radius:10px;background:#fff;cursor:pointer;font-family:inherit;font-size:13px;color:var(--aa-navy);text-align:left;font-weight:600;width:100%;';
+      btn.onmouseover = function(){ btn.style.borderColor = 'var(--aa-blue)'; btn.style.background = 'var(--aa-light-blue)'; };
+      btn.onmouseout  = function(){ btn.style.borderColor = 'var(--aa-med-grey)'; btn.style.background = '#fff'; };
+      btn.innerHTML = '<span style="font-size:18px;">' + (s.emoji || '') + '</span>' +
+        '<span><strong>' + escapeHtml(s.name) + '</strong><br>' +
+        '<span style="font-weight:500;color:var(--aa-dark-grey);font-size:11px;">' +
+        escapeHtml(s.day) + ' ' + escapeHtml(s.time) + '</span></span>';
+      btn.addEventListener('click', function(){ confirmAdminSwap(s.id); });
+      listEl.appendChild(btn);
+    });
+  }
+
+  showModal('modal-swap-backdrop');
+}
+async function confirmAdminSwap(inSid){
+  var p = STATE.swapPass;
+  var outSid = STATE.swapOutSid;
+  if (!p || !outSid || !inSid) return;
+
+  var err = document.getElementById('modal-swap-error');
+  err.style.display = 'none';
+
+  // Build the new selections list: keep everything except outSid, add inSid
+  var newSelections = (p.selected_session_ids || []).filter(function(sid){ return sid !== outSid; });
+  newSelections.push(inSid);
+
+  try {
+    var r = await fetch('/api/admin/lounge-pass-update-picks', {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token: p.token, selections: newSelections })
+    });
+    var data = {};
+    try { data = await r.json(); } catch(_) {}
+    if (r.status !== 200) throw new Error(data.detail || data.error || ('save failed (' + r.status + ')'));
+    hideModal('modal-swap-backdrop');
+    flashSuccess('Pick swapped for ' + (p.name || p.email) + '.');
+    await loadPasses();
+  } catch (e) {
+    setBanner(err, e.message, 'error');
+  }
+}
+
 // Unlock-selections modal — clears Sheet1 cols J/K/L on the pass row.
 function openUnlockModal(p){
   STATE.activePass = p;
@@ -1430,8 +1563,9 @@ async function loadPasses(){
     return;
   }
   var data = await r.json();
-  STATE.passes = (data && data.passes) || [];
-  STATE.types  = (data && data.types)  || [];
+  STATE.passes      = (data && data.passes) || [];
+  STATE.types       = (data && data.types)  || [];
+  STATE.allSessions = (data && data.all_sessions) || [];
   populateTypeDropdowns();
   renderPasses();
 }
@@ -1477,13 +1611,17 @@ async function init(){
   document.getElementById('btn-unlock-back').addEventListener('click', function(){ hideModal('modal-unlock-backdrop'); });
   document.getElementById('btn-unlock-confirm').addEventListener('click', confirmUnlock);
 
+  // Swap-pick modal
+  document.getElementById('modal-swap-close').addEventListener('click', function(){ hideModal('modal-swap-backdrop'); });
+  document.getElementById('btn-swap-cancel').addEventListener('click', function(){ hideModal('modal-swap-backdrop'); });
+
   // Attendance modal
   document.getElementById('modal-attendance-close').addEventListener('click',         function(){ hideModal('modal-attendance-backdrop'); });
   document.getElementById('btn-attendance-done').addEventListener('click',            function(){ hideModal('modal-attendance-backdrop'); });
   document.getElementById('btn-attendance-scope-toggle').addEventListener('click',    toggleAttendanceScope);
 
   // Backdrop close + Escape
-  var allModals = ['modal-add-backdrop','modal-extend-backdrop','modal-resend-backdrop','modal-cancel-backdrop','modal-attendance-backdrop','modal-unlock-backdrop'];
+  var allModals = ['modal-add-backdrop','modal-extend-backdrop','modal-resend-backdrop','modal-cancel-backdrop','modal-attendance-backdrop','modal-unlock-backdrop','modal-swap-backdrop'];
   allModals.forEach(function(id){
     document.getElementById(id).addEventListener('click', function(e){ if (e.target === e.currentTarget) hideModal(id); });
   });

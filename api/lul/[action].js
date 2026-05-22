@@ -33,8 +33,9 @@ const crypto = require('crypto');
 const { getSession, httpsGet } = require('../_lib/session.js');
 
 const SHEET_ID    = '1aQYysCOOR-mYG8Myrl1BSU2PF8wMl-si8pgNG89sRto';
-const PASS_RANGE  = 'Sheet1!A:M';
-const SESSIONS_RANGE = 'Sessions!A:K';
+const PASS_RANGE       = 'Sheet1!A:M';
+const SESSIONS_RANGE   = 'Sessions!A:K';
+const ATTENDANCE_RANGE = 'LUL_Attendance!A:H';
 
 // ── Sheets access (same JWT pattern as the rest of the app) ──
 function b64url(str) {
@@ -434,10 +435,11 @@ async function handlePickData(req, res) {
 
   try {
     const token = await getAccessToken();
-    const sheet = await batchGet(token, [PASS_RANGE, SESSIONS_RANGE]);
+    const sheet = await batchGet(token, [PASS_RANGE, SESSIONS_RANGE, ATTENDANCE_RANGE]);
     const ranges = (sheet && sheet.valueRanges) || [];
-    const passRows    = (ranges[0] && ranges[0].values) || [];
-    const sessionRows = (ranges[1] && ranges[1].values) || [];
+    const passRows       = (ranges[0] && ranges[0].values) || [];
+    const sessionRows    = (ranges[1] && ranges[1].values) || [];
+    const attendanceRows = (ranges[2] && ranges[2].values) || [];
 
     const found = findPassByToken(passRows, passToken);
     if (!found) return res.status(404).json({ error: 'not_found' });
@@ -460,19 +462,33 @@ async function handlePickData(req, res) {
     const expired  = !isActive || (daysLeft !== null && daysLeft < 0);
     const mode     = passModeFromExpType(expType);
 
+    // Compute which of the saved picks the student has actually attended
+    // (defined as: a LUL_Attendance row exists with this pass's token and
+    // this session_id). Attended picks are immutable on the client; only
+    // unattended picks can be swapped.
+    const attendedSet = new Set();
+    for (let i = 1; i < attendanceRows.length; i++) {
+      const ar = attendanceRows[i] || [];
+      const sid    = (ar[3] || '').toString().trim();
+      const atok   = (ar[6] || '').toString().trim();
+      if (sid && atok === passToken) attendedSet.add(sid);
+    }
+    const attendedSessionIds = Array.from(attendedSet);
+
     const pass = {
-      pass_token:       passToken,
-      experience_type:  expType,
-      pass_mode:        mode,
-      pass_label:       passLabelFromMode(mode),
-      name:             name,
-      first_name:       (name.split(/\s+/)[0] || '').trim(),
-      active:           isActive,
-      expired:          expired,
-      date_sent:        dateSent,
-      days_remaining:   daysLeft,
-      locked:           locked,
-      saved_selections: savedSelections
+      pass_token:           passToken,
+      experience_type:      expType,
+      pass_mode:            mode,
+      pass_label:           passLabelFromMode(mode),
+      name:                 name,
+      first_name:           (name.split(/\s+/)[0] || '').trim(),
+      active:               isActive,
+      expired:              expired,
+      date_sent:            dateSent,
+      days_remaining:       daysLeft,
+      locked:               locked,
+      saved_selections:     savedSelections,
+      attended_session_ids: attendedSessionIds
     };
 
     // Build sessions list. If locked, force-include the student's
@@ -530,10 +546,12 @@ async function handleSavePick(req, res) {
     return res.status(500).json({ error: 'server_error' });
   }
 
-  let passRows;
+  let passRows, attendanceRows;
   try {
-    const sheet = await batchGet(writeToken, [PASS_RANGE]);
-    passRows = (sheet && sheet.valueRanges && sheet.valueRanges[0] && sheet.valueRanges[0].values) || [];
+    const sheet = await batchGet(writeToken, [PASS_RANGE, ATTENDANCE_RANGE]);
+    const vr = (sheet && sheet.valueRanges) || [];
+    passRows       = (vr[0] && vr[0].values) || [];
+    attendanceRows = (vr[1] && vr[1].values) || [];
   } catch (err) {
     console.error('save-pick read error:', err.message);
     return res.status(500).json({ error: 'server_error' });
@@ -552,6 +570,27 @@ async function handleSavePick(req, res) {
   }
   if (mode === 'celebration' && selections.length !== 1) {
     return res.status(400).json({ error: 'wrong_count', expected: 1, got: selections.length });
+  }
+
+  // Attended picks are immutable. Reject the save if the new selections
+  // drop a session_id that the student has already attended (i.e. a row
+  // in LUL_Attendance with this pass's token + that session_id).
+  const newSet = new Set(selections.map(s => String(s).trim()).filter(Boolean));
+  const attendedSet = new Set();
+  for (let i = 1; i < attendanceRows.length; i++) {
+    const ar = attendanceRows[i] || [];
+    const sid  = (ar[3] || '').toString().trim();
+    const atok = (ar[6] || '').toString().trim();
+    if (sid && atok === passToken) attendedSet.add(sid);
+  }
+  const removedAttended = [];
+  attendedSet.forEach(sid => { if (!newSet.has(sid)) removedAttended.push(sid); });
+  if (removedAttended.length) {
+    return res.status(409).json({
+      error: 'attended_pick_removed',
+      detail: 'You can\'t change a session you\'ve already attended.',
+      attended_session_ids: removedAttended
+    });
   }
 
   const cleaned = selections.map(s => String(s).trim()).filter(Boolean).join(',');

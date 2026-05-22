@@ -2090,10 +2090,36 @@ async function handleLoungePassesList(req, res) {
     const modeCfg   = modeForType(types, pass.exp_type);
     pass.mode       = modeCfg.mode;
     pass.pick_count = modeCfg.pick_count;
+    // Per-pass attended_session_ids — for the admin pick-swap UI to
+    // mark which picks are immutable (already attended through this
+    // same pass token). Reuses attendanceByEmail computed above.
+    const passAttended = new Set();
+    (attendanceByEmail[(email || '').toLowerCase()] || []).forEach(function(rec){
+      if (rec.token && rec.token === pass.token) passAttended.add(rec.sid);
+    });
+    pass.attended_session_ids = Array.from(passAttended);
     passes.push(pass);
   }
 
-  return res.status(200).json({ passes, types });
+  // Also surface the full active sessions list so the admin UI can
+  // populate the swap-pick modal without needing a separate call.
+  // Only include sessions where Active (col I) is YES.
+  const allSessions = [];
+  for (let i = 1; i < sessRows.length; i++) {
+    const r = sessRows[i] || [];
+    const id = (r[7] || '').toString().trim();
+    const on = (r[8] || '').toString().trim().toUpperCase();
+    if (!id || on !== 'YES') continue;
+    allSessions.push({
+      id:    id,
+      name:  (r[0] || '').toString(),
+      emoji: (r[1] || '').toString(),
+      day:   (r[3] || '').toString(),
+      time:  (r[4] || '').toString()
+    });
+  }
+
+  return res.status(200).json({ passes, types, all_sessions: allSessions });
 }
 
 async function handleLoungePassCreate(req, res) {
@@ -2606,6 +2632,84 @@ async function handleLoungePassCancel(req, res) {
     await sheetsUpdate(accessToken, `Sheet1!H${rowNum}`, [[false]]);
   } catch (err) {
     console.error('pass-cancel write:', err.message);
+    return res.status(500).json({ error: 'server_error' });
+  }
+
+  return res.status(200).json({ ok: true });
+}
+
+// ── handleLoungePassUpdatePicks ──
+// Admin-side surgical edit of a pass's selected_sessions. Lets admin
+// swap an unattended pick on behalf of a student without wiping the
+// whole pass (which the Unlock-picks button does). Same attendance
+// guard as student-side save-pick: a session_id that has an existing
+// LUL_Attendance row with this pass's token can't be removed.
+//
+// Body (JSON): { token, selections: [<session_id>...] }
+// Response: 200 { ok: true } / 409 { error: 'attended_pick_removed', ... }
+async function handleLoungePassUpdatePicks(req, res) {
+  if (req.method !== 'POST') return res.status(405).json({ error: 'method_not_allowed' });
+
+  let body;
+  try { body = await readJsonBody(req); }
+  catch (e) { return res.status(400).json({ error: 'bad_json' }); }
+
+  const passToken  = (body.token || '').toString().trim();
+  const selections = Array.isArray(body.selections) ? body.selections : [];
+  if (!passToken) return res.status(400).json({ error: 'bad_request', detail: 'token required' });
+
+  let accessToken;
+  try { accessToken = await getAccessToken('https://www.googleapis.com/auth/spreadsheets'); }
+  catch (err) { console.error('pass-update-picks token:', err.message); return res.status(500).json({ error: 'server_error' }); }
+
+  // Read Sheet1 + LUL_Attendance for the row lookup + attendance guard.
+  let passRows, attendanceRows;
+  try {
+    const sheet = await batchGet(accessToken, ['Sheet1!A:O', 'LUL_Attendance!A:H']);
+    const vr = (sheet && sheet.valueRanges) || [];
+    passRows       = (vr[0] && vr[0].values) || [];
+    attendanceRows = (vr[1] && vr[1].values) || [];
+  } catch (err) {
+    console.error('pass-update-picks read:', err.message);
+    return res.status(500).json({ error: 'server_error' });
+  }
+
+  // Locate the pass row by token (col G, index 6).
+  let rowNum = -1;
+  for (let i = 1; i < passRows.length; i++) {
+    if ((passRows[i][6] || '').toString().trim() === passToken) {
+      rowNum = i + 1;
+      break;
+    }
+  }
+  if (rowNum < 0) return res.status(404).json({ error: 'not_found' });
+
+  // Attendance guard: a previously-attended session_id can't be removed.
+  const newSet = new Set(selections.map(s => String(s).trim()).filter(Boolean));
+  const attendedSet = new Set();
+  for (let i = 1; i < attendanceRows.length; i++) {
+    const ar = attendanceRows[i] || [];
+    const sid  = (ar[3] || '').toString().trim();
+    const atok = (ar[6] || '').toString().trim();
+    if (sid && atok === passToken) attendedSet.add(sid);
+  }
+  const removedAttended = [];
+  attendedSet.forEach(sid => { if (!newSet.has(sid)) removedAttended.push(sid); });
+  if (removedAttended.length) {
+    return res.status(409).json({
+      error: 'attended_pick_removed',
+      detail: 'A session the student already attended can\'t be removed from picks.',
+      attended_session_ids: removedAttended
+    });
+  }
+
+  // Write cols J/K/L (Selections Locked / Selected Sessions / Date Locked).
+  // Keep selections_locked = YES — admin edits don't unlock the pass.
+  const cleaned = Array.from(newSet).join(',');
+  try {
+    await sheetsUpdate(accessToken, `Sheet1!J${rowNum}:L${rowNum}`, [['YES', cleaned, new Date().toISOString()]]);
+  } catch (err) {
+    console.error('pass-update-picks write:', err.message);
     return res.status(500).json({ error: 'server_error' });
   }
 
@@ -3287,7 +3391,8 @@ module.exports = async (req, res) => {
     case 'lounge-pass-extend':    return handleLoungePassExtend(req, res);
     case 'lounge-pass-resend':    return handleLoungePassResend(req, res);
     case 'lounge-pass-cancel':    return handleLoungePassCancel(req, res);
-    case 'lounge-pass-unlock':    return handleLoungePassUnlock(req, res);
+    case 'lounge-pass-unlock':       return handleLoungePassUnlock(req, res);
+    case 'lounge-pass-update-picks': return handleLoungePassUpdatePicks(req, res);
     case 'lounge-pass-mark-used': return handleLoungePassMarkUsed(req, res);
     case 'lounge-pass-update':    return handleLoungePassUpdate(req, res);
     case 'lounge-attendance-list':   return handleLoungeAttendanceList(req, res);
