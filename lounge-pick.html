@@ -491,6 +491,15 @@ function showConfirmed(){
     document.getElementById('sessions-grid').style.display = 'none';
   }
 
+  // For Full Week mode, the sessions grid above already lists every
+  // session with its lock/unlock state, and the hero already says
+  // "you unlocked ALL 6 sessions." The confirmed box would just be a
+  // duplicate of the grid. Hide it entirely for full mode.
+  if (PASS.pass_mode === 'full') {
+    document.getElementById('confirmed-box').classList.remove('visible');
+    return;
+  }
+
   var div = document.getElementById('confirmed-links');
   div.innerHTML = '';
 
