@@ -639,6 +639,10 @@ async function handleRegsList(req, res) {
         purchase_date: (r[5] || '').toString(),
         status:        status || 'active',
         attended:      (r[7] || '').toString().toUpperCase().trim(),
+        // Col I — stamped by handleRegCreate after the Intercom send
+        // (Yes / FAILED / blank for legacy rows). Drives the
+        // Confirmation chip on /admin/registrations.
+        email_sent:    (r[8] || '').toString().trim(),
         // Joined for convenience on the client
         trip_title:    trip ? trip.title : tripId,
         trip_emoji:    trip ? trip.emoji : '',

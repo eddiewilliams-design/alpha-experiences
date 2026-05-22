@@ -261,9 +261,20 @@ module.exports = async (req, res) => {
 
     // Only include links to the OWNER, AND only when unlocked.
     // Anyone inspecting the response for another session never sees them.
+    //
+    // Both links are routed through /api/vft-track-join so a click
+    // auto-stamps FT_Purchases col H (Attended) = YES for this
+    // student's row, mirroring the LUL track-join pattern. Sheet
+    // failure inside the tracker never blocks the student's redirect.
     if (isYours && isUnlocked) {
-      session_obj.zoom_link    = zoom    || null;
-      session_obj.nearpod_link = nearpod || null;
+      const wrap = function(target) {
+        if (!target) return null;
+        return '/api/vft-track-join?trip=' + encodeURIComponent(tripId)
+             + '&session=' + encodeURIComponent(sid)
+             + '&dest='    + encodeURIComponent(target);
+      };
+      session_obj.zoom_link    = wrap(zoom);
+      session_obj.nearpod_link = wrap(nearpod);
     }
 
     sessions.push(session_obj);
