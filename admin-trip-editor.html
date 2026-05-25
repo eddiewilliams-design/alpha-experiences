@@ -431,14 +431,13 @@ function addPrepRow(p){
   t.textContent = 'Prep item ' + num;
   card.appendChild(t);
 
+  // Remove button — listener is re-attached AFTER the innerHTML +=
+  // below, since that re-parse drops event listeners from existing
+  // children (the button text survives but the click handler doesn't).
   var rm = document.createElement('button');
   rm.type = 'button';
   rm.className = 'remove-link';
   rm.textContent = 'Remove';
-  rm.addEventListener('click', function(){
-    card.remove();
-    renumberPrep();
-  });
   card.appendChild(rm);
 
   var typeVal = (p.type || 'video').toLowerCase();
@@ -483,6 +482,16 @@ function addPrepRow(p){
       </div>
     </div>
   `;
+
+  // Re-attach the Remove handler now that innerHTML has finished
+  // re-parsing — the original listener on the rm element was dropped.
+  var rmBtn = card.querySelector('.remove-link');
+  if (rmBtn) {
+    rmBtn.addEventListener('click', function(){
+      card.remove();
+      renumberPrep();
+    });
+  }
 
   // Toggle the Street View hint + video upload widget per prep type.
   var sel        = card.querySelector('select[data-field="type"]');
