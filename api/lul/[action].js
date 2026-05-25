@@ -398,12 +398,19 @@ function buildSessionWithLock(r, includeRegardless) {
   const time = (r[4] || '').toString();
   const link = (r[6] || '').toString().trim();
   const startUtc = nextOccurrenceUtcMs(day, time);
-  const UNLOCK_BEFORE_MS = 15 * 60 * 1000;
-  const LOCK_AFTER_MS    = 45 * 60 * 1000;
+  // Matches the 5/35-min unlock window used by get-sessions.js and
+  // track-join.js (was previously 15/45 here; bumped 2026-05-25 for
+  // consistency).
+  const UNLOCK_BEFORE_MS = 5  * 60 * 1000;
+  const LOCK_AFTER_MS    = 35 * 60 * 1000;
   const nowMs = Date.now();
-  const isUnlocked = startUtc !== null
+  // Blacked-out sessions never count as unlocked, even if the time
+  // window happens to be open. We also strip the link from the
+  // response so the client literally can't render a clickable link.
+  const inTimeWindow = startUtc !== null
     && nowMs >= (startUtc - UNLOCK_BEFORE_MS)
     && nowMs <= (startUtc + LOCK_AFTER_MS);
+  const isUnlocked = inTimeWindow && !blackedOut;
 
   return {
     session_id:  sid,

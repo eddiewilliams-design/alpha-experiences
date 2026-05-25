@@ -416,9 +416,19 @@ function buildCard(s, mode, isSelected, isDisabled) {
 
   card.appendChild(info);
 
-  // Full-mode cards get a Join button; locked sessions get the lock badge
+  // Full-mode cards get a Join button; locked sessions get the lock badge.
+  // Blacked-out sessions (coach away, holiday, etc.) take precedence over
+  // both — they get a grey "Not running this week" chip regardless of
+  // where we are in the unlock window.
   if (mode === 'full') {
-    if (s.is_unlocked && s.link) {
+    if (s.blacked_out) {
+      var out = document.createElement('span');
+      out.className   = 'join-btn locked';
+      out.style.cssText = 'background:#EEF0F3;color:#5a6473;border-color:#DADFE7;';
+      out.title       = 'This session isn\'t running this week.';
+      out.textContent = '🚫 Not running this week';
+      card.appendChild(out);
+    } else if (s.is_unlocked && s.link) {
       var btn = document.createElement('a');
       btn.href        = trackUrl(s.link);
       btn.target      = '_blank';
@@ -524,9 +534,12 @@ function showConfirmed(){
     var isAttended = attendedSet.has(s.session_id);
     var showChange = canSwap && isPicked && !isAttended;
 
-    // Build the right-hand chip (live link, lock badge, or swap controls)
+    // Build the right-hand chip — blackout takes precedence over both
+    // live-link and lock states.
     var rightHtml;
-    if (s.is_unlocked && s.link) {
+    if (s.blacked_out) {
+      rightHtml = '<span class="arrow" style="font-size:11px;color:#5a6473;background:#EEF0F3;padding:3px 10px;border-radius:999px;border:1px solid #DADFE7;">🚫 Not running this week</span>';
+    } else if (s.is_unlocked && s.link) {
       rightHtml = '<span class="arrow">→</span>';
     } else {
       rightHtml = '<span class="arrow" style="font-size:11px;color:#6b3a00;background:#FFF7E5;padding:3px 10px;border-radius:999px;border:1px solid #f0c060;">🔒 ' + esc(ft.unlockAtLine) + '</span>';
