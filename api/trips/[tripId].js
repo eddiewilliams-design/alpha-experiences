@@ -24,7 +24,7 @@ const crypto = require('crypto');
 
 const SHEET_ID  = '1aQYysCOOR-mYG8Myrl1BSU2PF8wMl-si8pgNG89sRto';
 const TZ        = 'America/Chicago';
-const RANGES    = ['FT_Catalog!A:M', 'FT_Sessions!A:F', 'FT_Prep!A:F', 'FT_Purchases!A:I'];
+const RANGES    = ['FT_Catalog!A:M', 'FT_Sessions!A:F', 'FT_Prep!A:G', 'FT_Purchases!A:I'];
 // Unlock window: [start − UNLOCK_BEFORE_MS, end + GRACE_AFTER_MS].
 // If end_time is missing or unparseable we assume FALLBACK_LEN_MS after start.
 const UNLOCK_BEFORE_MS = 15 * 60 * 1000;       // open 15 min before start
@@ -255,6 +255,10 @@ module.exports = async (req, res) => {
       is_yours:    isYours,
       is_unlocked: isUnlocked,
       is_past:     isPast,
+      // ISO timestamp of the session end in UTC. Client uses this to
+      // gate the "After your trip" section (shows full content once
+      // now > end + small grace; teaser before that).
+      end_iso:     endUtc !== null ? new Date(endUtc).toISOString() : null,
       zoom_link:   null,
       nearpod_link: null
     };
@@ -288,7 +292,11 @@ module.exports = async (req, res) => {
     return aMin - bMin;
   });
 
-  // 4. Prep items for this trip — only for registered students
+  // 4. Prep items for this trip — only for registered students.
+  //   Col G `phase` controls when the item shows: 'before' (default,
+  //   shown in the Prep section pre-session) or 'after' (shown in the
+  //   "After your trip" section once the student's own session has
+  //   ended + grace period).
   const prep = [];
   if (isRegistered) {
     for (let i = 1; i < prepRows.length; i++) {
@@ -296,12 +304,14 @@ module.exports = async (req, res) => {
       const pid    = (r[0] || '').toString().trim();
       const pTrip  = (r[1] || '').toString().trim();
       if (!pid || pTrip !== tripId) continue;
+      const phase = (r[6] || '').toString().toLowerCase().trim();
       prep.push({
         prep_id:  pid,
         title:    (r[2] || '').toString(),
         type:     (r[3] || '').toString().toLowerCase(),
         url:      (r[4] || '').toString(),
-        duration: (r[5] || '').toString()
+        duration: (r[5] || '').toString(),
+        phase:    (phase === 'after') ? 'after' : 'before'
       });
     }
   }

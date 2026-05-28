@@ -440,7 +440,8 @@ function addPrepRow(p){
   rm.textContent = 'Remove';
   card.appendChild(rm);
 
-  var typeVal = (p.type || 'video').toLowerCase();
+  var typeVal  = (p.type  || 'video').toLowerCase();
+  var phaseVal = ((p.phase || 'before').toString().toLowerCase() === 'after') ? 'after' : 'before';
   card.innerHTML += `
     <input type="hidden" data-field="prep_id" value="${escapeAttr(p.prep_id || '')}">
     <div class="grid-2">
@@ -456,6 +457,19 @@ function addPrepRow(p){
           <option value="activity"   ${typeVal==='activity'?'selected':''}>Activity</option>
           <option value="streetview" ${typeVal==='streetview'?'selected':''}>360° Street View (Google Maps)</option>
         </select>
+      </div>
+    </div>
+    <div class="field-group" style="margin-top:12px;">
+      <label>When to show</label>
+      <div style="display:flex;gap:14px;align-items:center;margin-top:4px;">
+        <label style="display:inline-flex;align-items:center;gap:6px;font-weight:600;font-size:13px;cursor:pointer;text-transform:none;letter-spacing:0;color:var(--aa-navy);">
+          <input type="radio" name="phase-${num}" value="before" data-field="phase" ${phaseVal==='before'?'checked':''}>
+          Before the trip
+        </label>
+        <label style="display:inline-flex;align-items:center;gap:6px;font-weight:600;font-size:13px;cursor:pointer;text-transform:none;letter-spacing:0;color:var(--aa-navy);">
+          <input type="radio" name="phase-${num}" value="after" data-field="phase" ${phaseVal==='after'?'checked':''}>
+          After the trip
+        </label>
       </div>
     </div>
     <div class="grid-2" style="margin-top:12px;">
@@ -678,12 +692,15 @@ function readForm(){
       var el = card.querySelector('[data-field="'+n+'"]');
       return el ? el.value : '';
     };
+    // Phase is rendered as a pair of radio inputs — pick the checked one.
+    var phaseEl = card.querySelector('input[type="radio"][data-field="phase"]:checked');
     prep.push({
       prep_id:  get('prep_id'),
       title:    get('title').trim(),
       type:     get('type'),
       url:      get('url').trim(),
-      duration: get('duration').trim()
+      duration: get('duration').trim(),
+      phase:    phaseEl ? phaseEl.value : 'before'
     });
   });
   prep = prep.filter(function(p){ return p.title || p.url; });

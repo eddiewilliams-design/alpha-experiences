@@ -281,14 +281,27 @@ body.has-bg-image .hero-scallop{background:transparent;}
         </div>
       </div>
 
-      <a class="submit-card" id="submit-card" href="#" style="text-decoration:none;color:inherit;">
-        <div class="submit-icon">📸</div>
-        <div class="submit-info">
-          <p class="submit-title">Submit your final project</p>
-          <p class="submit-sub">Upload a photo or short video of your work after the trip</p>
+      <!-- After-your-trip card. Two states:
+             (a) Locked teaser  — before the student's own session ends
+             (b) Unlocked view  — after end_time + 15-min grace
+           Visible only to registered students with at least one after-phase
+           prep item OR a reflection prompt + submission flow. -->
+      <div class="card" id="after-trip-card" style="display:none;">
+        <p class="card-title">After your trip</p>
+        <div id="after-trip-locked" style="display:none;background:var(--aa-light-yellow);border:1.5px solid var(--aa-yellow);border-radius:12px;padding:14px 16px;color:#6b3a00;font-size:13px;line-height:1.55;">
+          <strong>🔒 Unlocks after your session.</strong>
+          <span id="after-trip-teaser-text">When your session ends, you'll come back here to finish up.</span>
         </div>
-        <span class="submit-btn">Submit →</span>
-      </a>
+        <div id="after-trip-list"></div>
+        <a class="submit-card" id="submit-card" href="#" style="display:none;text-decoration:none;color:inherit;margin-top:12px;">
+          <div class="submit-icon">📸</div>
+          <div class="submit-info">
+            <p class="submit-title">Submit your reflection</p>
+            <p class="submit-sub" id="reflection-prompt-line">Upload a photo or short video of your work after the trip</p>
+          </div>
+          <span class="submit-btn">Submit →</span>
+        </a>
+      </div>
 
       <!-- Marketplace CTA — shown only to non-registered preview viewers -->
       <div class="marketplace-card" id="marketplace-card" style="display:none;">
@@ -502,13 +515,14 @@ function renderDetails(trip, mySession){
   document.getElementById('dv-session').textContent = sessTxt || '—';
 }
 
-function renderPrep(prep){
-  var list = document.getElementById('prep-list');
+function renderPrep(prep, targetListId, emptyMessage){
+  var list = document.getElementById(targetListId || 'prep-list');
+  if (!list) return;
   list.innerHTML = '';
   if (!prep || !prep.length) {
     var p = document.createElement('p');
     p.className   = 'prep-empty';
-    p.textContent = 'Nothing to prep ahead of time — show up curious!';
+    p.textContent = emptyMessage || 'Nothing to prep ahead of time — show up curious!';
     list.appendChild(p);
     return;
   }
@@ -708,6 +722,77 @@ function closePrepModal() {
   document.body.style.overflow = '';
 }
 
+// Render the "After your trip" card. Three possible states:
+//   - Hidden entirely (no after-phase prep, no reflection prompt, and the
+//     trip otherwise has no after-content to show).
+//   - Visible with a locked teaser (student's session hasn't ended yet,
+//     or no session resolved). Shows the yellow "Unlocks after your
+//     session" banner only.
+//   - Visible with full content (student's session ended + 15-min grace).
+//     Renders the after-phase prep items and the submit-reflection link.
+// Threshold uses mySession.end_iso so each student sees the section
+// unlock when *their own* session ends, not a peer's.
+function renderAfterTripCard(afterPrep, mySession, trip){
+  var card        = document.getElementById('after-trip-card');
+  var locked      = document.getElementById('after-trip-locked');
+  var teaserText  = document.getElementById('after-trip-teaser-text');
+  var list        = document.getElementById('after-trip-list');
+  var submit      = document.getElementById('submit-card');
+  var prompt      = document.getElementById('reflection-prompt-line');
+  if (!card || !locked || !list || !submit) return;
+
+  var hasAfterPrep = !!(afterPrep && afterPrep.length);
+  var hasReflect   = !!(trip && trip.reflection_prompt && trip.reflection_prompt.trim());
+  if (!hasAfterPrep && !hasReflect) {
+    card.style.display = 'none';
+    return;
+  }
+  card.style.display = '';
+
+  // Reflection prompt text (falls back to default if blank).
+  if (prompt) {
+    prompt.textContent = hasReflect
+      ? trip.reflection_prompt
+      : 'Upload a photo or short video of your work after the trip';
+  }
+
+  // Determine whether the student's session has ended (end + 15-min grace).
+  var GRACE_MS = 15 * 60 * 1000;
+  var nowMs    = Date.now();
+  var endMs    = (mySession && mySession.end_iso) ? Date.parse(mySession.end_iso) : NaN;
+  var ended    = !isNaN(endMs) && (nowMs > endMs + GRACE_MS);
+
+  if (ended) {
+    locked.style.display = 'none';
+    list.style.display   = '';
+    submit.style.display = '';
+    if (hasAfterPrep) {
+      renderPrep(afterPrep, 'after-trip-list', '');
+    } else {
+      list.innerHTML = '';
+    }
+  } else {
+    locked.style.display = '';
+    list.style.display   = 'none';
+    submit.style.display = 'none';
+    // Build a contextual teaser describing what's coming.
+    if (teaserText) {
+      var bits = [];
+      if (hasAfterPrep) {
+        bits.push(afterPrep.length === 1
+          ? 'one wrap-up activity'
+          : afterPrep.length + ' wrap-up activities');
+      }
+      if (hasReflect) bits.push('a reflection to submit');
+      if (bits.length) {
+        teaserText.textContent = ' When your session ends, you\'ll come back here for ' + bits.join(' and ') + '.';
+      } else {
+        teaserText.textContent = ' When your session ends, you\'ll come back here to finish up.';
+      }
+    }
+  }
+}
+
 function renderSessions(sessions){
   var list = document.getElementById('sessions-list');
   var lock = document.getElementById('session-lock');
@@ -829,9 +914,14 @@ async function loadAndRender(tripId){
   renderDetails(trip, mySession);
 
   if (isRegistered) {
-    // Full experience
-    renderPrep(prep);
+    // Full experience. Split prep by phase: 'before' items show in the
+    // existing prep card; 'after' items move to the After Your Trip card
+    // and stay hidden until the student's own session ends.
+    var beforePrep = prep.filter(function(p){ return (p.phase || 'before') !== 'after'; });
+    var afterPrep  = prep.filter(function(p){ return p.phase === 'after'; });
+    renderPrep(beforePrep, 'prep-list');
     renderSessions(sessions);
+    renderAfterTripCard(afterPrep, mySession, trip);
     document.getElementById('submit-card').href = '/trips/' + encodeURIComponent(trip.trip_id) + '/submit';
   } else {
     // Preview mode — hide registered-only sections, show Marketplace CTA
@@ -841,7 +931,8 @@ async function loadAndRender(tripId){
     document.getElementById('dv-bring-row').style.display   = 'none';
     document.getElementById('prep-card').style.display      = 'none';
     document.getElementById('sessions-card').style.display  = 'none';
-    document.getElementById('submit-card').style.display    = 'none';
+    document.getElementById('submit-card').style.display      = 'none';
+    document.getElementById('after-trip-card').style.display  = 'none';
     document.getElementById('marketplace-card').style.display = '';
   }
 
@@ -896,7 +987,15 @@ async function init(){
       var r = await fetch('/api/trips/' + encodeURIComponent(tripId), { credentials: 'same-origin' });
       if (r.status !== 200) return;
       var data = await r.json();
-      renderSessions(data.sessions || []);
+      var freshSessions = data.sessions || [];
+      var freshMine     = freshSessions.find(function(s){ return s.is_yours; }) || null;
+      renderSessions(freshSessions);
+      // Re-render the after-trip card so the locked → unlocked transition
+      // happens automatically the moment the student's session ends + grace.
+      if (data.registered !== false) {
+        var freshAfterPrep = (data.prep || []).filter(function(p){ return p.phase === 'after'; });
+        renderAfterTripCard(freshAfterPrep, freshMine, data.trip);
+      }
     } catch (e) { /* ignore — try again next tick */ }
   }, POLL_MS);
 }

@@ -157,7 +157,7 @@ async function handleTripsList(req, res) {
     const sheet = await batchGet(token, [
       'FT_Catalog!A:N',
       'FT_Sessions!A:F',
-      'FT_Prep!A:F',
+      'FT_Prep!A:G',
       'FT_Purchases!A:I'
     ]);
     const ranges = (sheet && sheet.valueRanges) || [];
@@ -248,7 +248,7 @@ async function handleTripGet(req, res) {
 
   try {
     const token = await getAccessToken();
-    const sheet = await batchGet(token, ['FT_Catalog!A:N', 'FT_Sessions!A:F', 'FT_Prep!A:F']);
+    const sheet = await batchGet(token, ['FT_Catalog!A:N', 'FT_Sessions!A:F', 'FT_Prep!A:G']);
     const ranges = (sheet && sheet.valueRanges) || [];
     const catalogRows = (ranges[0] && ranges[0].values) || [];
     const sessionRows = (ranges[1] && ranges[1].values) || [];
@@ -296,12 +296,14 @@ async function handleTripGet(req, res) {
     for (let i = 1; i < prepRows.length; i++) {
       const r = prepRows[i];
       if ((r[1] || '').toString().trim() !== tripId) continue;
+      const phase = (r[6] || '').toString().toLowerCase().trim();
       prep.push({
         prep_id:  (r[0] || '').toString(),
         title:    (r[2] || '').toString(),
         type:     (r[3] || '').toString().toLowerCase(),
         url:      (r[4] || '').toString(),
-        duration: (r[5] || '').toString()
+        duration: (r[5] || '').toString(),
+        phase:    (phase === 'after') ? 'after' : 'before'
       });
     }
 
@@ -358,7 +360,7 @@ async function handleTripSave(req, res) {
   // 1. Read existing data
   let catalogRows, sessionRows, prepRows;
   try {
-    const sheet = await batchGet(token, ['FT_Catalog!A:M', 'FT_Sessions!A:F', 'FT_Prep!A:F']);
+    const sheet = await batchGet(token, ['FT_Catalog!A:M', 'FT_Sessions!A:F', 'FT_Prep!A:G']);
     const ranges = (sheet && sheet.valueRanges) || [];
     catalogRows = (ranges[0] && ranges[0].values) || [];
     sessionRows = (ranges[1] && ranges[1].values) || [];
@@ -448,7 +450,11 @@ async function handleTripSave(req, res) {
 
   // 5. Replace prep for this trip — same pattern
   try {
-    const prepHeader  = prepRows[0] || ['prep_id', 'trip_id', 'title', 'type', 'url', 'duration'];
+    const prepHeader  = prepRows[0] || ['prep_id', 'trip_id', 'title', 'type', 'url', 'duration', 'phase'];
+    // If the existing header doesn't yet have a phase column (sheet
+    // pre-dates the phase rollout), append it so legacy rows still
+    // sit in a 7-column shape.
+    if (prepHeader.length < 7) prepHeader[6] = 'phase';
     const otherPrep   = prepRows.slice(1).filter(r => (r[1] || '').toString().trim() !== tripId);
     const newPrep     = incomingPrep.map((p, i) => [
       (p.prep_id && String(p.prep_id).trim()) || `${tripId}-prep-${Date.now()}-${i}`,
@@ -456,10 +462,11 @@ async function handleTripSave(req, res) {
       (p.title    || '').toString(),
       (p.type     || '').toString().toLowerCase(),
       (p.url      || '').toString(),
-      (p.duration || '').toString()
+      (p.duration || '').toString(),
+      ((p.phase || '').toString().toLowerCase() === 'after') ? 'after' : 'before'
     ]);
     const allPrep = [prepHeader].concat(otherPrep).concat(newPrep);
-    await sheetsClear(token, 'FT_Prep!A:F');
+    await sheetsClear(token, 'FT_Prep!A:G');
     await sheetsUpdate(token, 'FT_Prep!A1', allPrep);
   } catch (err) {
     console.error('trip-save prep write error:', err.message);
@@ -497,7 +504,7 @@ async function handleTripDelete(req, res) {
   let catalogRows, sessionRows, prepRows, purchaseRows;
   try {
     const sheet = await batchGet(token, [
-      'FT_Catalog!A:N', 'FT_Sessions!A:F', 'FT_Prep!A:F', 'FT_Purchases!A:I'
+      'FT_Catalog!A:N', 'FT_Sessions!A:F', 'FT_Prep!A:G', 'FT_Purchases!A:I'
     ]);
     const ranges = (sheet && sheet.valueRanges) || [];
     catalogRows  = (ranges[0] && ranges[0].values) || [];
@@ -553,7 +560,7 @@ async function handleTripDelete(req, res) {
     await sheetsUpdate(token, 'FT_Catalog!A1', newCatalog);
     await sheetsClear(token,  'FT_Sessions!A:F');
     await sheetsUpdate(token, 'FT_Sessions!A1', newSessions);
-    await sheetsClear(token,  'FT_Prep!A:F');
+    await sheetsClear(token,  'FT_Prep!A:G');
     await sheetsUpdate(token, 'FT_Prep!A1', newPrep);
   } catch (err) {
     console.error('trip-delete write error:', err.message);
