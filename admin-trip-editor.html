@@ -453,8 +453,10 @@ function addPrepRow(p){
         <label>Type</label>
         <select data-field="type">
           <option value="video"      ${typeVal==='video'?'selected':''}>Video</option>
-          <option value="reading"    ${typeVal==='reading'?'selected':''}>Reading</option>
-          <option value="activity"   ${typeVal==='activity'?'selected':''}>Activity</option>
+          <option value="pdf"        ${typeVal==='pdf'?'selected':''}>PDF</option>
+          <option value="website"    ${typeVal==='website'?'selected':''}>Website</option>
+          <option value="reading"    ${typeVal==='reading'?'selected':''}>Reading (opens in new tab)</option>
+          <option value="activity"   ${typeVal==='activity'?'selected':''}>Activity (opens in new tab)</option>
           <option value="streetview" ${typeVal==='streetview'?'selected':''}>360° Street View (Google Maps)</option>
         </select>
       </div>
@@ -489,6 +491,19 @@ function addPrepRow(p){
             Self-host with the upload button (max 50 MB · mp4/webm/mov/m4v/ogv), or paste any direct video URL <em>or YouTube link</em> above — students watch inside the portal either way.
           </p>
         </div>
+        <div class="field-hint" data-pdf-upload style="display:${typeVal==='pdf'?'block':'none'};margin-top:8px;">
+          <input type="file" data-field="pdf-upload-file" accept="application/pdf,.pdf" style="display:none;">
+          <button type="button" class="upload-btn" data-field="pdf-upload-btn" style="font-size:11px;font-weight:700;color:#006FF9;background:#fff;border:1.5px dashed #006FF9;border-radius:8px;padding:8px 14px;cursor:pointer;font-family:inherit;">
+            ⬆ Upload PDF (replaces URL)
+          </button>
+          <span class="upload-status" data-field="pdf-upload-status" style="margin-left:10px;font-size:11px;color:#8291AA;"></span>
+          <p style="font-size:11px;color:#8291AA;margin-top:6px;line-height:1.5;">
+            Upload a PDF (max 50 MB) or paste a direct PDF URL above. Students view it inline in the portal with the download button hidden.
+          </p>
+        </div>
+        <p class="field-hint" data-website-hint style="display:${typeVal==='website'?'block':'none'};font-size:11px;color:#8291AA;margin-top:6px;line-height:1.5;">
+          Paste any website URL. Students view it embedded inside the portal. Some sites (Google, major news, etc.) block embedding — if a site does, the modal shows an <strong>Open in new tab ↗</strong> link as a fallback.
+        </p>
       </div>
       <div class="field-group">
         <label>Duration</label>
@@ -507,14 +522,18 @@ function addPrepRow(p){
     });
   }
 
-  // Toggle the Street View hint + video upload widget per prep type.
-  var sel        = card.querySelector('select[data-field="type"]');
-  var streetHint = card.querySelector('[data-streetview-hint]');
-  var videoBlock = card.querySelector('[data-video-upload]');
+  // Toggle the per-type hints + upload widgets when the type changes.
+  var sel         = card.querySelector('select[data-field="type"]');
+  var streetHint  = card.querySelector('[data-streetview-hint]');
+  var videoBlock  = card.querySelector('[data-video-upload]');
+  var pdfBlock    = card.querySelector('[data-pdf-upload]');
+  var websiteHint = card.querySelector('[data-website-hint]');
   if (sel) {
     sel.addEventListener('change', function(){
-      if (streetHint) streetHint.style.display = (sel.value === 'streetview') ? 'block' : 'none';
-      if (videoBlock) videoBlock.style.display = (sel.value === 'video')      ? 'block' : 'none';
+      if (streetHint)  streetHint.style.display  = (sel.value === 'streetview') ? 'block' : 'none';
+      if (videoBlock)  videoBlock.style.display  = (sel.value === 'video')      ? 'block' : 'none';
+      if (pdfBlock)    pdfBlock.style.display    = (sel.value === 'pdf')        ? 'block' : 'none';
+      if (websiteHint) websiteHint.style.display = (sel.value === 'website')    ? 'block' : 'none';
     });
   }
 
@@ -618,6 +637,85 @@ function addPrepRow(p){
       } finally {
         uploadBtn.disabled = false;
         fileInput.value = '';
+      }
+    });
+  }
+
+  // PDF upload pipeline — same shape as the video flow above. Reuses the
+  // shared prep-upload-url endpoint and ft-prep bucket. On success the
+  // URL field is populated with the public Supabase URL (which the student
+  // side renders inline via <iframe src="...pdf#toolbar=0">).
+  var pdfFileInput = card.querySelector('input[data-field="pdf-upload-file"]');
+  var pdfUploadBtn = card.querySelector('button[data-field="pdf-upload-btn"]');
+  var pdfStatusEl  = card.querySelector('[data-field="pdf-upload-status"]');
+  if (pdfUploadBtn && pdfFileInput && urlInput && pdfStatusEl) {
+    var PDF_MAX_BYTES = 50 * 1024 * 1024;
+    pdfUploadBtn.addEventListener('click', function(){ pdfFileInput.click(); });
+    pdfFileInput.addEventListener('change', async function(){
+      var file = pdfFileInput.files && pdfFileInput.files[0];
+      if (!file) return;
+      if (file.size > PDF_MAX_BYTES) {
+        pdfStatusEl.textContent = '✗ File too large (max 50 MB).';
+        pdfStatusEl.style.color = '#a31515';
+        pdfFileInput.value = '';
+        return;
+      }
+      var tripId = String(TRIP_ID || '').trim();
+      if (!tripId) {
+        pdfStatusEl.textContent = '✗ Save the trip once first to assign an ID, then upload.';
+        pdfStatusEl.style.color = '#a31515';
+        pdfFileInput.value = '';
+        return;
+      }
+
+      pdfUploadBtn.disabled = true;
+      pdfStatusEl.style.color = '#006FF9';
+      pdfStatusEl.textContent = '⏳ Requesting upload URL…';
+
+      try {
+        var mintRes = await fetch('/api/admin/prep-upload-url', {
+          method: 'POST',
+          credentials: 'same-origin',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            trip_id:        tripId,
+            filename:       file.name,
+            content_length: file.size
+          })
+        });
+        var mintData = {};
+        try { mintData = await mintRes.json(); } catch(_) {}
+        if (mintRes.status !== 200) {
+          throw new Error(mintData.detail || mintData.error || ('mint failed (' + mintRes.status + ')'));
+        }
+
+        pdfStatusEl.textContent = '⏳ Uploading 0%…';
+        await new Promise(function(resolve, reject){
+          var xhr = new XMLHttpRequest();
+          xhr.open('PUT', mintData.upload_url, true);
+          xhr.setRequestHeader('Content-Type', file.type || 'application/pdf');
+          xhr.upload.addEventListener('progress', function(e){
+            if (!e.lengthComputable) return;
+            var pct = Math.round((e.loaded / e.total) * 100);
+            pdfStatusEl.textContent = '⏳ Uploading ' + pct + '%…';
+          });
+          xhr.onload  = function(){
+            if (xhr.status >= 200 && xhr.status < 300) resolve();
+            else reject(new Error('upload failed (' + xhr.status + ')'));
+          };
+          xhr.onerror = function(){ reject(new Error('upload network error')); };
+          xhr.send(file);
+        });
+
+        urlInput.value = mintData.public_url;
+        pdfStatusEl.textContent = '✓ Uploaded — URL filled in. Save the trip to persist.';
+        pdfStatusEl.style.color = '#1a5205';
+      } catch (err) {
+        pdfStatusEl.textContent = '✗ ' + err.message;
+        pdfStatusEl.style.color = '#a31515';
+      } finally {
+        pdfUploadBtn.disabled = false;
+        pdfFileInput.value = '';
       }
     });
   }

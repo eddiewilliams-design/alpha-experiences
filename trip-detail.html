@@ -535,6 +535,8 @@ function renderPrep(prep, targetListId, emptyMessage){
     var iconClass = 'prep-icon ';
     var iconLabel;
     if (type === 'video')           { iconClass += 'prep-icon-blue';   iconLabel = '▶'; }
+    else if (type === 'pdf')        { iconClass += 'prep-icon-yellow'; iconLabel = '📄'; }
+    else if (type === 'website')    { iconClass += 'prep-icon-blue';   iconLabel = '🔗'; }
     else if (type === 'reading')    { iconClass += 'prep-icon-yellow'; iconLabel = '📖'; }
     else if (type === 'activity')   { iconClass += 'prep-icon-green';  iconLabel = '✦'; }
     else if (type === 'streetview') { iconClass += 'prep-icon-blue';   iconLabel = '🌐'; }
@@ -555,11 +557,13 @@ function renderPrep(prep, targetListId, emptyMessage){
     var metaBits = [];
     if (item.duration) metaBits.push(item.duration);
     if (item.type) {
-      // Friendlier label for the new 'streetview' type so the meta line
-      // doesn't read "Streetview" — show "360° Street View" instead.
-      var typeLabel = (type === 'streetview')
-        ? '360° Street View'
-        : item.type.charAt(0).toUpperCase() + item.type.slice(1);
+      // Friendlier labels so meta lines read naturally instead of "Streetview"
+      // or "Pdf" (raw type lowercased + capitalized).
+      var typeLabel;
+      if      (type === 'streetview') typeLabel = '360° Street View';
+      else if (type === 'pdf')        typeLabel = 'PDF';
+      else if (type === 'website')    typeLabel = 'Website';
+      else                            typeLabel = item.type.charAt(0).toUpperCase() + item.type.slice(1);
       metaBits.push(typeLabel);
     }
     meta.textContent = metaBits.join('  ·  ');
@@ -611,6 +615,24 @@ function renderPrep(prep, targetListId, emptyMessage){
           openPrepModal({ title: item.title || 'Video', youtubeId: youTubeId, kind: 'youtube' });
         });
         row.appendChild(ybtn);
+      } else if (type === 'pdf') {
+        var pbtn = document.createElement('button');
+        pbtn.type        = 'button';
+        pbtn.className   = 'prep-btn';
+        pbtn.textContent = 'Read →';
+        pbtn.addEventListener('click', function(){
+          openPrepModal({ title: item.title || 'PDF', url: url, kind: 'pdf' });
+        });
+        row.appendChild(pbtn);
+      } else if (type === 'website') {
+        var wbtn = document.createElement('button');
+        wbtn.type        = 'button';
+        wbtn.className   = 'prep-btn';
+        wbtn.textContent = 'Open →';
+        wbtn.addEventListener('click', function(){
+          openPrepModal({ title: item.title || 'Website', url: url, kind: 'website' });
+        });
+        row.appendChild(wbtn);
       } else {
         var a = document.createElement('a');
         a.className   = 'prep-btn';
@@ -658,7 +680,11 @@ function extractYouTubeId(url) {
 
 // ── Prep viewer modal ──────────────────────────────────────
 // Opens an in-portal modal for prep items that should not leave the
-// portal. Today: 'streetview', 'video'. Future: PDF, article, 360° video.
+// portal. Supports streetview, hosted video, YouTube video, PDF, and
+// website embeds. For iframe-based kinds (everything except hosted
+// video), also surfaces an "Open in new tab ↗" link in the header so
+// the student has an escape hatch if the embedded site blocks framing
+// (X-Frame-Options / CSP).
 function openPrepModal(opts) {
   var modal = document.getElementById('prep-modal');
   var title = document.getElementById('prep-modal-title');
@@ -666,6 +692,20 @@ function openPrepModal(opts) {
   if (!modal || !title || !body) return;
   title.textContent = opts.title || 'Prep item';
   body.innerHTML = '';
+  // Reset/remove any prior "Open in new tab" link from a previous open.
+  var existingOpen = document.getElementById('prep-modal-open');
+  if (existingOpen) existingOpen.remove();
+
+  // The URL we'd use for a new-tab escape hatch. For YouTube, link out
+  // to the regular youtube.com watch page (not the nocookie embed
+  // domain) so the student lands somewhere they recognize.
+  var openUrl = null;
+  if (opts.kind === 'youtube' && opts.youtubeId) {
+    openUrl = 'https://www.youtube.com/watch?v=' + encodeURIComponent(opts.youtubeId);
+  } else if (opts.url) {
+    openUrl = opts.url;
+  }
+
   if (opts.kind === 'streetview') {
     var iframe = document.createElement('iframe');
     iframe.src             = opts.url;
@@ -703,7 +743,50 @@ function openPrepModal(opts) {
     ytFrame.allowFullscreen = true;
     ytFrame.referrerPolicy  = 'strict-origin-when-cross-origin';
     body.appendChild(ytFrame);
+  } else if (opts.kind === 'pdf') {
+    // Browsers' native PDF viewer. #toolbar=0 hides the download/print
+    // controls on Chrome and Edge — Firefox ignores the fragment but
+    // still renders the PDF inline. The "Open in new tab" link below
+    // handles the rare case where iframe PDF rendering is blocked.
+    var pdfFrame = document.createElement('iframe');
+    pdfFrame.src             = opts.url + '#toolbar=0';
+    pdfFrame.title           = opts.title || 'PDF';
+    pdfFrame.loading         = 'lazy';
+    pdfFrame.referrerPolicy  = 'no-referrer-when-downgrade';
+    body.appendChild(pdfFrame);
+  } else if (opts.kind === 'website') {
+    // Generic site embed. Many sites block iframe embedding via
+    // X-Frame-Options: DENY or strict CSP — when that happens, the
+    // iframe stays blank and the student uses the "Open in new tab"
+    // header link as a fallback.
+    var siteFrame = document.createElement('iframe');
+    siteFrame.src             = opts.url;
+    siteFrame.title           = opts.title || 'Website';
+    siteFrame.loading         = 'lazy';
+    siteFrame.allow           = 'fullscreen';
+    siteFrame.allowFullscreen = true;
+    siteFrame.referrerPolicy  = 'no-referrer-when-downgrade';
+    body.appendChild(siteFrame);
   }
+
+  // For every iframe-based kind, add an "Open in new tab ↗" link in
+  // the modal header so the student can escape if the embed fails.
+  // Hosted <video> doesn't need this since the file always plays.
+  if (opts.kind !== 'video' && openUrl) {
+    var head = document.querySelector('#prep-modal .prep-modal-head');
+    var closeBtn = document.getElementById('prep-modal-close');
+    if (head && closeBtn) {
+      var openLink = document.createElement('a');
+      openLink.id          = 'prep-modal-open';
+      openLink.href        = openUrl;
+      openLink.target      = '_blank';
+      openLink.rel         = 'noopener noreferrer';
+      openLink.textContent = 'Open in new tab ↗';
+      openLink.style.cssText = 'font-size:11px;font-weight:700;color:var(--aa-blue);text-decoration:none;margin-right:14px;';
+      head.insertBefore(openLink, closeBtn);
+    }
+  }
+
   modal.classList.add('open');
   document.body.style.overflow = 'hidden';
 }
@@ -719,6 +802,10 @@ function closePrepModal() {
     if (v) { try { v.pause(); } catch(_) {} }
     body.innerHTML = '';
   }
+  // Remove the "Open in new tab" header link so it doesn't bleed into
+  // the next modal open if that one's a hosted-video kind.
+  var openLink = document.getElementById('prep-modal-open');
+  if (openLink) openLink.remove();
   document.body.style.overflow = '';
 }
 
